@@ -1,0 +1,16 @@
+services:
+  db:
+    image: postgres:17-alpine
+    container_name: mereytoi_postgres
+    restart: unless-stopped
+    environment:
+      POSTGRES_USER: mereytoi
+      POSTGRES_PASSWORD: mereytoi_password
+      POSTGRES_DB: mereytoi_db
+    ports:
+      - "5433:5432"
+    volumes:
+      - mereytoi_pgdata:/var/lib/postgresql/data
+
+volumes:
+  mereytoi_pgdata:
