@@ -7,6 +7,7 @@ on:
 jobs:
   build-and-push:
     runs-on: ubuntu-latest
+
     steps:
       - uses: actions/checkout@v4
 
@@ -30,10 +31,6 @@ jobs:
         with:
           context: ./frontend
           push: true
-          # Origin only, no /api suffix: src/lib/*Api.js already prefix every
-          # call with /api/..., and media.js builds /uploads/... paths (a
-          # separate static route, not under /api). Adding /api here would
-          # produce /api/api/... and break /uploads/... image URLs.
           build-args: |
             NEXT_PUBLIC_API_URL=https://mereytoi.kz
           tags: |
@@ -43,10 +40,11 @@ jobs:
   deploy:
     needs: build-and-push
     runs-on: ubuntu-latest
+
     steps:
       - uses: actions/checkout@v4
 
-      - name: Ensure VPS deploy directory exists
+      - name: Verify VPS deploy directory exists and is writable
         uses: appleboy/ssh-action@v1
         with:
           host: ${{ secrets.VPS_HOST }}
@@ -54,7 +52,15 @@ jobs:
           username: ${{ secrets.VPS_USER }}
           key: ${{ secrets.VPS_SSH_KEY }}
           script: |
-            mkdir -p "${{ secrets.VPS_PATH }}"
+            test -d "${{ secrets.VPS_PATH }}" || {
+              echo "VPS_PATH does not exist: ${{ secrets.VPS_PATH }}"
+              exit 1
+            }
+
+            test -w "${{ secrets.VPS_PATH }}" || {
+              echo "VPS_PATH is not writable: ${{ secrets.VPS_PATH }}"
+              exit 1
+            }
 
       - name: Copy docker-compose.prod.yml to VPS
         uses: appleboy/scp-action@v0.1.7
@@ -65,6 +71,7 @@ jobs:
           key: ${{ secrets.VPS_SSH_KEY }}
           source: docker-compose.prod.yml
           target: ${{ secrets.VPS_PATH }}
+          overwrite: true
 
       - name: Deploy to VPS over SSH
         uses: appleboy/ssh-action@v1
@@ -74,9 +81,33 @@ jobs:
           username: ${{ secrets.VPS_USER }}
           key: ${{ secrets.VPS_SSH_KEY }}
           script: |
+            set -e
+
             cd "${{ secrets.VPS_PATH }}"
-            test -f docker-compose.prod.yml
+
+            test -f docker-compose.prod.yml || {
+              echo "docker-compose.prod.yml not found"
+              exit 1
+            }
+
+            test -f .env || {
+              echo ".env not found in ${{ secrets.VPS_PATH }}"
+              exit 1
+            }
+
             export DOCKERHUB_USERNAME="${{ secrets.DOCKERHUB_USERNAME }}"
-            docker compose -p mereytoi-prod -f docker-compose.prod.yml pull
-            docker compose -p mereytoi-prod -f docker-compose.prod.yml up -d --remove-orphans
-            docker compose -p mereytoi-prod -f docker-compose.prod.yml ps
+
+            docker compose \
+              -p mereytoi-prod \
+              -f docker-compose.prod.yml \
+              pull
+
+            docker compose \
+              -p mereytoi-prod \
+              -f docker-compose.prod.yml \
+              up -d --remove-orphans
+
+            docker compose \
+              -p mereytoi-prod \
+              -f docker-compose.prod.yml \
+              ps
