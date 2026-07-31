@@ -44,6 +44,28 @@ jobs:
     needs: build-and-push
     runs-on: ubuntu-latest
     steps:
+      - uses: actions/checkout@v4
+
+      - name: Ensure VPS deploy directory exists
+        uses: appleboy/ssh-action@v1
+        with:
+          host: ${{ secrets.VPS_HOST }}
+          port: ${{ secrets.VPS_PORT }}
+          username: ${{ secrets.VPS_USER }}
+          key: ${{ secrets.VPS_SSH_KEY }}
+          script: |
+            mkdir -p "${{ secrets.VPS_PATH }}"
+
+      - name: Copy docker-compose.prod.yml to VPS
+        uses: appleboy/scp-action@v0.1.7
+        with:
+          host: ${{ secrets.VPS_HOST }}
+          port: ${{ secrets.VPS_PORT }}
+          username: ${{ secrets.VPS_USER }}
+          key: ${{ secrets.VPS_SSH_KEY }}
+          source: docker-compose.prod.yml
+          target: ${{ secrets.VPS_PATH }}
+
       - name: Deploy to VPS over SSH
         uses: appleboy/ssh-action@v1
         with:
@@ -52,6 +74,9 @@ jobs:
           username: ${{ secrets.VPS_USER }}
           key: ${{ secrets.VPS_SSH_KEY }}
           script: |
-            cd ${{ secrets.VPS_PATH }}
+            cd "${{ secrets.VPS_PATH }}"
+            test -f docker-compose.prod.yml
+            export DOCKERHUB_USERNAME="${{ secrets.DOCKERHUB_USERNAME }}"
             docker compose -p mereytoi-prod -f docker-compose.prod.yml pull
             docker compose -p mereytoi-prod -f docker-compose.prod.yml up -d --remove-orphans
+            docker compose -p mereytoi-prod -f docker-compose.prod.yml ps
