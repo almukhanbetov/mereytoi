@@ -52,15 +52,25 @@ jobs:
           username: ${{ secrets.VPS_USER }}
           key: ${{ secrets.VPS_SSH_KEY }}
           script: |
-            test -d "${{ secrets.VPS_PATH }}" || {
-              echo "VPS_PATH does not exist: ${{ secrets.VPS_PATH }}"
+            test -d "/var/www/mereytoi" || {
+              echo "VPS_PATH does not exist: /var/www/mereytoi"
               exit 1
             }
 
-            test -w "${{ secrets.VPS_PATH }}" || {
-              echo "VPS_PATH is not writable: ${{ secrets.VPS_PATH }}"
+            test -w "/var/www/mereytoi" || {
+              echo "VPS_PATH is not writable: /var/www/mereytoi"
               exit 1
             }
+          # script: |
+          #   test -d "${{ secrets.VPS_PATH }}" || {
+          #     echo "VPS_PATH does not exist: ${{ secrets.VPS_PATH }}"
+          #     exit 1
+          #   }
+
+          #   test -w "${{ secrets.VPS_PATH }}" || {
+          #     echo "VPS_PATH is not writable: ${{ secrets.VPS_PATH }}"
+          #     exit 1
+          #   }
 
       - name: Copy docker-compose.prod.yml to VPS
         uses: appleboy/scp-action@v0.1.7
@@ -70,7 +80,8 @@ jobs:
           username: ${{ secrets.VPS_USER }}
           key: ${{ secrets.VPS_SSH_KEY }}
           source: docker-compose.prod.yml
-          target: ${{ secrets.VPS_PATH }}
+          # target: ${{ secrets.VPS_PATH }}
+          target: /var/www/mereytoi
           overwrite: true
 
       - name: Deploy to VPS over SSH
@@ -83,7 +94,8 @@ jobs:
           script: |
             set -e
 
-            cd "${{ secrets.VPS_PATH }}"
+            # cd "${{ secrets.VPS_PATH }}"
+            cd /var/www/mereytoi
 
             test -f docker-compose.prod.yml || {
               echo "docker-compose.prod.yml not found"
