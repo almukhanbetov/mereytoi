@@ -1,0 +1,77 @@
+# Production compose file for the VPS. The `db`/`backend`/`frontend`
+# services run on an internal network only; Nginx (configured separately,
+# outside this repo change) terminates TLS for mereytoi.kz / www.mereytoi.kz
+# and reverse-proxies to frontend (port 3000) and /api, /uploads to backend
+# (port 8090).
+#
+# Required variables (set them in a `.env` file next to this compose file
+# on the VPS — never commit real values):
+#   DB_PASSWORD, JWT_SECRET
+# Optional (sane defaults below):
+#   DOCKERHUB_USERNAME, DB_USER, DB_NAME, CORS_ORIGIN, NEXT_PUBLIC_API_URL
+#   IMAGE_TAG — pin to a specific build for rollback, e.g. a git SHA
+#   pushed by CI (defaults to "latest"): IMAGE_TAG=<sha> docker compose ... up -d
+
+services:
+  db:
+    image: postgres:17-alpine
+    restart: unless-stopped
+    environment:
+      POSTGRES_USER: ${DB_USER:-mereytoi}
+      POSTGRES_PASSWORD: ${DB_PASSWORD:-changeme_local_only}
+      POSTGRES_DB: ${DB_NAME:-mereytoi_db}
+    volumes:
+      - mereytoi_pgdata:/var/lib/postgresql/data
+    networks:
+      - mereytoi
+
+  backend:
+    build:
+      context: ./backend
+      dockerfile: Dockerfile
+    image: ${DOCKERHUB_USERNAME:-mereytoi}/mereytoi-backend:${IMAGE_TAG:-latest}
+    restart: unless-stopped
+    depends_on:
+      - db
+    environment:
+      PORT: 8090
+      DB_HOST: db
+      DB_PORT: 5432
+      DB_USER: ${DB_USER:-mereytoi}
+      DB_PASSWORD: ${DB_PASSWORD:-changeme_local_only}
+      DB_NAME: ${DB_NAME:-mereytoi_db}
+      DB_SSLMODE: disable
+      JWT_SECRET: ${JWT_SECRET:-changeme_local_only}
+      CORS_ORIGIN: ${CORS_ORIGIN:-https://mereytoi.kz,https://www.mereytoi.kz}
+    volumes:
+      - mereytoi_uploads:/app/uploads
+    ports:
+      - "127.0.0.1:8090:8090"
+    networks:
+      - mereytoi
+
+  frontend:
+    build:
+      context: ./frontend
+      dockerfile: Dockerfile
+      args:
+        NEXT_PUBLIC_API_URL: ${NEXT_PUBLIC_API_URL:-https://mereytoi.kz}
+    image: ${DOCKERHUB_USERNAME:-mereytoi}/mereytoi-frontend:${IMAGE_TAG:-latest}
+    restart: unless-stopped
+    depends_on:
+      - backend
+    environment:
+      PORT: 3000
+      BACKEND_API_URL: http://backend:8090
+    ports:
+      - "127.0.0.1:3000:3000"
+    networks:
+      - mereytoi
+
+networks:
+  mereytoi:
+    driver: bridge
+
+volumes:
+  mereytoi_pgdata:
+  mereytoi_uploads:

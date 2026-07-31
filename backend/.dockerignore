@@ -1,0 +1,6 @@
+.git
+.env
+.env.example
+*.log
+tmp/
+uploads/
