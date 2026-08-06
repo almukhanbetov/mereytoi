@@ -9,6 +9,19 @@ export default function Reveal({ as: Tag = 'div', className = '', delay = 0, sty
   useEffect(() => {
     const el = ref.current;
     if (!el) return;
+
+    // iOS Safari (WebKit) sometimes never fires the IntersectionObserver
+    // callback for elements already inside the viewport at observer-creation
+    // time — it only wakes up on a later scroll/resize. Check the element's
+    // position synchronously first so above-the-fold content isn't stuck
+    // invisible waiting for a callback that may never come.
+    const rect = el.getBoundingClientRect();
+    const vh = window.innerHeight || document.documentElement.clientHeight;
+    if (rect.top < vh - 60 && rect.bottom > 0) {
+      setInView(true);
+      return;
+    }
+
     const io = new IntersectionObserver(
       (entries) => {
         entries.forEach((entry) => {
