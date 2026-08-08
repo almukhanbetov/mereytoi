@@ -74,4 +74,8 @@ export const adminApi = {
   updateBookingStatus: (id, status) => request(`/api/bookings/${id}`, { method: 'PUT', body: { status }, auth: true }),
   updateBookingPaid: (id, paid) => request(`/api/bookings/${id}`, { method: 'PUT', body: { paid }, auth: true }),
   deleteBooking: (id) => request(`/api/bookings/${id}`, { method: 'DELETE', auth: true }),
+
+  comments: (approved) => request(`/api/comments${approved !== undefined ? `?approved=${approved}` : ''}`, { auth: true }),
+  approveComment: (id, approved) => request(`/api/comments/${id}`, { method: 'PUT', body: { approved }, auth: true }),
+  deleteComment: (id) => request(`/api/comments/${id}`, { method: 'DELETE', auth: true }),
 };

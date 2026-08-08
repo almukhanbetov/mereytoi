@@ -4,6 +4,7 @@ import { useMemo, useState } from 'react';
 import Link from 'next/link';
 import Reveal from '@/components/Reveal';
 import ServiceCard from '@/components/services/ServiceCard';
+import CommentsSection from '@/components/services/CommentsSection';
 import { T, useLang, useCart } from '@/context/AppProviders';
 import { formatPrice } from '@/lib/format';
 import { mediaUrl } from '@/lib/media';
@@ -158,6 +159,8 @@ export default function ServiceDetail({ listing, related }) {
           </div>
         </div>
       </section>
+
+      <CommentsSection listingId={listing.id} />
 
       {related.length > 0 && (
         <section className="related">

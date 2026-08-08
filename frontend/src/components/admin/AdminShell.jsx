@@ -13,11 +13,15 @@ export default function AdminShell({ user, children }) {
   const { toggleTheme } = useTheme();
   const [categories, setCategories] = useState([]);
   const [newBookings, setNewBookings] = useState(0);
+  const [pendingComments, setPendingComments] = useState(0);
 
   useEffect(() => {
     adminApi.categories().then((d) => setCategories(d.categories || [])).catch(() => {});
     adminApi.bookings()
       .then((d) => setNewBookings((d.bookings || []).filter((b) => b.status === 'new').length))
+      .catch(() => {});
+    adminApi.comments(false)
+      .then((d) => setPendingComments((d.comments || []).length))
       .catch(() => {});
   }, [pathname]);
 
@@ -36,6 +40,10 @@ export default function AdminShell({ user, children }) {
           <Link href="/admin/bookings" className={`admin-nav__link${pathname === '/admin/bookings' ? ' is-active' : ''}`}>
             <span>Заявки</span>
             {newBookings > 0 && <span className="admin-nav__badge">{newBookings}</span>}
+          </Link>
+          <Link href="/admin/comments" className={`admin-nav__link${pathname === '/admin/comments' ? ' is-active' : ''}`}>
+            <span>Комментарии</span>
+            {pendingComments > 0 && <span className="admin-nav__badge">{pendingComments}</span>}
           </Link>
 
           <span className="admin-nav__label">Услуги</span>

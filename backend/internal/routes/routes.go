@@ -17,6 +17,7 @@ func Register(r *gin.Engine, database *gorm.DB, cfg config.Config) {
 	listingHandler := handlers.NewListingHandler(database)
 	uploadHandler := handlers.NewUploadHandler()
 	bookingHandler := handlers.NewBookingHandler(database)
+	commentHandler := handlers.NewCommentHandler(database)
 
 	r.GET("/api/health", func(c *gin.Context) {
 		c.JSON(http.StatusOK, gin.H{"status": "ok"})
@@ -49,6 +50,8 @@ func Register(r *gin.Engine, database *gorm.DB, cfg config.Config) {
 		{
 			listings.GET("", listingHandler.List)
 			listings.GET("/:id", listingHandler.Get)
+			listings.GET("/:id/comments", commentHandler.ListApproved)
+			listings.POST("/:id/comments", middleware.RequireAuth(cfg.JWTSecret), commentHandler.Create)
 
 			admin := listings.Group("")
 			admin.Use(middleware.RequireAuth(cfg.JWTSecret), middleware.RequireAdmin())
@@ -57,6 +60,14 @@ func Register(r *gin.Engine, database *gorm.DB, cfg config.Config) {
 				admin.PUT("/:id", listingHandler.Update)
 				admin.DELETE("/:id", listingHandler.Delete)
 			}
+		}
+
+		comments := api.Group("/comments")
+		comments.Use(middleware.RequireAuth(cfg.JWTSecret), middleware.RequireAdmin())
+		{
+			comments.GET("", commentHandler.ListAll)
+			comments.PUT("/:id", commentHandler.UpdateApproval)
+			comments.DELETE("/:id", commentHandler.Delete)
 		}
 
 		uploads := api.Group("/uploads")

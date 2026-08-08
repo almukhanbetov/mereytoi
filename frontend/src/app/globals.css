@@ -565,6 +565,43 @@ section{ position:relative; padding: 130px 0; }
 .related{ padding: 0 0 120px; }
 .related .product-grid{ padding-top: 40px; }
 
+/* ============ Comments ============ */
+.comments-section{ padding: 0 0 90px; }
+.comment-stars{ display:flex; gap:4px; }
+.comment-stars__star{ font-size:18px; color: var(--border); line-height:1; }
+.comment-stars__star.is-filled{ color: var(--gold); }
+.comment-stars__star.is-interactive{ cursor:pointer; transition: transform .15s ease; }
+.comment-stars__star.is-interactive:hover{ transform: scale(1.15); }
+
+.comment-form{
+  background: var(--bg-card); border:1px solid var(--border); border-radius: var(--radius);
+  padding: 26px 28px; margin-bottom: 34px; display:flex; flex-direction:column; gap:14px; max-width:560px;
+}
+.comment-form__text{
+  background: var(--input-bg); border:1px solid var(--border); border-radius:10px;
+  padding: 13px 16px; color: var(--text); font-family:var(--font-montserrat), sans-serif; font-size:14.5px;
+  outline:none; resize:vertical; min-height:90px; transition: border-color .3s ease;
+}
+.comment-form__text:focus{ border-color: var(--gold); }
+.comment-form__success{
+  display:none; color: var(--gold-light); font-size:13px; font-weight:600; margin:0;
+}
+.comment-form__success.is-visible{ display:block; }
+.comment-form__login-prompt{ color: var(--text-muted); font-size:14.5px; margin-bottom: 34px; }
+.comment-form__login-prompt a{ color: var(--gold-light); }
+
+.comment-list{ display:flex; flex-direction:column; gap:18px; max-width:720px; }
+.comment{ display:flex; gap:16px; }
+.comment__avatar{
+  width:44px; height:44px; border-radius:50%; flex-shrink:0; display:flex; align-items:center; justify-content:center;
+  background: linear-gradient(135deg, var(--gold-light), var(--maroon)); color:#fff; font-weight:700; font-size:15px;
+}
+.comment__body{ flex:1; min-width:0; }
+.comment__head{ display:flex; align-items:center; justify-content:space-between; gap:12px; margin-bottom:4px; }
+.comment__author{ font-weight:600; color: var(--text); font-size:14.5px; }
+.comment__date{ font-size:12px; color: var(--text-muted); }
+.comment__text{ margin: 8px 0 0; color: var(--text-muted); font-size:14px; line-height:1.6; }
+
 /* ============ Admin ============ */
 .admin-loading{
   min-height:100vh; display:flex; align-items:center; justify-content:center;
