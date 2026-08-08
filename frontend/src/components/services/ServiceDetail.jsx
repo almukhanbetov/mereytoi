@@ -7,6 +7,7 @@ import ServiceCard from '@/components/services/ServiceCard';
 import { T, useLang, useCart } from '@/context/AppProviders';
 import { formatPrice } from '@/lib/format';
 import { mediaUrl } from '@/lib/media';
+import { flyToCart } from '@/lib/flyToCart';
 
 export default function ServiceDetail({ listing, related }) {
   const { lang } = useLang();
@@ -26,7 +27,7 @@ export default function ServiceDetail({ listing, related }) {
     [isPerPerson, guests, listing.price]
   );
 
-  function handleAddToCart() {
+  function handleAddToCart(e) {
     addItem({
       listingId: listing.id,
       name: lang === 'kz' ? listing.name_kz : listing.name_ru,
@@ -39,6 +40,7 @@ export default function ServiceDetail({ listing, related }) {
       guests: isPerPerson ? guests : null,
       totalPrice: total,
     });
+    flyToCart(e.currentTarget);
     setAdded(true);
     setTimeout(() => setAdded(false), 2200);
   }

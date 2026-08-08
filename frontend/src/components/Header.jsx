@@ -71,7 +71,7 @@ export default function Header() {
             <span className={`lang-switch__opt${lang === 'ru' ? ' is-active' : ''}`}>РУС</span>
             <span className={`lang-switch__opt${lang === 'kz' ? ' is-active' : ''}`}>ҚАЗ</span>
           </button>
-          <button className="cart-icon" onClick={openDrawer} aria-label="Себет / Корзина">
+          <button className="cart-icon" id="cart-icon" onClick={openDrawer} aria-label="Себет / Корзина">
             🛍
             <span className={`cart-icon__badge${count > 0 ? ' is-visible' : ''}`}>{count}</span>
           </button>

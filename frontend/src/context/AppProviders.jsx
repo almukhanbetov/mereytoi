@@ -115,7 +115,6 @@ function CartProvider({ children }) {
       localStorage.setItem(CART_KEY, JSON.stringify(next));
       return next;
     });
-    setIsOpen(true);
   }, []);
 
   const removeItem = useCallback((listingId) => {
