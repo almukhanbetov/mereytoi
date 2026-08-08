@@ -860,6 +860,21 @@ body.no-scroll{ overflow: hidden; }
   .cart-whatsapp{ margin-left:20px; margin-right:20px; }
 }
 
+.cart-pdf{
+  display:flex; align-items:center; justify-content:center; gap:10px;
+  margin: 0 28px 24px; padding: 14px 18px; border-radius: var(--radius);
+  background: transparent; border:1px solid var(--border); color: var(--text);
+  font-size:13.5px; font-weight:600; font-family:var(--font-montserrat), sans-serif; cursor:pointer;
+  transition: border-color .3s ease, color .3s ease;
+}
+.cart-pdf:hover{ border-color: var(--gold); color: var(--gold-light); }
+.cart-pdf:disabled{ opacity:.6; cursor:default; }
+.cart-pdf__icon{ font-size:16px; }
+
+@media (max-width: 480px){
+  .cart-pdf{ margin-left:20px; margin-right:20px; }
+}
+
 /* ============ Guest calculator (venue booking) ============ */
 .booking-calc{
   background: var(--bg-card); border:1px solid var(--border); border-radius: var(--radius);

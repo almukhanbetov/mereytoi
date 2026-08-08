@@ -8,6 +8,7 @@ import { mediaUrl } from '@/lib/media';
 import { createBooking, lookupBookings } from '@/lib/bookingApi';
 import { authApi, getUserToken } from '@/lib/authApi';
 import { buildWhatsAppLink } from '@/lib/whatsapp';
+import { downloadOfferPdf } from '@/lib/pdf';
 
 const STATUS_LABELS = {
   new: { ru: 'Новая', kz: 'Жаңа' },
@@ -31,6 +32,7 @@ export default function CartDrawer() {
   const [checkedOut, setCheckedOut] = useState(false);
   const [myBookings, setMyBookings] = useState([]);
   const [lastOrder, setLastOrder] = useState(null);
+  const [pdfGenerating, setPdfGenerating] = useState(false);
 
   const whatsappItems = items.length > 0 ? items : (lastOrder?.items || []);
   const whatsappTotal = items.length > 0 ? total : (lastOrder?.total || 0);
@@ -94,6 +96,17 @@ export default function CartDrawer() {
       setError(err.message || 'Не удалось отправить заявку');
     } finally {
       setSubmitting(false);
+    }
+  }
+
+  async function handleDownloadPdf() {
+    setPdfGenerating(true);
+    try {
+      await downloadOfferPdf({ items: whatsappItems, total: whatsappTotal, lang, formatPrice });
+    } catch (err) {
+      alert(err.message || (lang === 'kz' ? 'PDF жасау сәтсіз аяқталды' : 'Не удалось создать PDF'));
+    } finally {
+      setPdfGenerating(false);
     }
   }
 
@@ -209,6 +222,17 @@ export default function CartDrawer() {
             </span>
             <span className="cart-whatsapp__arrow">→</span>
           </a>
+        )}
+
+        {(items.length > 0 || (lastOrder && lastOrder.items.length > 0)) && (
+          <button type="button" className="cart-pdf" onClick={handleDownloadPdf} disabled={pdfGenerating}>
+            <span className="cart-pdf__icon">📄</span>
+            <span>
+              {pdfGenerating
+                ? <T ru="Формируем PDF…" kz="PDF дайындалуда…" />
+                : <T ru="Скачать PDF коммерческого предложения" kz="Коммерциялық ұсыныс PDF-ін жүктеу" />}
+            </span>
+          </button>
         )}
       </aside>
     </>
