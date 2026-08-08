@@ -72,5 +72,6 @@ export const adminApi = {
 
   bookings: () => request('/api/bookings', { auth: true }),
   updateBookingStatus: (id, status) => request(`/api/bookings/${id}`, { method: 'PUT', body: { status }, auth: true }),
+  updateBookingPaid: (id, paid) => request(`/api/bookings/${id}`, { method: 'PUT', body: { paid }, auth: true }),
   deleteBooking: (id) => request(`/api/bookings/${id}`, { method: 'DELETE', auth: true }),
 };

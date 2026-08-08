@@ -39,6 +39,15 @@ export default function AdminBookingsPage() {
     }
   }
 
+  async function handlePaidToggle(id, paid) {
+    try {
+      await adminApi.updateBookingPaid(id, paid);
+      setBookings((prev) => prev.map((b) => (b.id === id ? { ...b, paid } : b)));
+    } catch (err) {
+      alert(err.message || 'Не удалось обновить оплату');
+    }
+  }
+
   async function handleDelete(id, name) {
     if (!window.confirm(`Удалить заявку от «${name}»?`)) return;
     try {
@@ -67,6 +76,14 @@ export default function AdminBookingsPage() {
               </div>
               <div className="booking-card__meta">
                 <span className="booking-card__date">{formatDate(b.created_at)}</span>
+                <label className="booking-card__paid">
+                  <input
+                    type="checkbox"
+                    checked={!!b.paid}
+                    onChange={(e) => handlePaidToggle(b.id, e.target.checked)}
+                  />
+                  Оплачено
+                </label>
                 <select value={b.status} onChange={(e) => handleStatusChange(b.id, e.target.value)}>
                   {Object.entries(STATUS_LABELS).map(([value, label]) => (
                     <option key={value} value={value}>{label}</option>

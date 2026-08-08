@@ -26,6 +26,7 @@ type Booking struct {
 	Items     []BookingItem `gorm:"serializer:json" json:"items"`
 	Total     uint          `json:"total"`
 	Status    string        `gorm:"size:20;not null;default:new" json:"status"`
+	Paid      bool          `gorm:"not null;default:false" json:"paid"`
 	CreatedAt time.Time     `json:"created_at"`
 	UpdatedAt time.Time     `json:"updated_at"`
 }

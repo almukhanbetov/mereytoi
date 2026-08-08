@@ -36,6 +36,7 @@ func Register(r *gin.Engine, database *gorm.DB, cfg config.Config) {
 		users.Use(middleware.RequireAuth(cfg.JWTSecret))
 		{
 			users.GET("/me/bookings", bookingHandler.MyBookings)
+			users.DELETE("/me/bookings/:id", bookingHandler.DeleteMine)
 		}
 
 		categories := api.Group("/categories")

@@ -30,10 +30,13 @@ export default function CartDrawer() {
   const [submitting, setSubmitting] = useState(false);
   const [checkedOut, setCheckedOut] = useState(false);
   const [myBookings, setMyBookings] = useState([]);
+  const [lastOrder, setLastOrder] = useState(null);
 
+  const whatsappItems = items.length > 0 ? items : (lastOrder?.items || []);
+  const whatsappTotal = items.length > 0 ? total : (lastOrder?.total || 0);
   const whatsappLink = useMemo(
-    () => buildWhatsAppLink({ items, total, phone, lang, formatPrice }),
-    [items, total, phone, lang]
+    () => buildWhatsAppLink({ items: whatsappItems, total: whatsappTotal, phone, lang, formatPrice }),
+    [whatsappItems, whatsappTotal, phone, lang]
   );
 
   useEffect(() => {
@@ -79,6 +82,7 @@ export default function CartDrawer() {
       );
       if (!isAuthenticated) addBookingRef(booking.public_ref);
       setMyBookings((prev) => [booking, ...prev]);
+      setLastOrder({ items, total });
       setCheckedOut(true);
       clear();
       if (!isAuthenticated) {
@@ -126,7 +130,7 @@ export default function CartDrawer() {
             </div>
           ))}
 
-          {items.length === 0 && (
+          {items.length === 0 && !lastOrder && (
             <p className="cart-drawer__empty"><T ru="Вы ещё ничего не добавили" kz="Сіз әлі ештеңе қоспадыңыз" /></p>
           )}
 
@@ -156,7 +160,7 @@ export default function CartDrawer() {
           )}
         </div>
 
-        {items.length > 0 && (
+        {items.length > 0 ? (
           <form className="cart-drawer__footer" onSubmit={handleCheckout}>
             <div className="cart-drawer__total">
               <span><T ru="Итого" kz="Барлығы" /></span>
@@ -185,13 +189,16 @@ export default function CartDrawer() {
             <button type="submit" className="btn btn--gold btn--block" disabled={submitting}>
               {submitting ? <T ru="Отправляем…" kz="Жіберілуде…" /> : <T ru="Оформить заявку" kz="Өтінім жасау" />}
             </button>
-            <p className={`cart-drawer__success${checkedOut ? ' is-visible' : ''}`}>
+          </form>
+        ) : checkedOut ? (
+          <div className="cart-drawer__footer">
+            <p className="cart-drawer__success is-visible">
               <T ru="Спасибо! Мы свяжемся с вами для подтверждения." kz="Рахмет! Растау үшін сізбен байланысамыз." />
             </p>
-          </form>
-        )}
+          </div>
+        ) : null}
 
-        {items.length > 0 && (
+        {(items.length > 0 || (lastOrder && lastOrder.items.length > 0)) && (
           <a className="cart-whatsapp" href={whatsappLink} target="_blank" rel="noopener noreferrer">
             <span className="cart-whatsapp__icon">💬</span>
             <span className="cart-whatsapp__body">

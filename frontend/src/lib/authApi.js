@@ -47,4 +47,5 @@ export const authApi = {
   me: () => request('/api/auth/me', { auth: true }),
   updateMe: (name, phone) => request('/api/auth/me', { method: 'PUT', body: { name, phone }, auth: true }),
   myBookings: () => request('/api/users/me/bookings', { auth: true }),
+  deleteMyBooking: (id) => request(`/api/users/me/bookings/${id}`, { method: 'DELETE', auth: true }),
 };

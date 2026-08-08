@@ -7,12 +7,10 @@ import { T, useLang } from '@/context/AppProviders';
 import { authApi } from '@/lib/authApi';
 import { formatPrice } from '@/lib/format';
 
-const STATUS_LABELS = {
-  new: { ru: 'Новая', kz: 'Жаңа' },
-  contacted: { ru: 'Связались', kz: 'Хабарластық' },
-  confirmed: { ru: 'Подтверждена', kz: 'Расталды' },
-  cancelled: { ru: 'Отменена', kz: 'Болдырылмады' },
-};
+function paidLabel(paid, lang) {
+  if (paid) return lang === 'kz' ? 'Белсенді' : 'Активна';
+  return lang === 'kz' ? 'Қарастырылуда' : 'На рассмотрении';
+}
 
 function formatDate(iso) {
   return new Date(iso).toLocaleDateString('ru-RU', { day: '2-digit', month: '2-digit', year: 'numeric' });
@@ -68,6 +66,17 @@ export default function ProfilePage() {
   function handleLogout() {
     logout();
     router.push('/');
+  }
+
+  async function handleDeleteBooking(id) {
+    const confirmText = lang === 'kz' ? 'Өтінімді жоюды растайсыз ба?' : 'Удалить эту заявку?';
+    if (!window.confirm(confirmText)) return;
+    try {
+      await authApi.deleteMyBooking(id);
+      setBookings((prev) => prev.filter((b) => b.id !== id));
+    } catch (err) {
+      alert(err.message || (lang === 'kz' ? 'Жою сәтсіз аяқталды' : 'Не удалось удалить'));
+    }
   }
 
   if (loading || !isAuthenticated) {
@@ -127,11 +136,11 @@ export default function ProfilePage() {
 
             <div className="booking-list">
               {bookings.map((b) => (
-                <div className={`booking-card booking-card--${b.status}`} key={b.id}>
+                <div className={`booking-card booking-card--${b.paid ? 'paid' : 'pending'}`} key={b.id}>
                   <div className="booking-card__head">
                     <span className="booking-card__date">{formatDate(b.created_at)}</span>
-                    <span className={`my-booking__status my-booking__status--${b.status}`}>
-                      {STATUS_LABELS[b.status]?.[lang] || b.status}
+                    <span className={`my-booking__status my-booking__status--${b.paid ? 'paid' : 'pending'}`}>
+                      {paidLabel(b.paid, lang)}
                     </span>
                   </div>
                   <div className="booking-card__items">
@@ -150,6 +159,13 @@ export default function ProfilePage() {
                   </div>
                   <div className="booking-card__footer">
                     <span><T ru="Итого" kz="Барлығы" />: <b>{formatPrice(b.total)}</b></span>
+                    <button
+                      type="button"
+                      className="admin-table__link admin-table__link--danger"
+                      onClick={() => handleDeleteBooking(b.id)}
+                    >
+                      <T ru="Удалить" kz="Жою" />
+                    </button>
                   </div>
                 </div>
               ))}

@@ -144,7 +144,8 @@ func (h *BookingHandler) List(c *gin.Context) {
 }
 
 type bookingStatusInput struct {
-	Status string `json:"status" binding:"required,oneof=new contacted confirmed cancelled"`
+	Status *string `json:"status" binding:"omitempty,oneof=new contacted confirmed cancelled"`
+	Paid   *bool   `json:"paid"`
 }
 
 func (h *BookingHandler) UpdateStatus(c *gin.Context) {
@@ -166,7 +167,12 @@ func (h *BookingHandler) UpdateStatus(c *gin.Context) {
 		return
 	}
 
-	booking.Status = in.Status
+	if in.Status != nil {
+		booking.Status = *in.Status
+	}
+	if in.Paid != nil {
+		booking.Paid = *in.Paid
+	}
 	if err := h.DB.Save(&booking).Error; err != nil {
 		c.JSON(http.StatusInternalServerError, gin.H{"error": "failed to update booking"})
 		return
@@ -183,6 +189,35 @@ func (h *BookingHandler) Delete(c *gin.Context) {
 	}
 
 	if err := h.DB.Delete(&models.Booking{}, id).Error; err != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{"error": "failed to delete booking"})
+		return
+	}
+
+	c.JSON(http.StatusOK, gin.H{"message": "booking deleted"})
+}
+
+// DeleteMine lets an authenticated customer delete one of their own
+// bookings — DELETE /api/users/me/bookings/:id.
+func (h *BookingHandler) DeleteMine(c *gin.Context) {
+	id, err := strconv.Atoi(c.Param("id"))
+	if err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{"error": "invalid id"})
+		return
+	}
+	userIDVal, _ := c.Get(middleware.ContextUserIDKey)
+	userID, _ := userIDVal.(uint)
+
+	var booking models.Booking
+	if err := h.DB.First(&booking, id).Error; err != nil {
+		c.JSON(http.StatusNotFound, gin.H{"error": "booking not found"})
+		return
+	}
+	if booking.UserID == nil || *booking.UserID != userID {
+		c.JSON(http.StatusForbidden, gin.H{"error": "not your booking"})
+		return
+	}
+
+	if err := h.DB.Delete(&booking).Error; err != nil {
 		c.JSON(http.StatusInternalServerError, gin.H{"error": "failed to delete booking"})
 		return
 	}
