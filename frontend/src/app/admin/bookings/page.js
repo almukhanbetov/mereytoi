@@ -1,6 +1,6 @@
 'use client';
 
-import { useEffect, useState } from 'react';
+import { useEffect, useMemo, useState } from 'react';
 import { adminApi } from '@/lib/adminApi';
 import { formatPrice } from '@/lib/format';
 
@@ -19,6 +19,23 @@ export default function AdminBookingsPage() {
   const [bookings, setBookings] = useState([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
+  const [search, setSearch] = useState('');
+  const [statusFilter, setStatusFilter] = useState('all');
+  const [paidFilter, setPaidFilter] = useState('all');
+
+  const filtered = useMemo(() => {
+    const term = search.trim().toLowerCase();
+    return bookings.filter((b) => {
+      if (statusFilter !== 'all' && b.status !== statusFilter) return false;
+      if (paidFilter === 'paid' && !b.paid) return false;
+      if (paidFilter === 'pending' && b.paid) return false;
+      if (term) {
+        const haystack = `${b.name} ${b.phone}`.toLowerCase();
+        if (!haystack.includes(term)) return false;
+      }
+      return true;
+    });
+  }, [bookings, search, statusFilter, paidFilter]);
 
   function load() {
     setLoading(true);
@@ -62,12 +79,36 @@ export default function AdminBookingsPage() {
     <div>
       <h1 className="admin-page-title">Заявки</h1>
 
+      <div className="admin-filters">
+        <input
+          type="text"
+          className="admin-filters__search"
+          placeholder="Поиск по имени или телефону…"
+          value={search}
+          onChange={(e) => setSearch(e.target.value)}
+        />
+        <select value={statusFilter} onChange={(e) => setStatusFilter(e.target.value)}>
+          <option value="all">Все статусы</option>
+          {Object.entries(STATUS_LABELS).map(([value, label]) => (
+            <option key={value} value={value}>{label}</option>
+          ))}
+        </select>
+        <select value={paidFilter} onChange={(e) => setPaidFilter(e.target.value)}>
+          <option value="all">Оплата: все</option>
+          <option value="paid">Оплачено</option>
+          <option value="pending">Не оплачено</option>
+        </select>
+      </div>
+
       {error && <p className="admin-login__error">{error}</p>}
       {loading && <p className="admin-table__empty">Загрузка…</p>}
       {!loading && bookings.length === 0 && <p className="admin-table__empty">Заявок пока нет</p>}
+      {!loading && bookings.length > 0 && filtered.length === 0 && (
+        <p className="admin-table__empty">Ничего не найдено по заданным фильтрам</p>
+      )}
 
       <div className="booking-list">
-        {bookings.map((b) => (
+        {filtered.map((b) => (
           <div className={`booking-card booking-card--${b.status}`} key={b.id}>
             <div className="booking-card__head">
               <div>
