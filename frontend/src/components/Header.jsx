@@ -68,8 +68,7 @@ export default function Header() {
             <span className="theme-switch__icon theme-switch__icon--moon">☾</span>
           </button>
           <button className="lang-switch" onClick={toggleLang} aria-label="Тілді ауыстыру / Переключить язык">
-            <span className={`lang-switch__opt${lang === 'ru' ? ' is-active' : ''}`}>РУС</span>
-            <span className={`lang-switch__opt${lang === 'kz' ? ' is-active' : ''}`}>ҚАЗ</span>
+            {lang === 'ru' ? 'РУС' : 'ҚАЗ'}
           </button>
           <button className="cart-icon" id="cart-icon" onClick={openDrawer} aria-label="Себет / Корзина">
             🛍
