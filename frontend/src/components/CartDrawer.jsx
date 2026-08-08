@@ -1,12 +1,13 @@
 'use client';
 
-import { useEffect, useState } from 'react';
+import { useEffect, useMemo, useState } from 'react';
 import { useCart, useLang, T } from '@/context/AppProviders';
 import { useAuth } from '@/context/AuthContext';
 import { formatPrice } from '@/lib/format';
 import { mediaUrl } from '@/lib/media';
 import { createBooking, lookupBookings } from '@/lib/bookingApi';
 import { authApi, getUserToken } from '@/lib/authApi';
+import { buildWhatsAppLink } from '@/lib/whatsapp';
 
 const STATUS_LABELS = {
   new: { ru: 'Новая', kz: 'Жаңа' },
@@ -29,6 +30,11 @@ export default function CartDrawer() {
   const [submitting, setSubmitting] = useState(false);
   const [checkedOut, setCheckedOut] = useState(false);
   const [myBookings, setMyBookings] = useState([]);
+
+  const whatsappLink = useMemo(
+    () => buildWhatsAppLink({ items, total, phone, lang, formatPrice }),
+    [items, total, phone, lang]
+  );
 
   useEffect(() => {
     document.body.classList.toggle('no-scroll', isOpen);
@@ -183,6 +189,19 @@ export default function CartDrawer() {
               <T ru="Спасибо! Мы свяжемся с вами для подтверждения." kz="Рахмет! Растау үшін сізбен байланысамыз." />
             </p>
           </form>
+        )}
+
+        {items.length > 0 && (
+          <a className="cart-whatsapp" href={whatsappLink} target="_blank" rel="noopener noreferrer">
+            <span className="cart-whatsapp__icon">💬</span>
+            <span className="cart-whatsapp__body">
+              <span className="cart-whatsapp__title"><T ru="Отправить в WhatsApp" kz="WhatsApp-қа жіберу" /></span>
+              <span className="cart-whatsapp__desc">
+                <T ru="Коммерческое предложение по выбранным услугам" kz="Таңдалған қызметтер бойынша коммерциялық ұсыныс" />
+              </span>
+            </span>
+            <span className="cart-whatsapp__arrow">→</span>
+          </a>
         )}
       </aside>
     </>
