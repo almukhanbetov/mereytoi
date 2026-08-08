@@ -133,25 +133,31 @@ export default function AdminBookingsPage() {
               </div>
             </div>
 
-            <div className="booking-card__items">
-              {(b.items || []).map((item, i) => (
-                <div className="booking-card__item" key={i}>
-                  <div>
-                    <span className="booking-card__item-name">{item.name}</span>
-                    {item.category && <span className="booking-card__item-cat"> · {item.category}</span>}
-                    {item.guests > 0 && (
-                      <div className="booking-card__item-guests">{item.guests} чел. × {formatPrice(item.unit_price)}</div>
-                    )}
+            {(b.items || []).length > 0 && (
+              <div className="booking-card__items">
+                {b.items.map((item, i) => (
+                  <div className="booking-card__item" key={i}>
+                    <div>
+                      <span className="booking-card__item-name">{item.name}</span>
+                      {item.category && <span className="booking-card__item-cat"> · {item.category}</span>}
+                      {item.guests > 0 && (
+                        <div className="booking-card__item-guests">{item.guests} чел. × {formatPrice(item.unit_price)}</div>
+                      )}
+                    </div>
+                    <span className="booking-card__item-price">{formatPrice(item.total_price)}</span>
                   </div>
-                  <span className="booking-card__item-price">{formatPrice(item.total_price)}</span>
-                </div>
-              ))}
-            </div>
+                ))}
+              </div>
+            )}
 
             {b.message && <p className="booking-card__message">«{b.message}»</p>}
 
             <div className="booking-card__footer">
-              <span>Итого: <b>{formatPrice(b.total)}</b></span>
+              {(b.items || []).length > 0 ? (
+                <span>Итого: <b>{formatPrice(b.total)}</b></span>
+              ) : (
+                <span>Общая заявка с сайта</span>
+              )}
               <button className="admin-table__link admin-table__link--danger" onClick={() => handleDelete(b.id, b.name)}>
                 Удалить
               </button>

@@ -45,7 +45,9 @@ type bookingInput struct {
 	Name    string             `json:"name" binding:"required"`
 	Phone   string             `json:"phone" binding:"required"`
 	Message string             `json:"message"`
-	Items   []bookingItemInput `json:"items" binding:"required,min=1"`
+	// General contact-form inquiries (no specific listing selected) submit
+	// an empty items array — only cart checkouts require at least one.
+	Items []bookingItemInput `json:"items"`
 }
 
 func (h *BookingHandler) Create(c *gin.Context) {
