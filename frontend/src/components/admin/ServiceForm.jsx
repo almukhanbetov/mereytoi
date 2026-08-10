@@ -213,7 +213,12 @@ export default function ServiceForm({ categories, initial, listingId }) {
           ))}
         </div>
       )}
-      {uploading && <p className="admin-login__title" style={{ margin: 0 }}>Загружаем фото…</p>}
+      {uploading && (
+        <p className="admin-upload-status">
+          <span className="admin-spinner" aria-hidden="true" />
+          Загружаем фото…
+        </p>
+      )}
 
       <label>
         <span>Видео (одно или несколько — mp4, webm, mov, до 200MB каждое)</span>
@@ -237,7 +242,12 @@ export default function ServiceForm({ categories, initial, listingId }) {
           ))}
         </div>
       )}
-      {uploadingVideo && <p className="admin-login__title" style={{ margin: 0 }}>Загружаем видео… (может занять до пары минут на файл)</p>}
+      {uploadingVideo && (
+        <p className="admin-upload-status">
+          <span className="admin-spinner" aria-hidden="true" />
+          Загружаем видео… (может занять до пары минут на файл)
+        </p>
+      )}
 
       <div
         className="admin-preview"
