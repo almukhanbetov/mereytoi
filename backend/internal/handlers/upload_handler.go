@@ -87,8 +87,16 @@ func transcodeToH264(inputPath, outputPath string) error {
 		"-y",
 		"-i", inputPath,
 		"-c:v", "libx264",
+		"-preset", "veryfast", // encoding speed over file size — a VPS CPU can take
+		// several minutes per GB at the default "medium" preset, easily
+		// blowing past Nginx's proxy_read_timeout on 4K phone footage.
 		"-profile:v", "high",
 		"-pix_fmt", "yuv420p",
+		// Cap at 1080p — a listing showcase video has no use for 4K source
+		// footage, and downscaling cuts encode time and output size a lot.
+		// -2 keeps the width even (required by libx264) while preserving
+		// aspect ratio; only scales down, never up.
+		"-vf", "scale='min(1920,iw)':'min(1080,ih)':force_original_aspect_ratio=decrease:force_divisible_by=2",
 		"-c:a", "aac",
 		"-movflags", "+faststart",
 		outputPath,
