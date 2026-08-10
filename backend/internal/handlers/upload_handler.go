@@ -1,9 +1,11 @@
 package handlers
 
 import (
+	"bytes"
 	"fmt"
 	"net/http"
 	"os"
+	"os/exec"
 	"path/filepath"
 	"strings"
 	"time"
@@ -76,8 +78,32 @@ func (h *UploadHandler) Upload(c *gin.Context) {
 	c.JSON(http.StatusOK, gin.H{"urls": urls})
 }
 
+// transcodeToH264 normalizes any input video to an H.264/AAC .mp4 so every
+// browser can play it — iPhone recordings default to HEVC (H.265), which
+// most browsers (Chrome on Linux/Windows/Android in particular) can't
+// decode: the file plays audio but shows a black frame.
+func transcodeToH264(inputPath, outputPath string) error {
+	cmd := exec.Command("ffmpeg",
+		"-y",
+		"-i", inputPath,
+		"-c:v", "libx264",
+		"-profile:v", "high",
+		"-pix_fmt", "yuv420p",
+		"-c:a", "aac",
+		"-movflags", "+faststart",
+		outputPath,
+	)
+	var stderr bytes.Buffer
+	cmd.Stderr = &stderr
+	if err := cmd.Run(); err != nil {
+		return fmt.Errorf("ffmpeg: %w: %s", err, stderr.String())
+	}
+	return nil
+}
+
 // UploadVideo handles POST /api/uploads/video (multipart form, single field
-// "video"). Saves one video file to disk and returns its public URL.
+// "video"). Saves the upload, transcodes it to H.264/AAC, and returns the
+// public URL of the transcoded file.
 func (h *UploadHandler) UploadVideo(c *gin.Context) {
 	file, err := c.FormFile("video")
 	if err != nil {
@@ -100,10 +126,18 @@ func (h *UploadHandler) UploadVideo(c *gin.Context) {
 		return
 	}
 
-	name := fmt.Sprintf("%d%s", time.Now().UnixNano(), ext)
-	dest := filepath.Join(uploadsDir, name)
-	if err := c.SaveUploadedFile(file, dest); err != nil {
+	srcName := fmt.Sprintf("%d_src%s", time.Now().UnixNano(), ext)
+	srcPath := filepath.Join(uploadsDir, srcName)
+	if err := c.SaveUploadedFile(file, srcPath); err != nil {
 		c.JSON(http.StatusInternalServerError, gin.H{"error": "failed to save file"})
+		return
+	}
+	defer os.Remove(srcPath)
+
+	name := fmt.Sprintf("%d.mp4", time.Now().UnixNano())
+	dest := filepath.Join(uploadsDir, name)
+	if err := transcodeToH264(srcPath, dest); err != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{"error": "failed to process video"})
 		return
 	}
 
