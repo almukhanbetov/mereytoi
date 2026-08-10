@@ -74,6 +74,7 @@ func Register(r *gin.Engine, database *gorm.DB, cfg config.Config) {
 		uploads.Use(middleware.RequireAuth(cfg.JWTSecret), middleware.RequireAdmin())
 		{
 			uploads.POST("", uploadHandler.Upload)
+			uploads.POST("/video", uploadHandler.UploadVideo)
 		}
 
 		bookings := api.Group("/bookings")

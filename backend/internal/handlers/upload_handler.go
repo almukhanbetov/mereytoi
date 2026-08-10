@@ -19,6 +19,12 @@ var allowedImageExt = map[string]bool{
 
 const maxImageSize = 8 << 20 // 8MB per file
 
+var allowedVideoExt = map[string]bool{
+	".mp4": true, ".webm": true, ".mov": true, ".m4v": true,
+}
+
+const maxVideoSize = 100 << 20 // 100MB per file
+
 type UploadHandler struct{}
 
 func NewUploadHandler() *UploadHandler {
@@ -68,4 +74,38 @@ func (h *UploadHandler) Upload(c *gin.Context) {
 	}
 
 	c.JSON(http.StatusOK, gin.H{"urls": urls})
+}
+
+// UploadVideo handles POST /api/uploads/video (multipart form, single field
+// "video"). Saves one video file to disk and returns its public URL.
+func (h *UploadHandler) UploadVideo(c *gin.Context) {
+	file, err := c.FormFile("video")
+	if err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{"error": "no video file provided"})
+		return
+	}
+
+	ext := strings.ToLower(filepath.Ext(file.Filename))
+	if !allowedVideoExt[ext] {
+		c.JSON(http.StatusBadRequest, gin.H{"error": fmt.Sprintf("unsupported file type: %s", ext)})
+		return
+	}
+	if file.Size > maxVideoSize {
+		c.JSON(http.StatusBadRequest, gin.H{"error": fmt.Sprintf("%s is larger than 100MB", file.Filename)})
+		return
+	}
+
+	if err := os.MkdirAll(uploadsDir, 0755); err != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{"error": "failed to prepare upload directory"})
+		return
+	}
+
+	name := fmt.Sprintf("%d%s", time.Now().UnixNano(), ext)
+	dest := filepath.Join(uploadsDir, name)
+	if err := c.SaveUploadedFile(file, dest); err != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{"error": "failed to save file"})
+		return
+	}
+
+	c.JSON(http.StatusOK, gin.H{"url": "/uploads/" + name})
 }

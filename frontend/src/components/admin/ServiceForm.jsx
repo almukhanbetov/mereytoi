@@ -21,6 +21,7 @@ const EMPTY = {
   color_from: '#3a1420',
   color_to: '#d4af6a',
   image_urls: [],
+  video_url: '',
 };
 
 export default function ServiceForm({ categories, initial, listingId }) {
@@ -29,6 +30,7 @@ export default function ServiceForm({ categories, initial, listingId }) {
   const [error, setError] = useState('');
   const [submitting, setSubmitting] = useState(false);
   const [uploading, setUploading] = useState(false);
+  const [uploadingVideo, setUploadingVideo] = useState(false);
 
   function set(key, value) {
     setValues((v) => ({ ...v, [key]: value }));
@@ -52,6 +54,26 @@ export default function ServiceForm({ categories, initial, listingId }) {
 
   function removeImage(url) {
     setValues((v) => ({ ...v, image_urls: v.image_urls.filter((u) => u !== url) }));
+  }
+
+  async function handleVideoFile(e) {
+    const file = e.target.files?.[0];
+    if (!file) return;
+    setError('');
+    setUploadingVideo(true);
+    try {
+      const url = await adminApi.uploadVideo(file);
+      set('video_url', url);
+    } catch (err) {
+      setError(err.message || 'Не удалось загрузить видео');
+    } finally {
+      setUploadingVideo(false);
+      e.target.value = '';
+    }
+  }
+
+  function removeVideo() {
+    set('video_url', '');
   }
 
   async function handleSubmit(e) {
@@ -178,6 +200,26 @@ export default function ServiceForm({ categories, initial, listingId }) {
         </div>
       )}
       {uploading && <p className="admin-login__title" style={{ margin: 0 }}>Загружаем фото…</p>}
+
+      <label>
+        <span>Видео (mp4, webm, mov — до 100MB)</span>
+        <input type="file" accept="video/mp4,video/webm,video/quicktime" onChange={handleVideoFile} disabled={uploadingVideo} />
+      </label>
+
+      {values.video_url && (
+        <div className="admin-video-preview">
+          <video src={mediaUrl(values.video_url)} controls />
+          <div className="admin-video-preview__actions">
+            <a className="admin-table__link" href={mediaUrl(values.video_url)} download target="_blank" rel="noopener noreferrer">
+              Скачать видео
+            </a>
+            <button type="button" className="admin-table__link admin-table__link--danger" onClick={removeVideo}>
+              Удалить видео
+            </button>
+          </div>
+        </div>
+      )}
+      {uploadingVideo && <p className="admin-login__title" style={{ margin: 0 }}>Загружаем видео…</p>}
 
       <div
         className="admin-preview"

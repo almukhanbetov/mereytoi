@@ -54,6 +54,24 @@ async function uploadImages(files) {
   return data.urls;
 }
 
+async function uploadVideo(file) {
+  const token = getToken();
+  const formData = new FormData();
+  formData.append('video', file);
+
+  const res = await fetch(`${API_URL}/api/uploads/video`, {
+    method: 'POST',
+    headers: token ? { Authorization: `Bearer ${token}` } : undefined,
+    body: formData,
+  });
+
+  const data = await res.json().catch(() => ({}));
+  if (!res.ok) {
+    throw new Error(data.error || `Upload failed (${res.status})`);
+  }
+  return data.url;
+}
+
 export const adminApi = {
   login: (identifier, password) => {
     const trimmed = identifier.trim();
@@ -69,6 +87,7 @@ export const adminApi = {
   updateListing: (id, payload) => request(`/api/listings/${id}`, { method: 'PUT', body: payload, auth: true }),
   deleteListing: (id) => request(`/api/listings/${id}`, { method: 'DELETE', auth: true }),
   uploadImages,
+  uploadVideo,
 
   bookings: () => request('/api/bookings', { auth: true }),
   updateBookingStatus: (id, status) => request(`/api/bookings/${id}`, { method: 'PUT', body: { status }, auth: true }),
