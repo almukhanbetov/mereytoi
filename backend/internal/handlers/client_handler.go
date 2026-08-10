@@ -29,10 +29,8 @@ func (h *ClientHandler) List(c *gin.Context) {
 }
 
 type clientInput struct {
-	Name      string `json:"name" binding:"required"`
-	EventType string `json:"event_type" binding:"required,oneof=wedding anniversary corporate"`
-	Quote     string `json:"quote"`
-	PhotoURL  string `json:"photo_url"`
+	Name     string `json:"name" binding:"required"`
+	PhotoURL string `json:"photo_url"`
 }
 
 // Create adds a new client entry — POST /api/clients (admin).
@@ -44,10 +42,8 @@ func (h *ClientHandler) Create(c *gin.Context) {
 	}
 
 	client := models.Client{
-		Name:      in.Name,
-		EventType: in.EventType,
-		Quote:     in.Quote,
-		PhotoURL:  in.PhotoURL,
+		Name:     in.Name,
+		PhotoURL: in.PhotoURL,
 	}
 	if err := h.DB.Create(&client).Error; err != nil {
 		c.JSON(http.StatusInternalServerError, gin.H{"error": "failed to create client"})
@@ -78,8 +74,6 @@ func (h *ClientHandler) Update(c *gin.Context) {
 	}
 
 	client.Name = in.Name
-	client.EventType = in.EventType
-	client.Quote = in.Quote
 	client.PhotoURL = in.PhotoURL
 
 	if err := h.DB.Save(&client).Error; err != nil {

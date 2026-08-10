@@ -339,13 +339,10 @@ section{ position:relative; padding: 130px 0; }
   background-color: var(--surface-tint);
   font-family: var(--font-playfair), serif; font-size:44px; font-weight:700; color: var(--gold-light);
 }
-.client-card__body{ padding: 20px 22px 24px; }
-.client-card__badge{
-  display:inline-block; font-size:11px; font-weight:700; letter-spacing:.05em; text-transform:uppercase;
-  color: var(--gold); background: rgba(212,175,106,0.14); padding:4px 10px; border-radius:999px; margin-bottom:10px;
+.client-card__name{
+  font-family: var(--font-playfair), serif; font-size:16px; color: var(--text); margin:0;
+  padding: 16px 18px; text-align:center;
 }
-.client-card__name{ font-family: var(--font-playfair), serif; font-size:17px; color: var(--text); margin:0 0 8px; }
-.client-card__quote{ font-size:13.5px; color: var(--text-muted); font-style:italic; line-height:1.5; margin:0; }
 
 /* ============ Reviews ============ */
 .reviews{ background: var(--bg-alt); }
@@ -688,6 +685,15 @@ section{ position:relative; padding: 130px 0; }
 }
 .admin-table__link:hover{ opacity:.75; }
 .admin-table__link--danger{ color: var(--maroon); }
+
+.admin-icon-btn{
+  width:40px; height:40px; border-radius:10px; display:inline-flex; align-items:center; justify-content:center;
+  background: var(--surface-tint); border:1px solid var(--border); color: var(--gold-light);
+  font-size:17px; cursor:pointer; transition: all .2s ease; text-decoration:none;
+}
+.admin-icon-btn:hover{ border-color: var(--gold); color: var(--gold); }
+.admin-icon-btn--danger{ color: var(--maroon); }
+.admin-icon-btn--danger:hover{ border-color: var(--maroon); background: rgba(155,60,60,0.12); }
 
 .admin-login, .auth-page{
   min-height:100vh; display:flex; align-items:center; justify-content:center; padding: 24px;

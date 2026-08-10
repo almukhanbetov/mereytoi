@@ -1,25 +1,14 @@
 'use client';
 
 import { useEffect, useState } from 'react';
+import Link from 'next/link';
 import { adminApi } from '@/lib/adminApi';
 import { mediaUrl } from '@/lib/media';
-
-const EVENT_TYPES = [
-  { value: 'wedding', label: 'Свадьба' },
-  { value: 'anniversary', label: 'Юбилей' },
-  { value: 'corporate', label: 'Корпоратив' },
-];
-
-const EMPTY = { name: '', event_type: 'wedding', quote: '', photo_url: '' };
 
 export default function AdminClientsPage() {
   const [clients, setClients] = useState([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
-  const [values, setValues] = useState(EMPTY);
-  const [editingId, setEditingId] = useState(null);
-  const [uploading, setUploading] = useState(false);
-  const [submitting, setSubmitting] = useState(false);
 
   function load() {
     setLoading(true);
@@ -31,69 +20,11 @@ export default function AdminClientsPage() {
 
   useEffect(load, []);
 
-  function set(key, value) {
-    setValues((v) => ({ ...v, [key]: value }));
-  }
-
-  function startEdit(client) {
-    setEditingId(client.id);
-    setValues({
-      name: client.name,
-      event_type: client.event_type,
-      quote: client.quote || '',
-      photo_url: client.photo_url || '',
-    });
-    window.scrollTo({ top: 0, behavior: 'smooth' });
-  }
-
-  function cancelEdit() {
-    setEditingId(null);
-    setValues(EMPTY);
-  }
-
-  async function handlePhotoFile(e) {
-    const file = e.target.files?.[0];
-    if (!file) return;
-    setError('');
-    setUploading(true);
-    try {
-      const urls = await adminApi.uploadImages([file]);
-      set('photo_url', urls[0]);
-    } catch (err) {
-      setError(err.message || 'Не удалось загрузить фото');
-    } finally {
-      setUploading(false);
-      e.target.value = '';
-    }
-  }
-
-  async function handleSubmit(e) {
-    e.preventDefault();
-    if (uploading) return;
-    setError('');
-    setSubmitting(true);
-    try {
-      if (editingId) {
-        await adminApi.updateClient(editingId, values);
-      } else {
-        await adminApi.createClient(values);
-      }
-      setEditingId(null);
-      setValues(EMPTY);
-      load();
-    } catch (err) {
-      setError(err.message || 'Не удалось сохранить');
-    } finally {
-      setSubmitting(false);
-    }
-  }
-
   async function handleDelete(id, name) {
-    if (!window.confirm(`Удалить клиента «${name}»?`)) return;
+    if (!window.confirm(`Удалить клиента «${name}»? Это действие нельзя отменить.`)) return;
     try {
       await adminApi.deleteClient(id);
       setClients((prev) => prev.filter((c) => c.id !== id));
-      if (editingId === id) cancelEdit();
     } catch (err) {
       alert(err.message || 'Не удалось удалить');
     }
@@ -101,74 +32,54 @@ export default function AdminClientsPage() {
 
   return (
     <div>
-      <h1 className="admin-page-title">Клиенты</h1>
+      <div className="admin-page-head">
+        <h1 className="admin-page-title">Клиенты</h1>
+        <Link href="/admin/clients/new" className="btn btn--gold btn--sm">+ Добавить</Link>
+      </div>
 
-      <form className="contacts__form admin-form" onSubmit={handleSubmit} style={{ maxWidth: 480, marginBottom: 40 }}>
-        <label>
-          <span>Имя клиента</span>
-          <input value={values.name} onChange={(e) => set('name', e.target.value)} required />
-        </label>
-        <label>
-          <span>Тип торжества</span>
-          <select value={values.event_type} onChange={(e) => set('event_type', e.target.value)} required>
-            {EVENT_TYPES.map((t) => (
-              <option key={t.value} value={t.value}>{t.label}</option>
+      {error && <p className="admin-login__error">{error}</p>}
+
+      <div className="admin-table-wrap">
+        <table className="admin-table">
+          <thead>
+            <tr>
+              <th>Клиент</th>
+              <th></th>
+            </tr>
+          </thead>
+          <tbody>
+            {loading && (
+              <tr><td colSpan={2} className="admin-table__empty">Загрузка…</td></tr>
+            )}
+            {!loading && clients.length === 0 && (
+              <tr><td colSpan={2} className="admin-table__empty">Клиентов пока нет</td></tr>
+            )}
+            {clients.map((cl) => (
+              <tr key={cl.id}>
+                <td className="admin-table__name-cell">
+                  {cl.photo_url
+                    ? <img src={mediaUrl(cl.photo_url)} alt="" className="admin-table__thumb" />
+                    : <span>{cl.name?.[0]?.toUpperCase()}</span>}
+                  {cl.name}
+                </td>
+                <td className="admin-table__actions">
+                  <Link href={`/admin/clients/edit/${cl.id}`} className="admin-icon-btn" aria-label="Редактировать" title="Редактировать">
+                    ✎
+                  </Link>
+                  <button
+                    type="button"
+                    className="admin-icon-btn admin-icon-btn--danger"
+                    onClick={() => handleDelete(cl.id, cl.name)}
+                    aria-label="Удалить"
+                    title="Удалить"
+                  >
+                    🗑
+                  </button>
+                </td>
+              </tr>
             ))}
-          </select>
-        </label>
-        <label>
-          <span>Короткий отзыв (необязательно)</span>
-          <textarea rows="3" value={values.quote} onChange={(e) => set('quote', e.target.value)} />
-        </label>
-        <label>
-          <span>Фото</span>
-          <input type="file" accept="image/png,image/jpeg,image/webp,image/gif" onChange={handlePhotoFile} disabled={uploading} />
-        </label>
-        {values.photo_url && (
-          <img src={mediaUrl(values.photo_url)} alt="" style={{ width: 90, height: 90, objectFit: 'cover', borderRadius: 12 }} />
-        )}
-        {uploading && <p className="admin-upload-status"><span className="admin-spinner" aria-hidden="true" />Загружаем фото…</p>}
-
-        {error && <p className="admin-login__error">{error}</p>}
-
-        <div style={{ display: 'flex', gap: 14 }}>
-          <button type="submit" className="btn btn--gold" disabled={submitting || uploading}>
-            {submitting ? 'Сохраняем…' : editingId ? 'Сохранить изменения' : 'Добавить клиента'}
-          </button>
-          {editingId && (
-            <button type="button" className="btn btn--outline" onClick={cancelEdit}>
-              Отмена
-            </button>
-          )}
-        </div>
-      </form>
-
-      {loading && <p className="admin-table__empty">Загрузка…</p>}
-      {!loading && clients.length === 0 && <p className="admin-table__empty">Клиентов пока нет</p>}
-
-      <div className="admin-image-grid">
-        {clients.map((cl) => (
-          <div className="admin-image-thumb" key={cl.id} style={{ width: 140, height: 170 }}>
-            {cl.photo_url
-              ? <img src={mediaUrl(cl.photo_url)} alt="" style={{ height: 140 }} />
-              : <div style={{ width: '100%', height: 140, display: 'flex', alignItems: 'center', justifyContent: 'center', background: 'var(--surface-tint)' }}>{cl.name?.[0]}</div>}
-            <span className="admin-image-thumb__badge">{cl.name}</span>
-            <button type="button" className="admin-image-thumb__remove" onClick={() => handleDelete(cl.id, cl.name)} aria-label="Удалить">✕</button>
-            <button
-              type="button"
-              onClick={() => startEdit(cl)}
-              style={{
-                position: 'absolute', left: 4, top: 4, width: 20, height: 20, borderRadius: '50%',
-                background: 'rgba(0,0,0,0.65)', color: '#fff', border: 'none', cursor: 'pointer', fontSize: 11,
-                display: 'flex', alignItems: 'center', justifyContent: 'center',
-              }}
-              aria-label="Изменить"
-              title="Изменить"
-            >
-              ✎
-            </button>
-          </div>
-        ))}
+          </tbody>
+        </table>
       </div>
     </div>
   );

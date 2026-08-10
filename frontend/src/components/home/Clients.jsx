@@ -2,18 +2,11 @@
 
 import { useEffect, useState } from 'react';
 import Reveal from '@/components/Reveal';
-import { T, useLang } from '@/context/AppProviders';
+import { T } from '@/context/AppProviders';
 import { fetchClients } from '@/lib/clientsApi';
 import { mediaUrl } from '@/lib/media';
 
-const EVENT_LABELS = {
-  wedding: { ru: 'Свадьба', kz: 'Үйлену тойы' },
-  anniversary: { ru: 'Юбилей', kz: 'Мерейтой' },
-  corporate: { ru: 'Корпоратив', kz: 'Корпоратив' },
-};
-
 export default function Clients() {
-  const { lang } = useLang();
   const [clients, setClients] = useState([]);
 
   useEffect(() => {
@@ -37,13 +30,7 @@ export default function Clients() {
               >
                 {!cl.photo_url && cl.name?.[0]?.toUpperCase()}
               </div>
-              <div className="client-card__body">
-                <span className="client-card__badge">
-                  {EVENT_LABELS[cl.event_type]?.[lang] || cl.event_type}
-                </span>
-                <p className="client-card__name">{cl.name}</p>
-                {cl.quote && <p className="client-card__quote">«{cl.quote}»</p>}
-              </div>
+              <p className="client-card__name">{cl.name}</p>
             </Reveal>
           ))}
         </div>
