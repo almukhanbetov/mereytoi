@@ -78,6 +78,10 @@ export default function ServiceForm({ categories, initial, listingId }) {
 
   async function handleSubmit(e) {
     e.preventDefault();
+    if (uploading || uploadingVideo) {
+      setError('Дождитесь окончания загрузки файлов перед сохранением');
+      return;
+    }
     setError('');
     setSubmitting(true);
     try {
@@ -235,7 +239,7 @@ export default function ServiceForm({ categories, initial, listingId }) {
       {error && <p className="admin-login__error">{error}</p>}
 
       <div style={{ display: 'flex', gap: 14 }}>
-        <button type="submit" className="btn btn--gold" disabled={submitting || uploading}>
+        <button type="submit" className="btn btn--gold" disabled={submitting || uploading || uploadingVideo}>
           {submitting ? 'Сохраняем…' : listingId ? 'Сохранить изменения' : 'Создать услугу'}
         </button>
         <button type="button" className="btn btn--outline" onClick={() => router.back()}>
