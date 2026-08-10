@@ -97,4 +97,9 @@ export const adminApi = {
   comments: (approved) => request(`/api/comments${approved !== undefined ? `?approved=${approved}` : ''}`, { auth: true }),
   approveComment: (id, approved) => request(`/api/comments/${id}`, { method: 'PUT', body: { approved }, auth: true }),
   deleteComment: (id) => request(`/api/comments/${id}`, { method: 'DELETE', auth: true }),
+
+  clients: () => request('/api/clients'),
+  createClient: (payload) => request('/api/clients', { method: 'POST', body: payload, auth: true }),
+  updateClient: (id, payload) => request(`/api/clients/${id}`, { method: 'PUT', body: payload, auth: true }),
+  deleteClient: (id) => request(`/api/clients/${id}`, { method: 'DELETE', auth: true }),
 };

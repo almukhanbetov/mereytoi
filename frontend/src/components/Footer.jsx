@@ -20,7 +20,7 @@ export default function Footer() {
         </p>
         <div className="footer__nav">
           <Link href="/services"><T ru="Услуги" kz="Қызметтер" /></Link>
-          <Link href="/#gallery"><T ru="Галерея" kz="Галерея" /></Link>
+          <Link href="/#clients"><T ru="Клиенты" kz="Клиенттер" /></Link>
           <Link href="/#reviews"><T ru="Отзывы" kz="Пікірлер" /></Link>
           <Link href="/#contacts"><T ru="Контакты" kz="Байланыс" /></Link>
         </div>

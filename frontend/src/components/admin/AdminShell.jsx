@@ -45,6 +45,9 @@ export default function AdminShell({ user, children }) {
             <span>Комментарии</span>
             {pendingComments > 0 && <span className="admin-nav__badge">{pendingComments}</span>}
           </Link>
+          <Link href="/admin/clients" className={`admin-nav__link${pathname === '/admin/clients' ? ' is-active' : ''}`}>
+            Клиенты
+          </Link>
 
           <span className="admin-nav__label">Услуги</span>
           {categories.map((c) => {

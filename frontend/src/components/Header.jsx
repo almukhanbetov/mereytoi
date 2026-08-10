@@ -9,7 +9,7 @@ import { useAuth } from '@/context/AuthContext';
 const NAV_LINKS = [
   { href: '/', ru: 'Главная', kz: 'Басты бет' },
   { href: '/services', ru: 'Услуги', kz: 'Қызметтер' },
-  { href: '/#gallery', ru: 'Галерея', kz: 'Галерея' },
+  { href: '/#clients', ru: 'Клиенты', kz: 'Клиенттер' },
   { href: '/#reviews', ru: 'Отзывы', kz: 'Пікірлер' },
   { href: '/#contacts', ru: 'Контакты', kz: 'Байланыс' },
 ];
