@@ -216,7 +216,7 @@ export default function ServiceForm({ categories, initial, listingId }) {
       {uploading && <p className="admin-login__title" style={{ margin: 0 }}>Загружаем фото…</p>}
 
       <label>
-        <span>Видео (одно или несколько — mp4, webm, mov, до 100MB каждое)</span>
+        <span>Видео (одно или несколько — mp4, webm, mov, до 200MB каждое)</span>
         <input type="file" accept="video/mp4,video/webm,video/quicktime" multiple onChange={handleVideoFiles} disabled={uploadingVideo} />
       </label>
 

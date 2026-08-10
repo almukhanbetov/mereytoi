@@ -25,7 +25,7 @@ var allowedVideoExt = map[string]bool{
 	".mp4": true, ".webm": true, ".mov": true, ".m4v": true,
 }
 
-const maxVideoSize = 100 << 20 // 100MB per file
+const maxVideoSize = 200 << 20 // 200MB per file
 
 type UploadHandler struct{}
 
@@ -117,7 +117,7 @@ func (h *UploadHandler) UploadVideo(c *gin.Context) {
 		return
 	}
 	if file.Size > maxVideoSize {
-		c.JSON(http.StatusBadRequest, gin.H{"error": fmt.Sprintf("%s is larger than 100MB", file.Filename)})
+		c.JSON(http.StatusBadRequest, gin.H{"error": fmt.Sprintf("%s is larger than 200MB", file.Filename)})
 		return
 	}
 
