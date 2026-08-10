@@ -327,6 +327,7 @@ section{ position:relative; padding: 130px 0; }
 /* ============ Clients (premium logo marquee) ============ */
 .clients{
   position:relative; overflow:hidden; padding: 110px 0 100px;
+  scroll-margin-top: 100px; /* fixed header is ~82px unscrolled + breathing room */
   background:
     radial-gradient(ellipse 900px 500px at 50% 0%, rgba(212,175,106,0.10), transparent 60%),
     linear-gradient(180deg, var(--bg-alt) 0%, var(--bg) 100%);
@@ -362,9 +363,9 @@ section{ position:relative; padding: 130px 0; }
 .clients__accent-mark{ color: var(--gold); font-size:15px; filter: drop-shadow(0 0 6px rgba(212,175,106,0.6)); }
 
 .clients__title{
-  text-align:center; margin: 0 auto 56px; max-width:820px;
+  text-align:center; margin: 0 auto 60px; max-width:820px;
   font-family: var(--font-playfair), serif; font-weight:700;
-  font-size: 26px; line-height:1.25;
+  font-size: 30px; line-height:1.25;
 }
 .clients__title-highlight{
   background: linear-gradient(135deg, var(--gold-light), var(--gold) 60%, #c9964f);
@@ -373,57 +374,64 @@ section{ position:relative; padding: 130px 0; }
 }
 
 .clients__marquee{
-  position:relative; overflow:hidden; padding: 30px 0;
+  position:relative; overflow:hidden; padding: 30px 8px;
   background: rgba(255,255,255,0.03);
   border: 1px solid rgba(212,175,106,0.16);
   border-radius: calc(var(--radius) + 6px);
   backdrop-filter: blur(6px);
   box-shadow: 0 30px 60px -30px rgba(0,0,0,0.5), inset 0 1px 0 rgba(255,255,255,0.04);
-  mask-image: linear-gradient(90deg, transparent, #000 10%, #000 90%, transparent);
-  -webkit-mask-image: linear-gradient(90deg, transparent, #000 10%, #000 90%, transparent);
+  mask-image: linear-gradient(90deg, transparent, #000 4%, #000 96%, transparent);
+  -webkit-mask-image: linear-gradient(90deg, transparent, #000 4%, #000 96%, transparent);
 }
+.clients__marquee:hover .clients__track{ animation-play-state: paused; }
 .clients__track{
-  display:flex; align-items:center; gap:32px; width:max-content;
-  animation: clients-scroll 38s linear infinite;
+  display:flex; align-items:center; gap:56px; width:max-content;
+  animation: clients-scroll 46s linear infinite;
 }
 .clients__logo{
-  flex-shrink:0; width:160px; height:76px; display:flex; align-items:center; justify-content:center;
-  background: rgba(255,255,255,0.035); border:1px solid rgba(212,175,106,0.14); border-radius:14px;
-  padding: 14px 20px; box-shadow: 0 8px 20px -12px rgba(0,0,0,0.4);
+  flex-shrink:0; width:230px; height:130px; display:flex; align-items:center; justify-content:center;
+  background: rgba(255,255,255,0.045); border:1px solid rgba(212,175,106,0.16); border-radius:20px;
+  padding: 22px; box-shadow: 0 10px 24px -14px rgba(0,0,0,0.45);
   transition: transform .3s ease, border-color .3s ease, box-shadow .3s ease, background-color .3s ease;
 }
 .clients__logo img{
   max-height:100%; max-width:100%; object-fit:contain;
-  filter: grayscale(.4) opacity(.8); transition: filter .3s ease;
+  opacity:.92; transition: opacity .3s ease;
 }
 .clients__logo:hover{
-  transform: scale(1.05); border-color: rgba(212,175,106,0.5);
-  background: rgba(212,175,106,0.06);
-  box-shadow: 0 12px 30px -14px rgba(212,175,106,0.35), 0 0 0 1px rgba(212,175,106,0.2);
+  transform: scale(1.07); border-color: rgba(212,175,106,0.55);
+  background: rgba(212,175,106,0.07);
+  box-shadow: 0 16px 34px -14px rgba(212,175,106,0.4), 0 0 0 1px rgba(212,175,106,0.24);
 }
-.clients__logo:hover img{ filter:none; }
+.clients__logo:hover img{ opacity:1; }
 
 @keyframes clients-scroll{
   from{ transform: translateX(0); }
   to{ transform: translateX(-50%); }
 }
 
-@media (min-width: 1024px){
-  .clients__title{ font-size: 40px; }
-}
 @media (min-width: 1280px){
-  .clients__title{ font-size: 48px; }
+  .clients__title{ font-size: 50px; }
 }
-@media (max-width: 1023px){
+@media (min-width: 1024px) and (max-width: 1279px){
+  .clients__title{ font-size: 42px; }
+}
+@media (min-width: 768px) and (max-width: 1023px){
   .clients__title{ font-size: 34px; }
+  .clients__logo{ width:190px; height:112px; padding:18px; border-radius:18px; }
+  .clients__track{ gap:44px; animation-duration:42s; }
 }
-@media (max-width: 640px){
-  .clients{ padding: 84px 0 76px; }
-  .clients__title{ font-size: 27px; margin-bottom:36px; }
-  .clients__track{ gap:18px; animation-duration:30s; }
-  .clients__logo{ width:108px; height:52px; padding:10px 14px; border-radius:12px; }
+@media (max-width: 767px){
+  .clients{ padding: 84px 0 76px; scroll-margin-top: 84px; }
+  .clients__title{ font-size: 30px; margin-bottom:40px; }
+  .clients__track{ gap:28px; animation-duration:36s; }
+  .clients__logo{ width:150px; height:88px; padding:14px; border-radius:16px; }
   .clients__glow--1{ width:340px; height:220px; }
   .clients__glow--2{ width:260px; height:260px; }
+}
+@media (max-width: 400px){
+  .clients__logo{ width:132px; height:76px; padding:12px; }
+  .clients__track{ gap:22px; }
 }
 
 /* ============ Admin logo grid (Клиенты) ============ */
