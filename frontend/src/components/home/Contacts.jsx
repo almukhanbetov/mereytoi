@@ -4,6 +4,7 @@ import { useState } from 'react';
 import Reveal from '@/components/Reveal';
 import { T, useLang } from '@/context/AppProviders';
 import { createBooking } from '@/lib/bookingApi';
+import { AGENCY_PHONE_DISPLAY, AGENCY_WHATSAPP_DIGITS } from '@/lib/agencyContact';
 
 const EVENT_TYPES = [
   { value: 'wedding', ru: 'Свадьба', kz: 'Үйлену тойы' },
@@ -11,9 +12,6 @@ const EVENT_TYPES = [
   { value: 'corporate', ru: 'Корпоратив', kz: 'Корпоратив' },
   { value: 'other', ru: 'Другое', kz: 'Басқа' },
 ];
-
-const AGENCY_PHONE_DISPLAY = '+7 707 650 00 51';
-const AGENCY_WHATSAPP_DIGITS = '77076500051';
 
 function buildAgencyWhatsAppText({ name, phone, typeLabel, message, lang }) {
   const lines = [
