@@ -56,25 +56,29 @@ export default function AdminClientsPage() {
             )}
             {clients.map((cl) => (
               <tr key={cl.id}>
-                <td className="admin-table__name-cell">
-                  {cl.photo_url
-                    ? <img src={mediaUrl(cl.photo_url)} alt="" className="admin-table__thumb" />
-                    : <span>{cl.name?.[0]?.toUpperCase()}</span>}
-                  {cl.name}
+                <td>
+                  <div className="admin-table__name-cell">
+                    {cl.photo_url
+                      ? <img src={mediaUrl(cl.photo_url)} alt="" className="admin-table__thumb" />
+                      : <span>{cl.name?.[0]?.toUpperCase()}</span>}
+                    {cl.name}
+                  </div>
                 </td>
-                <td className="admin-table__actions">
-                  <Link href={`/admin/clients/edit/${cl.id}`} className="admin-icon-btn" aria-label="Редактировать" title="Редактировать">
-                    ✎
-                  </Link>
-                  <button
-                    type="button"
-                    className="admin-icon-btn admin-icon-btn--danger"
-                    onClick={() => handleDelete(cl.id, cl.name)}
-                    aria-label="Удалить"
-                    title="Удалить"
-                  >
-                    🗑
-                  </button>
+                <td style={{ width: 1, textAlign: 'right' }}>
+                  <div className="admin-table__actions" style={{ justifyContent: 'flex-end' }}>
+                    <Link href={`/admin/clients/edit/${cl.id}`} className="admin-icon-btn" aria-label="Редактировать" title="Редактировать">
+                      ✎
+                    </Link>
+                    <button
+                      type="button"
+                      className="admin-icon-btn admin-icon-btn--danger"
+                      onClick={() => handleDelete(cl.id, cl.name)}
+                      aria-label="Удалить"
+                      title="Удалить"
+                    >
+                      🗑
+                    </button>
+                  </div>
                 </td>
               </tr>
             ))}
