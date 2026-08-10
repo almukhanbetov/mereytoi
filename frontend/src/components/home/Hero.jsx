@@ -1,6 +1,7 @@
 'use client';
 
 import { useEffect, useRef, useState } from 'react';
+import Link from 'next/link';
 import Reveal from '@/components/Reveal';
 import { T } from '@/context/AppProviders';
 
@@ -77,7 +78,7 @@ export default function Hero() {
 
         <Reveal className="hero__actions">
           <a href="#contacts" className="btn btn--gold"><T ru="Оставить заявку" kz="Өтінім қалдыру" /></a>
-          <a href="#clients" className="btn btn--outline"><T ru="Наши клиенты" kz="Клиенттеріміз" /></a>
+          <Link href="/services" className="btn btn--outline"><T ru="Наши услуги" kz="Қызметтеріміз" /></Link>
         </Reveal>
 
         <Reveal className="hero__stats">
