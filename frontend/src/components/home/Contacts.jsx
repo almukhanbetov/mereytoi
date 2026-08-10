@@ -12,9 +12,8 @@ const EVENT_TYPES = [
   { value: 'other', ru: 'Другое', kz: 'Басқа' },
 ];
 
-// TODO: replace with the agency's real WhatsApp Business number.
-const AGENCY_PHONE_DISPLAY = '+7 (700) 123-45-67';
-const AGENCY_WHATSAPP_DIGITS = '77001234567';
+const AGENCY_PHONE_DISPLAY = '+7 707 650 00 51';
+const AGENCY_WHATSAPP_DIGITS = '77076500051';
 
 function buildAgencyWhatsAppText({ name, phone, typeLabel, message, lang }) {
   const lines = [
