@@ -737,9 +737,10 @@ section{ position:relative; padding: 130px 0; }
 }
 .admin-image-thumb__remove:hover{ background: var(--maroon); }
 
+.admin-video-grid{ display:flex; flex-wrap:wrap; gap:16px; }
 .admin-video-preview{
   background: var(--bg-card); border:1px solid var(--border); border-radius: var(--radius);
-  padding: 14px; display:flex; flex-direction:column; gap:12px; max-width:420px;
+  padding: 14px; display:flex; flex-direction:column; gap:12px; width:320px;
 }
 .admin-video-preview video{ width:100%; border-radius:10px; background:#000; display:block; }
 .admin-video-preview__actions{ display:flex; gap:18px; align-items:center; }

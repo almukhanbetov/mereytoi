@@ -90,9 +90,9 @@ export default function ServiceDetail({ listing, related }) {
               </div>
             )}
 
-            {listing.video_url && (
-              <video className="product-detail__video" src={mediaUrl(listing.video_url)} controls playsInline />
-            )}
+            {(listing.video_urls || []).map((url) => (
+              <video key={url} className="product-detail__video" src={mediaUrl(url)} controls playsInline />
+            ))}
           </div>
 
           <div className="product-detail__info">

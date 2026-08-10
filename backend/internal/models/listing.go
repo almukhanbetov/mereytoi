@@ -22,7 +22,7 @@ type Listing struct {
 	ColorFrom     string    `gorm:"size:10" json:"color_from"`
 	ColorTo       string    `gorm:"size:10" json:"color_to"`
 	ImageURLs     []string  `gorm:"serializer:json" json:"image_urls"`
-	VideoURL      string    `gorm:"size:255" json:"video_url"`
+	VideoURLs     []string  `gorm:"serializer:json" json:"video_urls"`
 	IsActive      bool      `gorm:"not null;default:true" json:"is_active"`
 	CreatedAt     time.Time `json:"created_at"`
 	UpdatedAt     time.Time `json:"updated_at"`

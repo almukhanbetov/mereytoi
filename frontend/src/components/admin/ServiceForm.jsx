@@ -21,12 +21,17 @@ const EMPTY = {
   color_from: '#3a1420',
   color_to: '#d4af6a',
   image_urls: [],
-  video_url: '',
+  video_urls: [],
 };
 
 export default function ServiceForm({ categories, initial, listingId }) {
   const router = useRouter();
-  const [values, setValues] = useState(() => ({ ...EMPTY, ...initial, image_urls: initial?.image_urls || [] }));
+  const [values, setValues] = useState(() => ({
+    ...EMPTY,
+    ...initial,
+    image_urls: initial?.image_urls || [],
+    video_urls: initial?.video_urls || [],
+  }));
   const [error, setError] = useState('');
   const [submitting, setSubmitting] = useState(false);
   const [uploading, setUploading] = useState(false);
@@ -56,14 +61,19 @@ export default function ServiceForm({ categories, initial, listingId }) {
     setValues((v) => ({ ...v, image_urls: v.image_urls.filter((u) => u !== url) }));
   }
 
-  async function handleVideoFile(e) {
-    const file = e.target.files?.[0];
-    if (!file) return;
+  async function handleVideoFiles(e) {
+    const files = Array.from(e.target.files || []);
+    if (files.length === 0) return;
     setError('');
     setUploadingVideo(true);
     try {
-      const url = await adminApi.uploadVideo(file);
-      set('video_url', url);
+      // Uploaded one at a time (not Promise.all) — each file gets
+      // transcoded server-side, which is CPU-heavy, so running them
+      // concurrently would just make every upload slower.
+      for (const file of files) {
+        const url = await adminApi.uploadVideo(file);
+        setValues((v) => ({ ...v, video_urls: [...v.video_urls, url] }));
+      }
     } catch (err) {
       setError(err.message || 'Не удалось загрузить видео');
     } finally {
@@ -72,8 +82,8 @@ export default function ServiceForm({ categories, initial, listingId }) {
     }
   }
 
-  function removeVideo() {
-    set('video_url', '');
+  function removeVideo(url) {
+    setValues((v) => ({ ...v, video_urls: v.video_urls.filter((u) => u !== url) }));
   }
 
   async function handleSubmit(e) {
@@ -206,24 +216,28 @@ export default function ServiceForm({ categories, initial, listingId }) {
       {uploading && <p className="admin-login__title" style={{ margin: 0 }}>Загружаем фото…</p>}
 
       <label>
-        <span>Видео (mp4, webm, mov — до 100MB)</span>
-        <input type="file" accept="video/mp4,video/webm,video/quicktime" onChange={handleVideoFile} disabled={uploadingVideo} />
+        <span>Видео (одно или несколько — mp4, webm, mov, до 100MB каждое)</span>
+        <input type="file" accept="video/mp4,video/webm,video/quicktime" multiple onChange={handleVideoFiles} disabled={uploadingVideo} />
       </label>
 
-      {values.video_url && (
-        <div className="admin-video-preview">
-          <video src={mediaUrl(values.video_url)} controls />
-          <div className="admin-video-preview__actions">
-            <a className="admin-table__link" href={mediaUrl(values.video_url)} download target="_blank" rel="noopener noreferrer">
-              Скачать видео
-            </a>
-            <button type="button" className="admin-table__link admin-table__link--danger" onClick={removeVideo}>
-              Удалить видео
-            </button>
-          </div>
+      {values.video_urls.length > 0 && (
+        <div className="admin-video-grid">
+          {values.video_urls.map((url) => (
+            <div className="admin-video-preview" key={url}>
+              <video src={mediaUrl(url)} controls />
+              <div className="admin-video-preview__actions">
+                <a className="admin-table__link" href={mediaUrl(url)} download target="_blank" rel="noopener noreferrer">
+                  Скачать видео
+                </a>
+                <button type="button" className="admin-table__link admin-table__link--danger" onClick={() => removeVideo(url)}>
+                  Удалить видео
+                </button>
+              </div>
+            </div>
+          ))}
         </div>
       )}
-      {uploadingVideo && <p className="admin-login__title" style={{ margin: 0 }}>Загружаем видео…</p>}
+      {uploadingVideo && <p className="admin-login__title" style={{ margin: 0 }}>Загружаем видео… (может занять до пары минут на файл)</p>}
 
       <div
         className="admin-preview"

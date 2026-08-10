@@ -77,7 +77,7 @@ type listingInput struct {
 	ColorFrom     string   `json:"color_from"`
 	ColorTo       string   `json:"color_to"`
 	ImageURLs     []string `json:"image_urls"`
-	VideoURL      string   `json:"video_url"`
+	VideoURLs     []string `json:"video_urls"`
 }
 
 func (h *ListingHandler) Create(c *gin.Context) {
@@ -109,7 +109,7 @@ func (h *ListingHandler) Create(c *gin.Context) {
 		ColorFrom:     in.ColorFrom,
 		ColorTo:       in.ColorTo,
 		ImageURLs:     in.ImageURLs,
-		VideoURL:      in.VideoURL,
+		VideoURLs:     in.VideoURLs,
 		IsActive:      true,
 	}
 	if err := h.DB.Create(&listing).Error; err != nil {
@@ -154,7 +154,7 @@ func (h *ListingHandler) Update(c *gin.Context) {
 	listing.ColorFrom = in.ColorFrom
 	listing.ColorTo = in.ColorTo
 	listing.ImageURLs = in.ImageURLs
-	listing.VideoURL = in.VideoURL
+	listing.VideoURLs = in.VideoURLs
 
 	if err := h.DB.Save(&listing).Error; err != nil {
 		c.JSON(http.StatusInternalServerError, gin.H{"error": "failed to update listing"})
