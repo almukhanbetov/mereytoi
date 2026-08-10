@@ -551,9 +551,6 @@ section{ position:relative; padding: 130px 0; }
 }
 .service-gallery__thumb:hover{ opacity:.85; }
 .service-gallery__thumb.is-active{ border-color: var(--gold); opacity:1; }
-.product-detail__video{
-  width:100%; margin-top:16px; border-radius: var(--radius); background:#000; display:block;
-}
 .product-detail__cat{ font-size:13px; letter-spacing:.2em; color: var(--gold); font-weight:700; text-transform:uppercase; }
 .product-detail__title{ font-size: clamp(28px,3.6vw,42px); margin: 14px 0 20px; }
 .product-detail__price{ font-family:var(--font-playfair), serif; font-size:30px; font-weight:700; color: var(--gold-light); margin-bottom:22px; }
@@ -567,6 +564,15 @@ section{ position:relative; padding: 130px 0; }
 /* ============ Related products ============ */
 .related{ padding: 0 0 120px; }
 .related .product-grid{ padding-top: 40px; }
+
+/* ============ Service videos ============ */
+.service-videos{ padding: 0 0 70px; }
+.service-video-gallery{
+  display:grid; grid-template-columns: repeat(auto-fill, minmax(200px, 1fr)); gap:16px;
+}
+.service-video-gallery video{
+  width:100%; aspect-ratio: 3/4; object-fit:cover; border-radius: var(--radius); background:#000; display:block;
+}
 
 /* ============ Comments ============ */
 .comments-section{ padding: 0 0 90px; }

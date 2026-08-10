@@ -90,9 +90,6 @@ export default function ServiceDetail({ listing, related }) {
               </div>
             )}
 
-            {(listing.video_urls || []).map((url) => (
-              <video key={url} className="product-detail__video" src={mediaUrl(url)} controls playsInline />
-            ))}
           </div>
 
           <div className="product-detail__info">
@@ -163,6 +160,21 @@ export default function ServiceDetail({ listing, related }) {
           </div>
         </div>
       </section>
+
+      {(listing.video_urls || []).length > 0 && (
+        <section className="service-videos">
+          <div className="container">
+            <Reveal as="h2" className="section-title" style={{ textAlign: 'left', margin: '0 0 24px' }}>
+              <T ru="Видео" kz="Видео" />
+            </Reveal>
+            <div className="service-video-gallery">
+              {listing.video_urls.map((url) => (
+                <video key={url} src={mediaUrl(url)} controls playsInline />
+              ))}
+            </div>
+          </div>
+        </section>
+      )}
 
       <CommentsSection listingId={listing.id} />
 
