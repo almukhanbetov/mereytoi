@@ -17,6 +17,7 @@ export default function AdminClientsPage() {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
   const [values, setValues] = useState(EMPTY);
+  const [editingId, setEditingId] = useState(null);
   const [uploading, setUploading] = useState(false);
   const [submitting, setSubmitting] = useState(false);
 
@@ -32,6 +33,22 @@ export default function AdminClientsPage() {
 
   function set(key, value) {
     setValues((v) => ({ ...v, [key]: value }));
+  }
+
+  function startEdit(client) {
+    setEditingId(client.id);
+    setValues({
+      name: client.name,
+      event_type: client.event_type,
+      quote: client.quote || '',
+      photo_url: client.photo_url || '',
+    });
+    window.scrollTo({ top: 0, behavior: 'smooth' });
+  }
+
+  function cancelEdit() {
+    setEditingId(null);
+    setValues(EMPTY);
   }
 
   async function handlePhotoFile(e) {
@@ -56,7 +73,12 @@ export default function AdminClientsPage() {
     setError('');
     setSubmitting(true);
     try {
-      await adminApi.createClient(values);
+      if (editingId) {
+        await adminApi.updateClient(editingId, values);
+      } else {
+        await adminApi.createClient(values);
+      }
+      setEditingId(null);
       setValues(EMPTY);
       load();
     } catch (err) {
@@ -71,6 +93,7 @@ export default function AdminClientsPage() {
     try {
       await adminApi.deleteClient(id);
       setClients((prev) => prev.filter((c) => c.id !== id));
+      if (editingId === id) cancelEdit();
     } catch (err) {
       alert(err.message || 'Не удалось удалить');
     }
@@ -108,9 +131,16 @@ export default function AdminClientsPage() {
 
         {error && <p className="admin-login__error">{error}</p>}
 
-        <button type="submit" className="btn btn--gold" disabled={submitting || uploading}>
-          {submitting ? 'Сохраняем…' : 'Добавить клиента'}
-        </button>
+        <div style={{ display: 'flex', gap: 14 }}>
+          <button type="submit" className="btn btn--gold" disabled={submitting || uploading}>
+            {submitting ? 'Сохраняем…' : editingId ? 'Сохранить изменения' : 'Добавить клиента'}
+          </button>
+          {editingId && (
+            <button type="button" className="btn btn--outline" onClick={cancelEdit}>
+              Отмена
+            </button>
+          )}
+        </div>
       </form>
 
       {loading && <p className="admin-table__empty">Загрузка…</p>}
@@ -118,12 +148,25 @@ export default function AdminClientsPage() {
 
       <div className="admin-image-grid">
         {clients.map((cl) => (
-          <div className="admin-image-thumb" key={cl.id} style={{ width: 140, height: 140 }}>
+          <div className="admin-image-thumb" key={cl.id} style={{ width: 140, height: 170 }}>
             {cl.photo_url
-              ? <img src={mediaUrl(cl.photo_url)} alt="" />
-              : <div style={{ width: '100%', height: '100%', display: 'flex', alignItems: 'center', justifyContent: 'center', background: 'var(--surface-tint)' }}>{cl.name?.[0]}</div>}
+              ? <img src={mediaUrl(cl.photo_url)} alt="" style={{ height: 140 }} />
+              : <div style={{ width: '100%', height: 140, display: 'flex', alignItems: 'center', justifyContent: 'center', background: 'var(--surface-tint)' }}>{cl.name?.[0]}</div>}
             <span className="admin-image-thumb__badge">{cl.name}</span>
             <button type="button" className="admin-image-thumb__remove" onClick={() => handleDelete(cl.id, cl.name)} aria-label="Удалить">✕</button>
+            <button
+              type="button"
+              onClick={() => startEdit(cl)}
+              style={{
+                position: 'absolute', left: 4, top: 4, width: 20, height: 20, borderRadius: '50%',
+                background: 'rgba(0,0,0,0.65)', color: '#fff', border: 'none', cursor: 'pointer', fontSize: 11,
+                display: 'flex', alignItems: 'center', justifyContent: 'center',
+              }}
+              aria-label="Изменить"
+              title="Изменить"
+            >
+              ✎
+            </button>
           </div>
         ))}
       </div>
