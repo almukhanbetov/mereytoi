@@ -89,6 +89,10 @@ export default function ServiceDetail({ listing, related }) {
                 ))}
               </div>
             )}
+
+            {listing.video_url && (
+              <video className="product-detail__video" src={mediaUrl(listing.video_url)} controls playsInline />
+            )}
           </div>
 
           <div className="product-detail__info">

@@ -551,6 +551,9 @@ section{ position:relative; padding: 130px 0; }
 }
 .service-gallery__thumb:hover{ opacity:.85; }
 .service-gallery__thumb.is-active{ border-color: var(--gold); opacity:1; }
+.product-detail__video{
+  width:100%; margin-top:16px; border-radius: var(--radius); background:#000; display:block;
+}
 .product-detail__cat{ font-size:13px; letter-spacing:.2em; color: var(--gold); font-weight:700; text-transform:uppercase; }
 .product-detail__title{ font-size: clamp(28px,3.6vw,42px); margin: 14px 0 20px; }
 .product-detail__price{ font-family:var(--font-playfair), serif; font-size:30px; font-weight:700; color: var(--gold-light); margin-bottom:22px; }
