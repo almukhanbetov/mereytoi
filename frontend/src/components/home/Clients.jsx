@@ -33,20 +33,33 @@ export default function Clients() {
 
   return (
     <section className="clients" id="clients">
-      <div className="container">
-        <Reveal as="p" className="section-eyebrow"><T ru="НАМ ДОВЕРЯЮТ" kz="БІЗГЕ СЕНЕДІ" /></Reveal>
-        <Reveal as="h2" className="section-title"><T ru="Наши клиенты" kz="Біздің клиенттер" /></Reveal>
-      </div>
+      <div className="clients__glow clients__glow--1" aria-hidden="true" />
+      <div className="clients__glow clients__glow--2" aria-hidden="true" />
 
-      <Reveal className="clients__marquee">
-        <div className="clients__track">
-          {track.map((cl, i) => (
-            <div className="clients__logo" key={`${cl.id}-${i}`}>
-              <img src={mediaUrl(cl.photo_url)} alt="" loading="lazy" />
-            </div>
-          ))}
-        </div>
-      </Reveal>
+      <div className="container">
+        <Reveal as="div" className="clients__accent" aria-hidden="true">
+          <span className="clients__accent-line" />
+          <span className="clients__accent-mark">✦</span>
+          <span className="clients__accent-line" />
+        </Reveal>
+
+        <Reveal as="h2" className="clients__title">
+          <T
+            ru={<>Нам уже доверяют <span className="clients__title-highlight">лидеры рынка</span></>}
+            kz={<>Бізге нарық <span className="clients__title-highlight">көшбасшылары</span> сенеді</>}
+          />
+        </Reveal>
+
+        <Reveal className="clients__marquee">
+          <div className="clients__track">
+            {track.map((cl, i) => (
+              <div className="clients__logo" key={`${cl.id}-${i}`}>
+                <img src={mediaUrl(cl.photo_url)} alt="" loading="lazy" />
+              </div>
+            ))}
+          </div>
+        </Reveal>
+      </div>
     </section>
   );
 }
