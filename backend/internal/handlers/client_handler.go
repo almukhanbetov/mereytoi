@@ -29,11 +29,10 @@ func (h *ClientHandler) List(c *gin.Context) {
 }
 
 type clientInput struct {
-	Name     string `json:"name" binding:"required"`
-	PhotoURL string `json:"photo_url"`
+	PhotoURL string `json:"photo_url" binding:"required"`
 }
 
-// Create adds a new client entry — POST /api/clients (admin).
+// Create adds a new client logo — POST /api/clients (admin).
 func (h *ClientHandler) Create(c *gin.Context) {
 	var in clientInput
 	if err := c.ShouldBindJSON(&in); err != nil {
@@ -42,7 +41,6 @@ func (h *ClientHandler) Create(c *gin.Context) {
 	}
 
 	client := models.Client{
-		Name:     in.Name,
 		PhotoURL: in.PhotoURL,
 	}
 	if err := h.DB.Create(&client).Error; err != nil {
@@ -73,7 +71,6 @@ func (h *ClientHandler) Update(c *gin.Context) {
 		return
 	}
 
-	client.Name = in.Name
 	client.PhotoURL = in.PhotoURL
 
 	if err := h.DB.Save(&client).Error; err != nil {

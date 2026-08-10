@@ -24,7 +24,7 @@ export default function EditClientPage() {
 
   return (
     <div>
-      <h1 className="admin-page-title">Редактировать клиента</h1>
+      <h1 className="admin-page-title">Редактировать логотип</h1>
       {error && <p className="admin-login__error">{error}</p>}
       {!loading && client && <ClientForm initial={client} clientId={id} />}
     </div>

@@ -20,8 +20,8 @@ export default function AdminClientsPage() {
 
   useEffect(load, []);
 
-  async function handleDelete(id, name) {
-    if (!window.confirm(`Удалить клиента «${name}»? Это действие нельзя отменить.`)) return;
+  async function handleDelete(id) {
+    if (!window.confirm('Удалить этот логотип? Это действие нельзя отменить.')) return;
     try {
       await adminApi.deleteClient(id);
       setClients((prev) => prev.filter((c) => c.id !== id));
@@ -33,57 +33,36 @@ export default function AdminClientsPage() {
   return (
     <div>
       <div className="admin-page-head">
-        <h1 className="admin-page-title">Клиенты</h1>
+        <h1 className="admin-page-title">Клиенты (логотипы)</h1>
         <Link href="/admin/clients/new" className="btn btn--gold btn--sm">+ Добавить</Link>
       </div>
 
       {error && <p className="admin-login__error">{error}</p>}
+      {loading && <p className="admin-table__empty">Загрузка…</p>}
+      {!loading && clients.length === 0 && <p className="admin-table__empty">Логотипов пока нет</p>}
 
-      <div className="admin-table-wrap">
-        <table className="admin-table">
-          <thead>
-            <tr>
-              <th>Клиент</th>
-              <th></th>
-            </tr>
-          </thead>
-          <tbody>
-            {loading && (
-              <tr><td colSpan={2} className="admin-table__empty">Загрузка…</td></tr>
-            )}
-            {!loading && clients.length === 0 && (
-              <tr><td colSpan={2} className="admin-table__empty">Клиентов пока нет</td></tr>
-            )}
-            {clients.map((cl) => (
-              <tr key={cl.id}>
-                <td>
-                  <div className="admin-table__name-cell">
-                    {cl.photo_url
-                      ? <img src={mediaUrl(cl.photo_url)} alt="" className="admin-table__thumb" />
-                      : <span>{cl.name?.[0]?.toUpperCase()}</span>}
-                    {cl.name}
-                  </div>
-                </td>
-                <td style={{ width: 1, textAlign: 'right' }}>
-                  <div className="admin-table__actions" style={{ justifyContent: 'flex-end' }}>
-                    <Link href={`/admin/clients/edit/${cl.id}`} className="admin-icon-btn" aria-label="Редактировать" title="Редактировать">
-                      ✎
-                    </Link>
-                    <button
-                      type="button"
-                      className="admin-icon-btn admin-icon-btn--danger"
-                      onClick={() => handleDelete(cl.id, cl.name)}
-                      aria-label="Удалить"
-                      title="Удалить"
-                    >
-                      🗑
-                    </button>
-                  </div>
-                </td>
-              </tr>
-            ))}
-          </tbody>
-        </table>
+      <div className="admin-logo-grid">
+        {clients.map((cl) => (
+          <div className="admin-logo-card" key={cl.id}>
+            <div className="admin-logo-card__photo">
+              <img src={mediaUrl(cl.photo_url)} alt="" />
+            </div>
+            <div className="admin-logo-card__actions">
+              <Link href={`/admin/clients/edit/${cl.id}`} className="admin-icon-btn" aria-label="Редактировать" title="Редактировать">
+                ✎
+              </Link>
+              <button
+                type="button"
+                className="admin-icon-btn admin-icon-btn--danger"
+                onClick={() => handleDelete(cl.id)}
+                aria-label="Удалить"
+                title="Удалить"
+              >
+                🗑
+              </button>
+            </div>
+          </div>
+        ))}
       </div>
     </div>
   );
