@@ -65,6 +65,9 @@ export default function ServicesClient({ categories, listings }) {
             <Link href="/wedding-almaty" className="btn btn--outline btn--sm">
               <T ru="Организация свадьбы в Алматы" kz="Алматыда үйлену тойын ұйымдастыру" />
             </Link>
+            <Link href="/corporate-almaty" className="btn btn--outline btn--sm">
+              <T ru="Организация корпоратива в Алматы" kz="Алматыда корпоратив ұйымдастыру" />
+            </Link>
           </p>
         </div>
       </section>
