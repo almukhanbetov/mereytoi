@@ -1112,3 +1112,30 @@ body.no-scroll{ overflow: hidden; }
   padding-top:10px; border-top:1px solid var(--border); font-size:12.5px; color: var(--text-muted);
 }
 .my-booking__total b{ color: var(--gold-light); font-family:var(--font-playfair), serif; font-size:16px; }
+
+/* ============ Toi Almaty landing ============ */
+.toi-section{ padding: 90px 0; }
+.toi-section--alt{ background: var(--bg-alt); }
+.toi-section__intro{ max-width: 780px; margin: 0 auto; text-align:center; }
+.toi-steps .card__icon{
+  width:auto; height:auto; background:none; margin-bottom:14px;
+  font-family: var(--font-playfair), serif; font-size:26px; font-weight:700; color: var(--gold);
+}
+.toi-faq{ max-width: 780px; margin: 56px auto 0; display:flex; flex-direction:column; gap:16px; text-align:left; }
+.toi-faq details{
+  background: var(--bg-card); border:1px solid var(--border); border-radius: var(--radius);
+  padding: 20px 26px; transition: border-color .3s ease;
+}
+.toi-faq details[open]{ border-color: var(--gold); }
+.toi-faq summary{
+  cursor:pointer; font-weight:600; color: var(--text); list-style:none;
+  display:flex; align-items:center; justify-content:space-between; gap:16px;
+}
+.toi-faq summary::-webkit-details-marker{ display:none; }
+.toi-faq summary::after{ content:'+'; color: var(--gold); font-size:20px; flex-shrink:0; transition: transform .3s ease; }
+.toi-faq details[open] summary::after{ transform: rotate(45deg); }
+.toi-faq p{ margin: 14px 0 0; color: var(--text-muted); font-size:14.5px; line-height:1.6; }
+
+@media (max-width: 640px){
+  .toi-section{ padding: 70px 0; }
+}

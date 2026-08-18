@@ -52,6 +52,11 @@ export default function ServicesClient({ categories, listings }) {
               kz="Алматыда той, үйлену тойы, мерейтой және корпоративтерді ұйымдастыру: алаңдар, жүргізушілер, декор, шоу-бағдарламалар, әртістер, фото және видео."
             />
           </p>
+          <p style={{ marginTop: 12 }}>
+            <Link href="/toi-almaty" style={{ color: 'var(--gold-light)', textDecoration: 'underline' }}>
+              <T ru="Подробнее об организации той в Алматы под ключ" kz="Алматыда тойды толық ұйымдастыру туралы толығырақ" />
+            </Link>
+          </p>
         </div>
       </section>
 
