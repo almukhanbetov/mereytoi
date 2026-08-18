@@ -58,7 +58,7 @@ export default function ServicesClient({ categories, listings }) {
               kz="Толық той ұйымдастыруды жоспарлап отырсыз ба? Алматыда той ұйымдастыруға арналған арнайы бетті қараңыз."
             />
           </p>
-          <p style={{ marginTop: 14, display: 'flex', gap: 12, flexWrap: 'wrap' }}>
+          <div className="services-links">
             <Link href="/toi-almaty" className="btn btn--outline btn--sm">
               <T ru="Организация той в Алматы" kz="Алматыда той ұйымдастыру" />
             </Link>
@@ -71,7 +71,7 @@ export default function ServicesClient({ categories, listings }) {
             <Link href="/yubiley-almaty" className="btn btn--outline btn--sm">
               <T ru="Организация юбилея в Алматы" kz="Алматыда мерейтой ұйымдастыру" />
             </Link>
-          </p>
+          </div>
         </div>
       </section>
 
