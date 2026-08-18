@@ -2,8 +2,9 @@ import ServicesClient from "@/components/services/ServicesClient";
 import { fetchCategories, fetchListings } from "@/lib/api";
 
 export const metadata = {
-  title: "Каталог услуг — MEREYTOI",
-  description: "Рестораны и локации, ведущие, шоу-программы, артисты и звёзды эстрады для вашего тоя.",
+  title: "Организация той и мероприятий в Алматы | MEREYTOI",
+  description:
+    "Организация той, свадеб, юбилеев и корпоративов в Алматы. Ведущие, декор, фото и видео, шоу-программы и полная координация мероприятия от MEREYTOI.",
 };
 
 export default async function ServicesPage() {
