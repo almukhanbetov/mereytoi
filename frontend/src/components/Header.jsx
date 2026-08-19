@@ -5,7 +5,7 @@ import { usePathname } from 'next/navigation';
 import { useEffect, useState } from 'react';
 import { useLang, useTheme, useCart, T } from '@/context/AppProviders';
 import { useAuth } from '@/context/AuthContext';
-import { AGENCY_PHONE_DISPLAY, AGENCY_WHATSAPP_DIGITS } from '@/lib/agencyContact';
+import { AGENCY_WHATSAPP_DIGITS } from '@/lib/agencyContact';
 
 const NAV_LINKS = [
   { href: '/', ru: 'Главная', kz: 'Басты бет' },
@@ -14,6 +14,9 @@ const NAV_LINKS = [
   { href: '/#reviews', ru: 'Отзывы', kz: 'Пікірлер' },
   { href: '/#contacts', ru: 'Контакты', kz: 'Байланыс' },
 ];
+
+const HEADER_WHATSAPP_MESSAGE = 'Здравствуйте! Хочу заказать проведение мероприятия в MEREYTOI.';
+const HEADER_WHATSAPP_LINK = `https://wa.me/${AGENCY_WHATSAPP_DIGITS}?text=${encodeURIComponent(HEADER_WHATSAPP_MESSAGE)}`;
 
 export default function Header() {
   const { lang, toggleLang } = useLang();
@@ -83,8 +86,8 @@ export default function Header() {
           >
             👤
           </Link>
-          <a href={`tel:+${AGENCY_WHATSAPP_DIGITS}`} className="btn btn--gold btn--sm">
-            {AGENCY_PHONE_DISPLAY}
+          <a href={HEADER_WHATSAPP_LINK} className="btn btn--gold btn--sm" target="_blank" rel="noopener noreferrer">
+            <T ru="Заказать той" kz="Өтінім қалдыру" />
           </a>
           <button
             className={`burger${navOpen ? ' is-open' : ''}`}
