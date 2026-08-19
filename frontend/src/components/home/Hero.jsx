@@ -4,10 +4,6 @@ import { useEffect, useRef, useState } from 'react';
 import Link from 'next/link';
 import Reveal from '@/components/Reveal';
 import { T } from '@/context/AppProviders';
-import { AGENCY_WHATSAPP_DIGITS } from '@/lib/agencyContact';
-
-const HERO_WHATSAPP_MESSAGE = 'Здравствуйте! Хочу заказать проведение мероприятия в MEREYTOI.';
-const HERO_WHATSAPP_LINK = `https://wa.me/${AGENCY_WHATSAPP_DIGITS}?text=${encodeURIComponent(HERO_WHATSAPP_MESSAGE)}`;
 
 const STATS = [
   { count: 250, ru: 'Проведено тоев', kz: 'Өткізілген той' },
@@ -81,9 +77,9 @@ export default function Hero() {
         </Reveal>
 
         <Reveal className="hero__actions">
-          <a href={HERO_WHATSAPP_LINK} className="btn btn--gold" target="_blank" rel="noopener noreferrer">
+          <Link href="/#contacts" className="btn btn--gold">
             <T ru="Оставить заявку" kz="Өтінім қалдыру" />
-          </a>
+          </Link>
           <Link href="/services" className="btn btn--outline"><T ru="Наши услуги" kz="Қызметтеріміз" /></Link>
         </Reveal>
 
