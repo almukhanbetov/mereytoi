@@ -53,12 +53,20 @@ export default function Contacts() {
     const typeLabel = lang === 'kz' ? typeObj.kz : typeObj.ru;
 
     try {
-      await createBooking({
+      const booking = await createBooking({
         name,
         phone,
         message: `${lang === 'kz' ? 'Той түрі' : 'Тип торжества'}: ${typeLabel}${message ? `\n\n${message}` : ''}`,
         items: [],
       });
+
+      if (typeof window !== 'undefined') {
+        window.dataLayer = window.dataLayer || [];
+        window.dataLayer.push({
+          event: 'lead_submit',
+          lead_id: String(booking?.booking?.id ?? ''),
+        });
+      }
 
       const waText = buildAgencyWhatsAppText({ name, phone, typeLabel, message, lang });
       const waUrl = `https://wa.me/${AGENCY_WHATSAPP_DIGITS}?text=${encodeURIComponent(waText)}`;

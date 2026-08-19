@@ -1,5 +1,6 @@
 import { Playfair_Display, Montserrat } from "next/font/google";
 import Script from "next/script";
+import { GoogleTagManager } from "@next/third-parties/google";
 import "./globals.css";
 import AppProviders from "@/context/AppProviders";
 import { AuthProvider } from "@/context/AuthContext";
@@ -38,6 +39,7 @@ export default function RootLayout({ children }) {
       suppressHydrationWarning
     >
       <body suppressHydrationWarning>
+        <GoogleTagManager gtmId="GTM-579XJ2GM" />
         <Script id="theme-lang-init" strategy="beforeInteractive">
           {`
             try {
