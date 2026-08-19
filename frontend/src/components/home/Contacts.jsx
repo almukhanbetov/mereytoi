@@ -13,20 +13,6 @@ const EVENT_TYPES = [
   { value: 'other', ru: 'Другое', kz: 'Басқа' },
 ];
 
-function buildAgencyWhatsAppText({ name, phone, typeLabel, message, lang }) {
-  const lines = [
-    lang === 'kz' ? '🔔 Сайттан жаңа өтінім — MEREYTOI' : '🔔 Новая заявка с сайта — MEREYTOI',
-    '',
-    `${lang === 'kz' ? 'Аты' : 'Имя'}: ${name}`,
-    `Телефон: ${phone}`,
-    `${lang === 'kz' ? 'Той түрі' : 'Тип торжества'}: ${typeLabel}`,
-  ];
-  if (message) {
-    lines.push('', `${lang === 'kz' ? 'Хабарлама' : 'Сообщение'}:`, message);
-  }
-  return lines.join('\n');
-}
-
 export default function Contacts() {
   const { lang } = useLang();
   const [submitted, setSubmitted] = useState(false);
@@ -39,11 +25,6 @@ export default function Contacts() {
     setSubmitting(true);
 
     const form = e.target;
-    // Opened synchronously (before the await below) so browsers don't treat
-    // it as a blocked popup — a window.open() after an async gap loses the
-    // "direct user gesture" that lets it bypass the popup blocker.
-    const waWindow = window.open('', '_blank');
-
     const formData = new FormData(form);
     const name = formData.get('name')?.toString().trim() || '';
     const phone = formData.get('phone')?.toString().trim() || '';
@@ -68,16 +49,10 @@ export default function Contacts() {
         });
       }
 
-      const waText = buildAgencyWhatsAppText({ name, phone, typeLabel, message, lang });
-      const waUrl = `https://wa.me/${AGENCY_WHATSAPP_DIGITS}?text=${encodeURIComponent(waText)}`;
-      if (waWindow) waWindow.location.href = waUrl;
-      else window.open(waUrl, '_blank', 'noopener,noreferrer');
-
       setSubmitted(true);
       form.reset();
       setTimeout(() => setSubmitted(false), 5000);
     } catch (err) {
-      if (waWindow) waWindow.close();
       setError(err.message || (lang === 'kz' ? 'Жіберу сәтсіз аяқталды' : 'Не удалось отправить заявку'));
     } finally {
       setSubmitting(false);
