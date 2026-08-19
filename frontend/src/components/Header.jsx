@@ -5,6 +5,7 @@ import { usePathname } from 'next/navigation';
 import { useEffect, useState } from 'react';
 import { useLang, useTheme, useCart, T } from '@/context/AppProviders';
 import { useAuth } from '@/context/AuthContext';
+import { AGENCY_PHONE_DISPLAY, AGENCY_WHATSAPP_DIGITS } from '@/lib/agencyContact';
 
 const NAV_LINKS = [
   { href: '/', ru: 'Главная', kz: 'Басты бет' },
@@ -82,9 +83,9 @@ export default function Header() {
           >
             👤
           </Link>
-          <Link href="/#contacts" className="btn btn--gold btn--sm">
-            <T ru="Заказать той" kz="Өтінім қалдыру" />
-          </Link>
+          <a href={`tel:+${AGENCY_WHATSAPP_DIGITS}`} className="btn btn--gold btn--sm">
+            {AGENCY_PHONE_DISPLAY}
+          </a>
           <button
             className={`burger${navOpen ? ' is-open' : ''}`}
             onClick={() => setNavOpen((v) => !v)}
