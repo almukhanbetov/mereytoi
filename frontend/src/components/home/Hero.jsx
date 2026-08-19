@@ -77,9 +77,9 @@ export default function Hero() {
         </Reveal>
 
         <Reveal className="hero__actions">
-          <Link href="/#contacts" className="btn btn--gold">
+          <a href="#contacts" className="btn btn--gold">
             <T ru="Оставить заявку" kz="Өтінім қалдыру" />
-          </Link>
+          </a>
           <Link href="/services" className="btn btn--outline"><T ru="Наши услуги" kz="Қызметтеріміз" /></Link>
         </Reveal>
 
