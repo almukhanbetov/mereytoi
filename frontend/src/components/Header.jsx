@@ -6,6 +6,7 @@ import { useEffect, useState } from 'react';
 import { useLang, useTheme, useCart, T } from '@/context/AppProviders';
 import { useAuth } from '@/context/AuthContext';
 import { AGENCY_WHATSAPP_DIGITS } from '@/lib/agencyContact';
+import { trackWhatsAppClick } from '@/lib/whatsapp';
 
 const NAV_LINKS = [
   { href: '/', ru: 'Главная', kz: 'Басты бет' },
@@ -86,7 +87,13 @@ export default function Header() {
           >
             👤
           </Link>
-          <a href={HEADER_WHATSAPP_LINK} className="btn btn--gold btn--sm" target="_blank" rel="noopener noreferrer">
+          <a
+            href={HEADER_WHATSAPP_LINK}
+            className="btn btn--gold btn--sm"
+            target="_blank"
+            rel="noopener noreferrer"
+            onClick={trackWhatsAppClick}
+          >
             <T ru="Заказать той" kz="Өтінім қалдыру" />
           </a>
           <button

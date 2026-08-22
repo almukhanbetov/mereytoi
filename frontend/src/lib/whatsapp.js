@@ -1,3 +1,10 @@
+/** Pushes whatsapp_click once per real click, right before the browser follows the link. */
+export function trackWhatsAppClick() {
+  if (typeof window === 'undefined') return;
+  window.dataLayer = window.dataLayer || [];
+  window.dataLayer.push({ event: 'whatsapp_click' });
+}
+
 function toWhatsAppDigits(phone) {
   const digits = (phone || '').replace(/\D/g, '');
   if (!digits) return '';

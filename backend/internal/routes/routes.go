@@ -45,6 +45,14 @@ func Register(r *gin.Engine, database *gorm.DB, cfg config.Config) {
 		{
 			categories.GET("", categoryHandler.List)
 			categories.GET("/:slug", categoryHandler.GetBySlug)
+
+			admin := categories.Group("")
+			admin.Use(middleware.RequireAuth(cfg.JWTSecret), middleware.RequireAdmin())
+			{
+				admin.POST("", categoryHandler.Create)
+				admin.PUT("/:id", categoryHandler.Update)
+				admin.DELETE("/:id", categoryHandler.Delete)
+			}
 		}
 
 		listings := api.Group("/listings")

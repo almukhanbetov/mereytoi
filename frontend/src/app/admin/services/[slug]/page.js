@@ -2,13 +2,14 @@
 
 import { useEffect, useMemo, useState } from 'react';
 import Link from 'next/link';
-import { useParams } from 'next/navigation';
+import { useParams, useRouter } from 'next/navigation';
 import { adminApi } from '@/lib/adminApi';
 import { formatPrice } from '@/lib/format';
 import { mediaUrl } from '@/lib/media';
 
 export default function AdminCategoryServicesPage() {
   const { slug } = useParams();
+  const router = useRouter();
   const [categories, setCategories] = useState([]);
   const [listings, setListings] = useState([]);
   const [loading, setLoading] = useState(true);
@@ -43,14 +44,37 @@ export default function AdminCategoryServicesPage() {
     }
   }
 
+  async function handleDeleteCategory() {
+    if (!category) return;
+    if (items.length > 0) {
+      alert(`Нельзя удалить категорию «${category.name_ru}» — в ней есть услуги (${items.length}). Сначала удалите или перенесите их в другую категорию.`);
+      return;
+    }
+    if (!window.confirm(`Удалить категорию «${category.name_ru}»?`)) return;
+    try {
+      await adminApi.deleteCategory(category.id);
+      router.push('/admin');
+    } catch (err) {
+      alert(err.message || 'Не удалось удалить категорию');
+    }
+  }
+
   return (
     <div>
       <div className="admin-page-head">
         <h1 className="admin-page-title">{category ? category.name_ru : '…'}</h1>
         {category && (
-          <Link href={`/admin/services/new?category=${category.id}`} className="btn btn--gold btn--sm">
-            + Добавить
-          </Link>
+          <div style={{ display: 'flex', gap: 10 }}>
+            <Link href={`/admin/categories/edit/${category.id}`} className="btn btn--outline btn--sm">
+              Изменить категорию
+            </Link>
+            <button type="button" className="btn btn--outline btn--sm" onClick={handleDeleteCategory}>
+              Удалить категорию
+            </button>
+            <Link href={`/admin/services/new?category=${category.id}`} className="btn btn--gold btn--sm">
+              + Добавить услугу
+            </Link>
+          </div>
         )}
       </div>
 

@@ -47,7 +47,11 @@ export default function AdminDashboardPage() {
           <tbody>
             {byCategory.map((c) => (
               <tr key={c.id}>
-                <td>{c.name_ru}</td>
+                <td>
+                  <Link href={`/admin/services/${c.slug}`} className="admin-table__link">
+                    {c.name_ru}
+                  </Link>
+                </td>
                 <td>{loading ? '—' : c.count}</td>
               </tr>
             ))}
@@ -55,8 +59,8 @@ export default function AdminDashboardPage() {
         </table>
       </div>
 
-      <Link href="/admin/services/new" className="btn btn--gold" style={{ marginTop: 24, display: 'inline-flex' }}>
-        + Добавить услугу
+      <Link href="/admin/categories/new" className="btn btn--gold" style={{ marginTop: 24, display: 'inline-flex' }}>
+        + Добавить категорию
       </Link>
     </div>
   );

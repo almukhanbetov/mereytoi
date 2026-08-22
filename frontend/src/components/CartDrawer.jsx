@@ -7,7 +7,7 @@ import { formatPrice } from '@/lib/format';
 import { mediaUrl } from '@/lib/media';
 import { createBooking, lookupBookings } from '@/lib/bookingApi';
 import { authApi, getUserToken } from '@/lib/authApi';
-import { buildWhatsAppLink } from '@/lib/whatsapp';
+import { buildWhatsAppLink, trackWhatsAppClick } from '@/lib/whatsapp';
 import { downloadOfferPdf } from '@/lib/pdf';
 
 const STATUS_LABELS = {
@@ -212,7 +212,7 @@ export default function CartDrawer() {
         ) : null}
 
         {(items.length > 0 || (lastOrder && lastOrder.items.length > 0)) && (
-          <a className="cart-whatsapp" href={whatsappLink} target="_blank" rel="noopener noreferrer">
+          <a className="cart-whatsapp" href={whatsappLink} target="_blank" rel="noopener noreferrer" onClick={trackWhatsAppClick}>
             <span className="cart-whatsapp__icon">💬</span>
             <span className="cart-whatsapp__body">
               <span className="cart-whatsapp__title"><T ru="Отправить в WhatsApp" kz="WhatsApp-қа жіберу" /></span>

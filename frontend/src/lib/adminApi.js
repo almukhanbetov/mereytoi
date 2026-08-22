@@ -81,6 +81,9 @@ export const adminApi = {
   me: () => request('/api/auth/me', { auth: true }),
 
   categories: () => request('/api/categories'),
+  createCategory: (payload) => request('/api/categories', { method: 'POST', body: payload, auth: true }),
+  updateCategory: (id, payload) => request(`/api/categories/${id}`, { method: 'PUT', body: payload, auth: true }),
+  deleteCategory: (id) => request(`/api/categories/${id}`, { method: 'DELETE', auth: true }),
   listings: () => request('/api/listings'),
   listing: (id) => request(`/api/listings/${id}`),
   createListing: (payload) => request('/api/listings', { method: 'POST', body: payload, auth: true }),
