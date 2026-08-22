@@ -373,82 +373,117 @@ section{ position:relative; padding: 130px 0; }
 .filter-btn.is-active{ background: var(--gold); border-color: var(--gold); color:#17140d; }
 
 /* ============ Pricing packages ============ */
+.pricing{ scroll-margin-top: 90px; padding-bottom: 90px; }
 .pricing__grid{
-  margin-top: 64px;
-  display:grid; grid-template-columns: repeat(2, 1fr); gap: 32px; align-items:start;
+  margin-top: 56px;
+  display:grid; grid-template-columns: repeat(2, 1fr); gap: 28px; align-items:stretch;
 }
 .pricing-card{
-  display:flex; flex-direction:column;
+  display:flex; flex-direction:column; height:100%;
   background: var(--bg-card); border: 1px solid var(--border); border-radius: var(--radius);
-  padding: 40px 34px; position:relative;
-  transition: transform .45s var(--ease), border-color .45s ease, box-shadow .45s ease, background .45s ease;
+  padding: 36px 32px; position:relative;
+  transition: transform .4s var(--ease), border-color .4s ease, box-shadow .4s ease, background .4s ease;
 }
 .pricing-card:hover{
-  transform: translateY(-8px) scale(1.015);
+  transform: translateY(-5px) scale(1.008);
   border-color: var(--gold);
-  box-shadow: 0 24px 60px -26px rgba(212,175,106,0.4);
+  box-shadow: 0 20px 50px -26px rgba(212,175,106,0.4);
   background: linear-gradient(160deg, var(--bg-card), var(--card-hover-end));
 }
 .pricing-card--premium2{
   border-color: rgba(212,175,106,0.45);
-  box-shadow: 0 20px 54px -30px rgba(212,175,106,0.45);
+  box-shadow: 0 16px 44px -28px rgba(212,175,106,0.45);
 }
 .pricing-card--vip{
-  border-color: rgba(212,175,106,0.6);
-  background: linear-gradient(165deg, var(--bg-card), rgba(212,175,106,0.07));
-  box-shadow: 0 26px 66px -30px rgba(212,175,106,0.55);
+  border-color: rgba(212,175,106,0.55);
+  background: linear-gradient(165deg, var(--bg-card), rgba(212,175,106,0.06));
+  box-shadow: 0 18px 48px -28px rgba(212,175,106,0.4);
 }
 
-.pricing-card__head{ margin-bottom: 6px; }
+.pricing-card__body{ display:flex; flex-direction:column; }
 .pricing-card__name{
   font-size:13px; letter-spacing:.14em; text-transform:uppercase;
-  color: var(--text-muted); font-weight:700; margin: 0 0 10px;
+  color: var(--text-muted); font-weight:700; margin: 0 0 14px;
 }
 .pricing-card__price{
-  font-family: var(--font-playfair), serif; font-size: 34px; font-weight:700;
-  color: var(--gold-light); margin:0;
+  display:flex; align-items:baseline; justify-content:flex-start; flex-wrap:wrap; gap:6px;
+  font-family: var(--font-playfair), serif; font-weight:700; color: var(--gold-light); margin:0;
 }
-.pricing-card__price-from{ font-family: var(--font-montserrat), sans-serif; font-size:16px; font-weight:600; }
+.pricing-card__price-amount{ font-size:38px; line-height:1; }
+.pricing-card__price-currency{ font-size:22px; font-weight:600; opacity:.85; }
+.pricing-card__price-from{ font-family: var(--font-montserrat), sans-serif; font-size:14px; font-weight:600; color: var(--text-muted); }
+
+.pricing-card__badges{ display:flex; flex-wrap:wrap; gap:8px; margin-top:14px; }
 .pricing-card__badge{
-  display:inline-flex; align-items:center; margin-top:12px; padding:5px 14px; border-radius:999px;
+  display:inline-flex; align-items:center; padding:5px 13px; border-radius:999px;
   background: linear-gradient(135deg, var(--gold-light), var(--gold));
   color:#17140d; font-size:11px; font-weight:700; letter-spacing:.05em; text-transform:uppercase;
 }
+.pricing-card__badge--featured{
+  background: transparent; border:1px solid var(--gold); color: var(--gold-light);
+}
 
-.pricing-card__features{ margin: 28px 0 0; padding:0; list-style:none; display:flex; flex-direction:column; gap:18px; flex:1; }
-.pricing-card__feature-title{
-  display:flex; gap:10px; align-items:flex-start; margin:0;
-  color: var(--text); font-weight:600; font-size:14.5px; line-height:1.5;
+.pricing-card__shortlist{ margin: 22px 0 0; padding:0; list-style:none; display:flex; flex-direction:column; gap:12px; }
+.pricing-card__shortlist li{
+  display:flex; align-items:center; gap:10px; color: var(--text); font-size:14.5px; line-height:1.4;
 }
-.pricing-card__feature-title::before{
-  content:'✦'; color: var(--gold); flex-shrink:0; font-size:11px; margin-top:4px;
+.pricing-card__check{
+  flex:none; width:18px; height:18px; border-radius:50%;
+  display:flex; align-items:center; justify-content:center;
+  background: linear-gradient(135deg, var(--gold-light), var(--gold));
+  color:#17140d; font-size:10.5px; font-weight:700;
 }
-.pricing-card__feature-note{ margin: 4px 0 0 21px; color: var(--text-muted); font-size:13px; line-height:1.5; }
-.pricing-card__feature-groups{ margin: 10px 0 0 21px; }
-.pricing-card__feature-groups + .pricing-card__feature-groups{ margin-top: 12px; }
-.pricing-card__feature-group-label{
+
+.pricing-card__footer{ margin-top:auto; padding-top: 26px; display:flex; flex-direction:column; gap:14px; }
+.pricing-card__toggle{
+  display:flex; align-items:center; justify-content:center; gap:8px; align-self:flex-start;
+  background:none; border:1px solid var(--border); border-radius:999px;
+  padding:9px 18px; color: var(--text-muted); font-size:13px; font-weight:600; cursor:pointer;
+  transition: border-color .3s ease, color .3s ease;
+}
+.pricing-card__toggle:hover{ border-color: var(--gold); color: var(--gold-light); }
+.pricing-card__toggle-icon{ color: var(--gold); font-size:15px; line-height:1; }
+
+.pricing-card__details{
+  display:grid; grid-template-rows: 0fr;
+  transition: grid-template-rows .4s var(--ease);
+}
+.pricing-card__details.is-open{ grid-template-rows: 1fr; }
+.pricing-card__details-inner{ overflow:hidden; min-height:0; }
+.pricing-card__detail-list{
+  margin:0; padding: 4px 0 6px; list-style:none; display:flex; flex-direction:column; gap:16px;
+  opacity:0; transition: opacity .3s ease;
+}
+.pricing-card__details.is-open .pricing-card__detail-list{ opacity:1; transition-delay:.15s; }
+
+.pricing-card__detail-title{ margin:0; color: var(--text); font-weight:600; font-size:14px; line-height:1.5; }
+.pricing-card__detail-note{ margin: 4px 0 0; color: var(--text-muted); font-size:12.5px; line-height:1.5; }
+.pricing-card__detail-groups{ margin: 10px 0 0; }
+.pricing-card__detail-groups + .pricing-card__detail-groups{ margin-top: 12px; }
+.pricing-card__detail-group-label{
   display:block; font-size:11px; text-transform:uppercase; letter-spacing:.06em;
   color: var(--gold-light); font-weight:700; margin-bottom:4px;
 }
-.pricing-card__feature-group-items{ margin:0; padding:0; list-style:none; color: var(--text-muted); font-size:13px; line-height:1.6; }
-.pricing-card__feature-group-items li{ padding-left:14px; position:relative; }
-.pricing-card__feature-group-items li::before{ content:'–'; position:absolute; left:0; color: var(--border); }
+.pricing-card__detail-group-items{ margin:0; padding:0; list-style:none; color: var(--text-muted); font-size:12.5px; line-height:1.6; }
+.pricing-card__detail-group-items li{ padding-left:14px; position:relative; }
+.pricing-card__detail-group-items li::before{ content:'–'; position:absolute; left:0; color: var(--border); }
 .pricing-card__duration{
-  display:inline-flex; margin: 10px 0 0 21px; padding:4px 12px; border-radius:999px;
+  display:inline-flex; margin: 10px 0 0; padding:4px 12px; border-radius:999px;
   background: var(--surface-tint); border:1px solid var(--border); font-size:12px; font-weight:600; color: var(--gold-light);
 }
-.pricing-card__extra{ margin: 8px 0 0 21px; color: var(--text-muted); font-size:12.5px; font-style:italic; }
-
-.pricing-card__cta{ margin-top: 32px; }
+.pricing-card__detail-extra{ margin: 8px 0 0; color: var(--text-muted); font-size:12px; font-style:italic; }
 
 @media (max-width: 720px){
-  .pricing__grid{ grid-template-columns: 1fr; gap: 24px; }
-  .pricing-card{ padding: 32px 26px; }
+  .pricing{ padding-bottom: 70px; }
+  .pricing__grid{ grid-template-columns: 1fr; gap: 20px; }
+  .pricing-card{ padding: 30px 26px; }
 }
 
 @media (prefers-reduced-motion: reduce){
   .pricing-card{ transition: opacity .3s ease; }
   .pricing-card:hover{ transform:none; box-shadow:none; }
+  .pricing-card__details{ transition:none; }
+  .pricing-card__detail-list{ transition:none; }
   .pricing .reveal{ transition: opacity .3s ease; transform:none !important; }
 }
 
