@@ -43,6 +43,18 @@ type categoryInput struct {
 	NameRu   string `json:"name_ru" binding:"required"`
 	NameKz   string `json:"name_kz" binding:"required"`
 	Position int    `json:"position"`
+	// ImageURL: already-uploaded URL (via POST /api/uploads, same as
+	// listings) — never a binary file. Empty string means "no photo".
+	ImageURL string `json:"image_url"`
+}
+
+// imageURLPtr turns an empty string into nil so a category submitted
+// without a photo stores NULL rather than an empty-string "url".
+func imageURLPtr(s string) *string {
+	if s == "" {
+		return nil
+	}
+	return &s
 }
 
 func (h *CategoryHandler) Create(c *gin.Context) {
@@ -63,6 +75,7 @@ func (h *CategoryHandler) Create(c *gin.Context) {
 		NameRu:   in.NameRu,
 		NameKz:   in.NameKz,
 		Position: in.Position,
+		ImageURL: imageURLPtr(in.ImageURL),
 	}
 	if err := h.DB.Create(&category).Error; err != nil {
 		c.JSON(http.StatusInternalServerError, gin.H{"error": "failed to create category"})
@@ -103,6 +116,7 @@ func (h *CategoryHandler) Update(c *gin.Context) {
 	category.NameRu = in.NameRu
 	category.NameKz = in.NameKz
 	category.Position = in.Position
+	category.ImageURL = imageURLPtr(in.ImageURL)
 
 	if err := h.DB.Save(&category).Error; err != nil {
 		c.JSON(http.StatusInternalServerError, gin.H{"error": "failed to update category"})
