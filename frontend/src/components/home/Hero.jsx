@@ -86,7 +86,7 @@ export default function Hero({ statistics }) {
           <a href="#contacts" className="btn btn--gold">
             <T ru="Оставить заявку" kz="Өтінім қалдыру" />
           </a>
-          <Link href="/services" className="btn btn--outline"><T ru="Наши услуги" kz="Қызметтеріміз" /></Link>
+          <Link href="/services" className="btn btn--outline"><T ru="Рассчитать стоимость" kz="Құнын есептеу" /></Link>
         </Reveal>
 
         <Reveal className="hero__stats">
