@@ -299,6 +299,14 @@ img{ max-width: 100%; display:block; }
 .hero__scroll-dot{ width:4px; height:8px; background: var(--gold); border-radius:2px; animation: scrollDot 1.8s ease-in-out infinite; }
 @keyframes scrollDot{ 0%{ transform: translateY(0); opacity:1;} 70%{opacity:0;} 100%{ transform: translateY(14px); opacity:0; } }
 
+/* Laptop-width viewports (~1280-1536px) tend to have short viewport heights
+   (768-900px); the centered hero content then sits close enough to the
+   bottom that the fixed-offset ornament can crowd the stats labels. Give the
+   hero a taller floor here so the ornament always clears the stats block. */
+@media (max-width: 1600px){
+  .hero{ min-height: 950px; }
+}
+
 @media (max-width: 480px){
   .hero{ min-height: auto; padding: 110px 0 56px; }
   .hero__eyebrow{ margin-bottom: 14px; }
