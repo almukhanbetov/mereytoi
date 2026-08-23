@@ -6,7 +6,15 @@
  * an image (rather than jsPDF's built-in text) is what makes Cyrillic/Kazakh
  * text render correctly — jsPDF's default fonts have no Cyrillic glyphs.
  */
-export async function downloadOfferPdf({ items, total, lang, formatPrice }) {
+function escapeHtml(str) {
+  return str
+    .replace(/&/g, '&amp;')
+    .replace(/</g, '&lt;')
+    .replace(/>/g, '&gt;')
+    .replace(/"/g, '&quot;');
+}
+
+export async function downloadOfferPdf({ items, total, lang, formatPrice, name, phone }) {
   if (typeof window === 'undefined' || items.length === 0) return;
 
   const [{ default: jsPDF }, { default: html2canvas }] = await Promise.all([
@@ -15,6 +23,14 @@ export async function downloadOfferPdf({ items, total, lang, formatPrice }) {
   ]);
 
   const dateStr = new Date().toLocaleDateString('ru-RU', { day: '2-digit', month: 'long', year: 'numeric' });
+
+  const clientName = (name || '').trim();
+  const clientPhone = (phone || '').trim();
+  const clientBlock = (clientName || clientPhone) ? `
+    <div style="margin-bottom:28px; padding-bottom:20px; border-bottom:1px solid #e5ddd0; font-size:13px; line-height:1.7; color:#1a1410;">
+      ${clientName ? `<div><strong>${lang === 'kz' ? 'Клиент' : 'Клиент'}:</strong> ${escapeHtml(clientName)}</div>` : ''}
+      ${clientPhone ? `<div><strong>${lang === 'kz' ? 'Телефон' : 'Телефон'}:</strong> ${escapeHtml(clientPhone)}</div>` : ''}
+    </div>` : '';
 
   const rows = items.map((item, i) => {
     const detail = item.guests
@@ -42,6 +58,7 @@ export async function downloadOfferPdf({ items, total, lang, formatPrice }) {
       </div>
       <div style="font-size:12px; color:#8a7d6a; margin-top:6px;">${dateStr}</div>
     </div>
+    ${clientBlock}
     <table style="width:100%; border-collapse:collapse;">${rows}</table>
     <div style="display:flex; justify-content:space-between; align-items:center; margin-top:28px; padding-top:20px; border-top:2px solid #1a1410;">
       <span style="font-size:15px; font-weight:700;">${lang === 'kz' ? 'Барлығы' : 'Итого'}</span>

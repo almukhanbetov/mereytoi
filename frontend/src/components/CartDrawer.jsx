@@ -102,7 +102,7 @@ export default function CartDrawer() {
   async function handleDownloadPdf() {
     setPdfGenerating(true);
     try {
-      await downloadOfferPdf({ items: whatsappItems, total: whatsappTotal, lang, formatPrice });
+      await downloadOfferPdf({ items: whatsappItems, total: whatsappTotal, lang, formatPrice, name, phone });
     } catch (err) {
       alert(err.message || (lang === 'kz' ? 'PDF жасау сәтсіз аяқталды' : 'Не удалось создать PDF'));
     } finally {
