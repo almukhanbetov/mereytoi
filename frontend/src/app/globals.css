@@ -339,6 +339,53 @@ section{ position:relative; padding: 130px 0; }
   display:grid; grid-template-columns: repeat(3, 1fr); gap: 28px;
 }
 .services__cta{ text-align:center; margin-top: 50px; }
+
+/* Category cards on the homepage — deliberately a separate flex-based
+   grid from .services__grid (which the SEO landing pages still use for
+   their icon .card lists), so an incomplete last row (e.g. 5 categories
+   → 3 + 2) centers itself instead of stretching or sitting flush-left. */
+.categories__grid{
+  margin-top: 64px; display:flex; flex-wrap:wrap; justify-content:center; gap: 28px;
+}
+.category-card{
+  flex: 0 1 calc(33.333% - 19px); min-width: 280px;
+  display:flex; flex-direction:column;
+  background: var(--bg-card); border: 1px solid var(--border); border-radius: var(--radius);
+  overflow:hidden; transition: transform .4s var(--ease), border-color .4s ease, box-shadow .4s ease;
+}
+.category-card:hover{
+  transform: translateY(-4px);
+  border-color: var(--gold);
+  box-shadow: 0 20px 50px -28px rgba(212,175,106,0.4);
+}
+.category-card__media{
+  aspect-ratio: 16 / 10; position:relative;
+  display:flex; align-items:center; justify-content:center;
+  background: linear-gradient(150deg, #20222c, #3a3f52);
+  background-size: cover; background-position: center;
+  font-size: 44px; transition: transform .5s var(--ease);
+}
+.category-card:hover .category-card__media{ transform: scale(1.035); }
+.category-card__media::after{
+  content:''; position:absolute; inset:0; background: linear-gradient(0deg, rgba(0,0,0,0.4), transparent 55%);
+}
+.category-card__body{ padding: 22px 24px 26px; display:flex; flex-direction:column; gap:10px; }
+.category-card__name{ font-family:var(--font-playfair), serif; font-size:20px; color: var(--text); margin:0; }
+.category-card__link{ color: var(--gold-light); font-size:13.5px; font-weight:600; }
+
+@media (max-width: 900px){
+  .category-card{ flex-basis: calc(50% - 14px); }
+}
+@media (max-width: 620px){
+  .category-card{ flex-basis: 100%; }
+}
+
+@media (prefers-reduced-motion: reduce){
+  .category-card{ transition: opacity .3s ease; }
+  .category-card:hover{ transform:none; box-shadow:none; }
+  .category-card__media{ transition:none; }
+  .category-card:hover .category-card__media{ transform:none; }
+}
 .card{
   background: var(--bg-card);
   border: 1px solid var(--border);

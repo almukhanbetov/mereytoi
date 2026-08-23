@@ -2,12 +2,17 @@
 
 import { useMemo, useState } from 'react';
 import Link from 'next/link';
+import { useSearchParams } from 'next/navigation';
 import Reveal from '@/components/Reveal';
 import ServiceCard from '@/components/services/ServiceCard';
 import { T, useLang } from '@/context/AppProviders';
 
 export default function ServicesClient({ categories, listings }) {
-  const [activeCat, setActiveCat] = useState('all');
+  // Initial filter can arrive via ?category=<slug> (e.g. from the homepage
+  // category cards) — read once on mount; the filter buttons below still
+  // control it client-side afterwards exactly as before.
+  const searchParams = useSearchParams();
+  const [activeCat, setActiveCat] = useState(() => searchParams.get('category') || 'all');
   const [search, setSearch] = useState('');
   const { lang } = useLang();
 

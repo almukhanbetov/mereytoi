@@ -1,3 +1,4 @@
+import { Suspense } from "react";
 import ServicesClient from "@/components/services/ServicesClient";
 import { fetchCategories, fetchListings } from "@/lib/api";
 
@@ -9,5 +10,9 @@ export const metadata = {
 
 export default async function ServicesPage() {
   const [categories, listings] = await Promise.all([fetchCategories(), fetchListings()]);
-  return <ServicesClient categories={categories} listings={listings} />;
+  return (
+    <Suspense>
+      <ServicesClient categories={categories} listings={listings} />
+    </Suspense>
+  );
 }

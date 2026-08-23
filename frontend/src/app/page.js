@@ -4,22 +4,17 @@ import PricingPackages from "@/components/home/PricingPackages";
 import Clients from "@/components/home/Clients";
 import Reviews from "@/components/home/Reviews";
 import Contacts from "@/components/home/Contacts";
-import { fetchCategories, fetchListings } from "@/lib/api";
-
-const FEATURED_COUNT = 6;
+import { fetchCategories } from "@/lib/api";
 
 export default async function HomePage() {
-  const [categories, listings] = await Promise.all([fetchCategories(), fetchListings()]);
-  // fetchListings() already returns only is_active listings, sorted by
-  // rating desc (see backend ListingHandler.List) — no featured/sort_order
-  // field exists on the model, so the top N of that stable order is the
-  // homepage's "featured" selection.
-  const featured = listings.slice(0, FEATURED_COUNT);
+  // Homepage "Услуги" shows category-level cards only, not individual
+  // listings — the catalog (/services) is where specific listings live.
+  const categories = await fetchCategories();
 
   return (
     <>
       <Hero />
-      <Services listings={featured} categories={categories} />
+      <Services categories={categories} />
       <PricingPackages />
       <Clients />
       <Reviews />
