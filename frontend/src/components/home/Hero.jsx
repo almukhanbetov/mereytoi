@@ -5,12 +5,10 @@ import Link from 'next/link';
 import Reveal from '@/components/Reveal';
 import { T } from '@/context/AppProviders';
 
-const STATS = [
-  { count: 250, ru: 'Проведено тоев', kz: 'Өткізілген той' },
-  { count: 15000, ru: 'Довольных гостей', kz: 'Риза қонақтар' },
-  { count: 8, ru: 'Лет опыта', kz: 'Жыл тәжірибе' },
-  { count: 5, ru: 'Городов', kz: 'Қала' },
-];
+// Falls back to the same values the stats block originally had hardcoded,
+// in case the `statistics` prop is missing (e.g. the API was unreachable
+// during server render).
+const DEFAULT_STATISTICS = { events_count: 250, happy_guests_count: 15000, years_experience: 8, cities_count: 5 };
 
 function StatCounter({ target }) {
   const ref = useRef(null);
@@ -46,7 +44,15 @@ function StatCounter({ target }) {
   return <span className="stat__num" ref={ref}>{value.toLocaleString('ru-RU')}</span>;
 }
 
-export default function Hero() {
+export default function Hero({ statistics }) {
+  const s = statistics || DEFAULT_STATISTICS;
+  const STATS = [
+    { count: s.events_count, ru: 'Проведено тоев', kz: 'Өткізілген той' },
+    { count: s.happy_guests_count, ru: 'Довольных гостей', kz: 'Риза қонақтар' },
+    { count: s.years_experience, ru: 'Лет опыта', kz: 'Жыл тәжірибе' },
+    { count: s.cities_count, ru: 'Городов', kz: 'Қала' },
+  ];
+
   return (
     <section className="hero" id="hero">
       <div className="hero__bg">

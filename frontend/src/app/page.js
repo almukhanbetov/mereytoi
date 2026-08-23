@@ -4,16 +4,16 @@ import PricingPackages from "@/components/home/PricingPackages";
 import Clients from "@/components/home/Clients";
 import Reviews from "@/components/home/Reviews";
 import Contacts from "@/components/home/Contacts";
-import { fetchCategories } from "@/lib/api";
+import { fetchCategories, fetchSiteStatistics } from "@/lib/api";
 
 export default async function HomePage() {
   // Homepage "Услуги" shows category-level cards only, not individual
   // listings — the catalog (/services) is where specific listings live.
-  const categories = await fetchCategories();
+  const [categories, statistics] = await Promise.all([fetchCategories(), fetchSiteStatistics()]);
 
   return (
     <>
-      <Hero />
+      <Hero statistics={statistics} />
       <Services categories={categories} />
       <PricingPackages />
       <Clients />

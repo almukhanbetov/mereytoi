@@ -105,4 +105,7 @@ export const adminApi = {
   createClient: (payload) => request('/api/clients', { method: 'POST', body: payload, auth: true }),
   updateClient: (id, payload) => request(`/api/clients/${id}`, { method: 'PUT', body: payload, auth: true }),
   deleteClient: (id) => request(`/api/clients/${id}`, { method: 'DELETE', auth: true }),
+
+  siteStatistics: () => request('/api/site-statistics'),
+  updateSiteStatistics: (payload) => request('/api/site-statistics', { method: 'PUT', body: payload, auth: true }),
 };

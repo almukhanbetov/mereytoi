@@ -19,6 +19,7 @@ func Register(r *gin.Engine, database *gorm.DB, cfg config.Config) {
 	bookingHandler := handlers.NewBookingHandler(database)
 	commentHandler := handlers.NewCommentHandler(database)
 	clientHandler := handlers.NewClientHandler(database)
+	statisticsHandler := handlers.NewSiteStatisticsHandler(database)
 
 	r.GET("/api/health", func(c *gin.Context) {
 		c.JSON(http.StatusOK, gin.H{"status": "ok"})
@@ -110,6 +111,17 @@ func Register(r *gin.Engine, database *gorm.DB, cfg config.Config) {
 				admin.POST("", clientHandler.Create)
 				admin.PUT("/:id", clientHandler.Update)
 				admin.DELETE("/:id", clientHandler.Delete)
+			}
+		}
+
+		statistics := api.Group("/site-statistics")
+		{
+			statistics.GET("", statisticsHandler.Get)
+
+			admin := statistics.Group("")
+			admin.Use(middleware.RequireAuth(cfg.JWTSecret), middleware.RequireAdmin())
+			{
+				admin.PUT("", statisticsHandler.Update)
 			}
 		}
 	}

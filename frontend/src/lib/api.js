@@ -29,3 +29,17 @@ export async function fetchListing(id) {
   const data = await apiGet(`/api/listings/${id}`);
   return data?.listing ?? null;
 }
+
+// Same values as the homepage stats block originally had hardcoded — used
+// whenever the statistics API is unreachable so the section still renders.
+export const DEFAULT_SITE_STATISTICS = {
+  events_count: 250,
+  happy_guests_count: 15000,
+  years_experience: 8,
+  cities_count: 5,
+};
+
+export async function fetchSiteStatistics() {
+  const data = await apiGet("/api/site-statistics");
+  return data ?? DEFAULT_SITE_STATISTICS;
+}
