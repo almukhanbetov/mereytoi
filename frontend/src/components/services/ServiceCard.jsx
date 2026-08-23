@@ -31,6 +31,11 @@ export default function ServiceCard({ listing, categoryLabel, delay = 0 }) {
       <div className="product-card__body">
         <span className="product-card__cat">{categoryLabel}</span>
         <h3 className="product-card__name">{lang === 'kz' ? listing.name_kz : listing.name_ru}</h3>
+        {(listing.description_ru || listing.description_kz) && (
+          <p className="product-card__desc">
+            {lang === 'kz' ? listing.description_kz : listing.description_ru}
+          </p>
+        )}
         {listing.city && <p className="listing-card__city">📍 {listing.city}</p>}
         <div className="product-card__row">
           <span className="product-card__price">
