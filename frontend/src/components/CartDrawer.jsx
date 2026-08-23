@@ -36,6 +36,12 @@ export default function CartDrawer() {
 
   const whatsappItems = items.length > 0 ? items : (lastOrder?.items || []);
   const whatsappTotal = items.length > 0 ? total : (lastOrder?.total || 0);
+  // After a successful checkout, name/phone are cleared for the next order
+  // (see handleCheckout below), but the PDF button stays visible via
+  // lastOrder — so the offer PDF must fall back to the name/phone that were
+  // actually submitted, not the now-empty live fields.
+  const offerName = items.length > 0 ? name : (lastOrder?.name || '');
+  const offerPhone = items.length > 0 ? phone : (lastOrder?.phone || '');
   const whatsappLink = useMemo(
     () => buildWhatsAppLink({ items: whatsappItems, total: whatsappTotal, phone, lang, formatPrice }),
     [whatsappItems, whatsappTotal, phone, lang]
@@ -84,7 +90,7 @@ export default function CartDrawer() {
       );
       if (!isAuthenticated) addBookingRef(booking.public_ref);
       setMyBookings((prev) => [booking, ...prev]);
-      setLastOrder({ items, total });
+      setLastOrder({ items, total, name, phone });
       setCheckedOut(true);
       clear();
       if (!isAuthenticated) {
@@ -102,7 +108,7 @@ export default function CartDrawer() {
   async function handleDownloadPdf() {
     setPdfGenerating(true);
     try {
-      await downloadOfferPdf({ items: whatsappItems, total: whatsappTotal, lang, formatPrice, name, phone });
+      await downloadOfferPdf({ items: whatsappItems, total: whatsappTotal, lang, formatPrice, name: offerName, phone: offerPhone });
     } catch (err) {
       alert(err.message || (lang === 'kz' ? 'PDF жасау сәтсіз аяқталды' : 'Не удалось создать PDF'));
     } finally {
