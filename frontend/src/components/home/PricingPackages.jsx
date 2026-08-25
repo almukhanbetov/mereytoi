@@ -19,60 +19,15 @@ const PACKAGES = [
     shortList: [
       { ru: 'Ведущий', kz: 'Жүргізуші' },
       { ru: 'Диджей', kz: 'Диджей' },
-    ],
-  },
-  {
-    id: 'premium1',
-    variant: 'premium1',
-    nameRu: 'Премиум 1', nameKz: 'Премиум 1',
-    price: 590000,
-    badgeRu: 'Акция', badgeKz: 'Акция',
-    shortList: [
-      { ru: 'Ведущий (Асаба)', kz: 'Жүргізуші (Асаба)' },
-      { ru: 'Диджей, певец', kz: 'Диджей, әнші' },
-      { ru: 'Видеограф + фотограф', kz: 'Видеограф + фотограф' },
-      { ru: 'Шоу-балет', kz: 'Шоу-балет' },
-      { ru: 'Afro Show', kz: 'Afro Show' },
-    ],
-    details: [
-      {
-        titleRu: 'Видеограф + фотограф', titleKz: 'Видеограф + фотограф',
-        noteRu: 'Полный монтаж + запись на флешку', noteKz: 'Толық монтаж + флешкаға жазу',
-      },
-      {
-        titleRu: 'Танцовщицы — 4 девушки, шоу-балет', titleKz: 'Билеушілер — 4 қыз, шоу-балет',
-        groups: [
-          {
-            labelRu: '3 танца', labelKz: '3 би',
-            itemsRu: ['казахский', 'ретро', 'интерактивный танец с гостями'],
-            itemsKz: ['қазақша', 'ретро', 'қонақтармен интерактивті би'],
-          },
-          {
-            labelRu: 'Также', labelKz: 'Сондай-ақ',
-            itemsRu: ['сопровождение құдалар', 'сопровождение молодожёнов'],
-            itemsKz: ['құдаларды сүйемелдеу', 'жас жұбайларды сүйемелдеу'],
-          },
-        ],
-      },
-      {
-        titleRu: 'Afro Show — дуэт', titleKz: 'Afro Show — дуэт',
-        noteRu: 'Тёмнокожие артисты', noteKz: 'Афро әртістер',
-        groups: [
-          {
-            labelRu: 'Программа', labelKz: 'Бағдарлама',
-            itemsRu: ['попурри', 'диско 90-х', 'восточные композиции', 'тойские хиты'],
-            itemsKz: ['попурри', '90-жылдар дискосы', 'шығыс композициялары', 'той хиттері'],
-          },
-        ],
-        durationRu: '20–25 минут', durationKz: '20–25 минут',
-        extraRu: 'Дополнительно: фотосессия', extraKz: 'Қосымша: фотосессия',
-      },
+      { ru: 'Видеограф + фотограф', kz: 'Видеограф + фотограф', notIncluded: true },
+      { ru: 'Шоу-балет', kz: 'Шоу-балет', notIncluded: true },
+      { ru: 'Afro Show', kz: 'Afro Show', notIncluded: true },
     ],
   },
   {
     id: 'premium2',
     variant: 'premium2',
-    nameRu: 'Премиум 2', nameKz: 'Премиум 2',
+    nameRu: 'Премиум', nameKz: 'Премиум',
     price: 690000,
     badgeRu: 'Акция', badgeKz: 'Акция',
     featuredRu: 'Рекомендуем', featuredKz: 'Ұсынамыз',
@@ -233,8 +188,12 @@ function PricingCard({ p, delay }) {
 
         <ul className="pricing-card__shortlist">
           {p.shortList.map((item) => (
-            <li key={item.ru}>
-              <span className="pricing-card__check" aria-hidden="true">✓</span>
+            <li key={item.ru} className={item.notIncluded ? 'is-not-included' : undefined}>
+              {item.notIncluded ? (
+                <span className="pricing-card__check pricing-card__check--empty" aria-hidden="true" />
+              ) : (
+                <span className="pricing-card__check" aria-hidden="true">✓</span>
+              )}
               <T ru={item.ru} kz={item.kz} />
             </li>
           ))}
