@@ -9,6 +9,7 @@ import Footer from "@/components/Footer";
 import CartDrawer from "@/components/CartDrawer";
 import CursorGlow from "@/components/CursorGlow";
 import BackToTop from "@/components/BackToTop";
+import FloatingManagerWidget from "@/components/FloatingManagerWidget";
 
 const playfair = Playfair_Display({
   variable: "--font-playfair",
@@ -58,6 +59,7 @@ export default function RootLayout({ children }) {
             <Footer />
             <BackToTop />
             <CartDrawer />
+            <FloatingManagerWidget />
           </AppProviders>
         </AuthProvider>
       </body>
