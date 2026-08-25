@@ -445,9 +445,19 @@ section{ position:relative; padding: 130px 0; }
   box-shadow: 0 20px 50px -26px rgba(212,175,106,0.4);
   background: linear-gradient(160deg, var(--bg-card), var(--card-hover-end));
 }
+/* Recommended pricing card — its resting state is deliberately the same
+   decorative look every card only reaches on hover (border-color,
+   box-shadow, background), minus the transform, so it already reads as
+   "the main package" before the visitor ever touches it. Hover still adds
+   a bit more lift/glow on top, just less than the jump a plain card makes. */
 .pricing-card--premium2{
-  border-color: rgba(212,175,106,0.45);
-  box-shadow: 0 16px 44px -28px rgba(212,175,106,0.45);
+  border-color: var(--gold);
+  box-shadow: 0 20px 50px -26px rgba(212,175,106,0.45), inset 0 1px 0 rgba(243,217,164,0.08);
+  background: linear-gradient(160deg, var(--bg-card), var(--card-hover-end));
+}
+.pricing-card--premium2:hover{
+  transform: translateY(-4px) scale(1.008);
+  box-shadow: 0 26px 60px -22px rgba(212,175,106,0.6), inset 0 1px 0 rgba(243,217,164,0.12);
 }
 .pricing-card--vip{
   border-color: rgba(212,175,106,0.55);
@@ -550,6 +560,7 @@ section{ position:relative; padding: 130px 0; }
 @media (prefers-reduced-motion: reduce){
   .pricing-card{ transition: opacity .3s ease; }
   .pricing-card:hover{ transform:none; box-shadow:none; }
+  .pricing-card--premium2:hover{ transform:none; }
   .pricing-card__details{ transition:none; }
   .pricing-card__detail-list{ transition:none; }
   .pricing .reveal{ transition: opacity .3s ease; transform:none !important; }
