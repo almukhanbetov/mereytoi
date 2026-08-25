@@ -7,9 +7,8 @@ import { createBooking } from '@/lib/bookingApi';
 import { AGENCY_WHATSAPP_DIGITS } from '@/lib/agencyContact';
 
 const GREETING_KEY = 'mereytoi_manager_greeting_shown';
-const AUTO_DELAY = 3000;
+const AUTO_DELAY = 800;
 const MESSAGE_MAX = 1000;
-const MOBILE_BREAKPOINT = 480;
 
 function pushDataLayer(event) {
   if (typeof window === 'undefined') return;
@@ -23,7 +22,6 @@ export default function FloatingManagerWidget() {
 
   const [isOpen, setIsOpen] = useState(false);
   const [view, setView] = useState('menu'); // 'menu' | 'message' | 'callback' | 'success'
-  const [teaserVisible, setTeaserVisible] = useState(false);
   const [name, setName] = useState('');
   const [phone, setPhone] = useState('');
   const [message, setMessage] = useState('');
@@ -77,7 +75,9 @@ export default function FloatingManagerWidget() {
   // Delayed greeting, once per browser session — fires exactly once on the
   // page the visitor first landed on (deps: [] so client-side navigation
   // never restarts or repeats it); the pathname is re-checked at fire time
-  // via the ref so it still respects /admin if the timer lands there.
+  // via the ref so it still respects /admin if the timer lands there. Same
+  // full panel on every viewport — mobile gets a more compact layout via
+  // CSS, not a separate lower-visibility teaser bubble.
   useEffect(() => {
     if (typeof window === 'undefined') return;
     let alreadyShown = null;
@@ -96,13 +96,9 @@ export default function FloatingManagerWidget() {
         /* ignore */
       }
       if (pathnameRef.current.startsWith('/admin')) return;
-      if (window.innerWidth <= MOBILE_BREAKPOINT) {
-        setTeaserVisible(true);
-      } else {
-        setView('menu');
-        setIsOpen(true);
-        pushDataLayer('manager_widget_open');
-      }
+      setView('menu');
+      setIsOpen(true);
+      pushDataLayer('manager_widget_open');
     }, AUTO_DELAY);
 
     return () => clearTimeout(timer);
@@ -118,7 +114,12 @@ export default function FloatingManagerWidget() {
   }, [isOpen, closePanel]);
 
   useEffect(() => {
-    if (isOpen) panelRef.current?.focus();
+    if (!isOpen) return;
+    // The callback form's phone input focuses itself (autoFocus, only ever
+    // reached by a real tap on "Позвоните мне") — moving focus to the panel
+    // here too would immediately steal it back.
+    if (view === 'callback') return;
+    panelRef.current?.focus();
   }, [isOpen, view]);
 
   // Restore focus to the avatar button once it has actually remounted after
@@ -133,7 +134,6 @@ export default function FloatingManagerWidget() {
 
   function openPanel(nextView) {
     clearAutoCloseTimer();
-    setTeaserVisible(false);
     setError('');
     setView(nextView);
     setIsOpen(true);
@@ -197,39 +197,11 @@ export default function FloatingManagerWidget() {
 
   return (
     <div className="manager-widget">
-      {teaserVisible && !isOpen && (
-        <div
-          className="manager-widget__teaser"
-          role="button"
-          tabIndex={0}
-          onClick={() => openPanel('menu')}
-          onKeyDown={(e) => {
-            if (e.key === 'Enter' || e.key === ' ') {
-              e.preventDefault();
-              openPanel('menu');
-            }
-          }}
-          aria-label={lang === 'kz' ? 'Менеджермен чатты ашу' : 'Открыть чат с менеджером'}
-        >
-          <button
-            type="button"
-            className="manager-widget__teaser-close"
-            onClick={(e) => {
-              e.stopPropagation();
-              setTeaserVisible(false);
-            }}
-            aria-label={lang === 'kz' ? 'Жабу' : 'Закрыть'}
-          >
-            ×
-          </button>
-          <T ru="Здравствуйте! Поможем с тоем 🎉" kz="Сәлеметсіз бе! Тойға көмектесеміз 🎉" />
-        </div>
-      )}
-
       {isOpen && (
         <div className="manager-widget__panel" role="dialog" aria-label={lang === 'kz' ? 'MEREYTOI менеджері' : 'Менеджер MEREYTOI'} ref={panelRef} tabIndex={-1}>
           <div className="manager-widget__panel-head">
             <span className="manager-widget__panel-title">
+              <span className="manager-widget__panel-dot" aria-hidden="true"></span>
               <T ru="Менеджер MEREYTOI" kz="MEREYTOI менеджері" />
             </span>
             <button type="button" className="manager-widget__panel-close" onClick={closePanel} aria-label={lang === 'kz' ? 'Жабу' : 'Закрыть'}>
@@ -240,7 +212,7 @@ export default function FloatingManagerWidget() {
           {view === 'menu' && (
             <div className="manager-widget__body">
               <p className="manager-widget__greeting-title">
-                <T ru="Здравствуйте!" kz="Сәлеметсіз бе!" />
+                <T ru="Здравствуйте! 👋" kz="Сәлеметсіз бе! 👋" />
               </p>
               <p className="manager-widget__greeting-text">
                 <T ru="Планируете той?" kz="Той жоспарлап жатырсыз ба?" />
@@ -353,7 +325,7 @@ export default function FloatingManagerWidget() {
         </div>
       )}
 
-      {!isOpen && !teaserVisible && (
+      {!isOpen && (
         <div className="manager-widget__launcher">
           <button type="button" className="manager-widget__phone-btn" onClick={() => openPanel('callback')} aria-label={lang === 'kz' ? 'Қоңырау шалуды тапсырыс беру' : 'Заказать обратный звонок'}>
             ☎
