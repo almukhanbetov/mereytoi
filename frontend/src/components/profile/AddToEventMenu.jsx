@@ -53,7 +53,7 @@ export default function AddToEventMenu({ listingId }) {
 
   return (
     <div className="ws-add-menu" ref={ref}>
-      <button type="button" className="btn btn--outline" onClick={handleOpen}>
+      <button type="button" className="btn btn--outline" onClick={handleOpen} aria-expanded={open} aria-haspopup="true">
         + <T ru="Добавить в мой той" kz="Тойыма қосу" />
       </button>
       {open && (

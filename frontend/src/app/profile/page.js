@@ -103,11 +103,23 @@ export default function ProfilePage() {
 
       <section style={{ padding: '0 0 120px' }}>
         <div className="container">
-          <div className="ws-tabs">
-            <button type="button" className={`ws-tabs__btn${tab === 'events' ? ' is-active' : ''}`} onClick={() => setTab('events')}>
+          <div className="ws-tabs" role="tablist">
+            <button
+              type="button"
+              role="tab"
+              aria-selected={tab === 'events'}
+              className={`ws-tabs__btn${tab === 'events' ? ' is-active' : ''}`}
+              onClick={() => setTab('events')}
+            >
               <T ru="Мои мероприятия" kz="Менің іс-шараларым" />
             </button>
-            <button type="button" className={`ws-tabs__btn${tab === 'account' ? ' is-active' : ''}`} onClick={() => setTab('account')}>
+            <button
+              type="button"
+              role="tab"
+              aria-selected={tab === 'account'}
+              className={`ws-tabs__btn${tab === 'account' ? ' is-active' : ''}`}
+              onClick={() => setTab('account')}
+            >
               <T ru="Аккаунт" kz="Аккаунт" />
             </button>
           </div>

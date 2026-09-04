@@ -148,6 +148,7 @@ export default function EventServicesPage() {
                           <button
                             key={value}
                             type="button"
+                            aria-pressed={c.my_vote === value}
                             className={`ws-vote-btn${c.my_vote === value ? ' is-mine' : ''}`}
                             onClick={() => handleVote(c.id, value)}
                           >

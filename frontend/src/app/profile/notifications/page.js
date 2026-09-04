@@ -77,11 +77,23 @@ export default function NotificationsPage() {
       <div className="container" style={{ maxWidth: 720 }}>
         <h1><T ru="Уведомления" kz="Хабарландырулар" en="Notifications" /></h1>
 
-        <div className="ws-tabs" style={{ marginTop: 26 }}>
-          <button type="button" className={`ws-tabs__btn${tab === 'all' ? ' is-active' : ''}`} onClick={() => switchTab('all')}>
+        <div className="ws-tabs" role="tablist" style={{ marginTop: 26 }}>
+          <button
+            type="button"
+            role="tab"
+            aria-selected={tab === 'all'}
+            className={`ws-tabs__btn${tab === 'all' ? ' is-active' : ''}`}
+            onClick={() => switchTab('all')}
+          >
             <T ru="Все" kz="Барлығы" en="All" />
           </button>
-          <button type="button" className={`ws-tabs__btn${tab === 'unread' ? ' is-active' : ''}`} onClick={() => switchTab('unread')}>
+          <button
+            type="button"
+            role="tab"
+            aria-selected={tab === 'unread'}
+            className={`ws-tabs__btn${tab === 'unread' ? ' is-active' : ''}`}
+            onClick={() => switchTab('unread')}
+          >
             <T ru="Непрочитанные" kz="Оқылмаған" en="Unread" />
           </button>
         </div>

@@ -110,6 +110,7 @@ export default function EventWorkspaceShell({ eventId, children }) {
                 key={tab.key}
                 href={base + tab.suffix}
                 className={`ws-sidebar__link${tab.key === activeTab.key ? ' is-active' : ''}`}
+                aria-current={tab.key === activeTab.key ? 'page' : undefined}
               >
                 <span className="ws-sidebar__icon">{tab.icon}</span>
                 <T ru={tab.ru} kz={tab.kz} en={tab.en} />
@@ -128,6 +129,7 @@ export default function EventWorkspaceShell({ eventId, children }) {
               key={tab.key}
               href={base + tab.suffix}
               className={`ws-bottomnav__link${tab.key === activeTab.key ? ' is-active' : ''}`}
+              aria-current={tab.key === activeTab.key ? 'page' : undefined}
             >
               <span className="ws-bottomnav__icon">{tab.icon}</span>
               <T ru={tab.ru} kz={tab.kz} en={tab.en} />
@@ -136,6 +138,7 @@ export default function EventWorkspaceShell({ eventId, children }) {
           <button
             type="button"
             className={`ws-bottomnav__link${['request', 'tasks', 'members'].includes(activeTab.key) ? ' is-active' : ''}`}
+            aria-expanded={moreOpen}
             onClick={() => setMoreOpen(true)}
           >
             <span className="ws-bottomnav__icon">•••</span>

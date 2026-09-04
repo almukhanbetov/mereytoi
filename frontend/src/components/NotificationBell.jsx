@@ -97,7 +97,7 @@ export default function NotificationBell() {
 
   return (
     <div className="notif-bell-wrap" ref={wrapRef}>
-      <button type="button" className="cart-icon" onClick={handleToggle} aria-label="Уведомления / Хабарландырулар / Notifications">
+      <button type="button" className="cart-icon" onClick={handleToggle} aria-label="Уведомления / Хабарландырулар / Notifications" aria-expanded={open} aria-haspopup="true">
         🔔
         {count > 0 && <span className="cart-icon__badge is-visible">{count > 99 ? '99+' : count}</span>}
       </button>
