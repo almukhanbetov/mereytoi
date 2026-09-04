@@ -79,12 +79,19 @@ type EventInvitation struct {
 	EventID uint   `gorm:"not null;index" json:"event_id"`
 	Token   string `gorm:"size:64;uniqueIndex;not null" json:"token"`
 	// Role granted to whoever accepts this invitation.
-	Role        string     `gorm:"size:20;not null" json:"role"`
-	CreatedByID uint       `gorm:"not null" json:"created_by_id"`
-	Revoked     bool       `gorm:"not null;default:false" json:"revoked"`
-	UsedByID    *uint      `json:"used_by_id,omitempty"`
-	UsedAt      *time.Time `json:"used_at,omitempty"`
-	CreatedAt   time.Time  `json:"created_at"`
+	Role        string `gorm:"size:20;not null" json:"role"`
+	CreatedByID uint   `gorm:"not null" json:"created_by_id"`
+	// InviteeEmail is optional (stage 11A) — the link itself still works
+	// for anyone it's shared with regardless (WhatsApp, a family group
+	// chat, copy-paste), this is only set when the organizer additionally
+	// asked the backend to email this specific address. Kept on the row
+	// mainly as an audit trail of "who this particular link was actually
+	// sent to," not as a targeting/access-control mechanism.
+	InviteeEmail string     `gorm:"size:150" json:"invitee_email,omitempty"`
+	Revoked      bool       `gorm:"not null;default:false" json:"revoked"`
+	UsedByID     *uint      `json:"used_by_id,omitempty"`
+	UsedAt       *time.Time `json:"used_at,omitempty"`
+	CreatedAt    time.Time  `json:"created_at"`
 }
 
 // EventCandidate is one listing shortlisted for an event. "candidate" and

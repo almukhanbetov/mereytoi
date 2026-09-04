@@ -15,8 +15,10 @@ export default function EventMembersPage() {
   const [invitations, setInvitations] = useState([]);
   const [loading, setLoading] = useState(true);
   const [inviteRole, setInviteRole] = useState('editor');
+  const [inviteEmail, setInviteEmail] = useState('');
   const [creating, setCreating] = useState(false);
   const [copiedId, setCopiedId] = useState(null);
+  const [emailedId, setEmailedId] = useState(null);
 
   const load = useCallback(async () => {
     const tasks = [eventsApi.members(eventId)];
@@ -37,7 +39,12 @@ export default function EventMembersPage() {
     e.preventDefault();
     setCreating(true);
     try {
-      await eventsApi.createInvitation(eventId, inviteRole);
+      const { invitation } = await eventsApi.createInvitation(eventId, inviteRole, inviteEmail.trim());
+      setInviteEmail('');
+      if (invitation?.invitee_email) {
+        setEmailedId(invitation.id);
+        setTimeout(() => setEmailedId(null), 4000);
+      }
       await load();
     } catch (err) {
       alert(err.message);
@@ -148,8 +155,22 @@ export default function EventMembersPage() {
                 <option value="viewer">{lang === 'kz' ? 'Бақылаушы — тек көру және дауыс беру' : 'Наблюдатель — только просмотр и голосование'}</option>
               </select>
             </label>
+            <label style={{ flex: '1 1 220px' }}>
+              <span><T ru="Email (необязательно)" kz="Email (міндетті емес)" en="Email (optional)" /></span>
+              <input
+                type="email"
+                value={inviteEmail}
+                onChange={(e) => setInviteEmail(e.target.value)}
+                placeholder={lang === 'kz' ? 'жақынныңыз@мысал.kz' : 'близкий@пример.kz'}
+              />
+            </label>
             <button type="submit" className="btn btn--gold" disabled={creating}>+ <T ru="Создать ссылку" kz="Сілтеме жасау" /></button>
           </form>
+          {inviteEmail.trim() && (
+            <p className="ws-empty__text" style={{ textAlign: 'left', marginTop: 8, fontSize: 13 }}>
+              <T ru="Ссылка будет также отправлена на этот email." kz="Сілтеме осы email-ге де жіберіледі." en="The link will also be emailed to this address." />
+            </p>
+          )}
 
           {activeInvitations.length === 0 && !loading && (
             <p className="ws-empty__text" style={{ textAlign: 'left', marginTop: 16 }}>
@@ -167,6 +188,13 @@ export default function EventMembersPage() {
               </div>
               <div className="ws-invite-share">
                 <span className="ws-chip ws-chip--outline">{roleLabel(inv.role, lang)}</span>
+                {inv.invitee_email && (
+                  <span className="ws-chip ws-chip--gold" title={inv.invitee_email}>
+                    {emailedId === inv.id
+                      ? <T ru="✉️ Отправлено!" kz="✉️ Жіберілді!" en="✉️ Sent!" />
+                      : <T ru={`✉️ ${inv.invitee_email}`} kz={`✉️ ${inv.invitee_email}`} en={`✉️ ${inv.invitee_email}`} />}
+                  </span>
+                )}
                 <a className="btn btn--outline" style={{ padding: '8px 16px', fontSize: 13 }} href={whatsappShareUrl(inv)} target="_blank" rel="noopener noreferrer">
                   WhatsApp
                 </a>

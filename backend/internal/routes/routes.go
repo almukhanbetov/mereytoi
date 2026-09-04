@@ -8,11 +8,26 @@ import (
 
 	"github.com/almukhanbetov/mereytoi/backend/internal/config"
 	"github.com/almukhanbetov/mereytoi/backend/internal/handlers"
+	"github.com/almukhanbetov/mereytoi/backend/internal/mail"
 	"github.com/almukhanbetov/mereytoi/backend/internal/middleware"
 	"github.com/almukhanbetov/mereytoi/backend/internal/models"
 )
 
-func Register(r *gin.Engine, database *gorm.DB, cfg config.Config) {
+// Register wires the full route tree. mailSvc is variadic purely so
+// existing callers (production's main.go and every pre-11A test file's
+// routes.Register(r, db, cfg)) keep compiling unchanged; when omitted, a
+// real mail.Service is built from cfg exactly as main.go already did
+// implicitly. Tests that need to observe email dispatch (mail_test.go)
+// pass their own mail.NewServiceWithSender(mockSender, cfg) instead of
+// wiring a second, parallel route tree just to reach the mail call sites.
+func Register(r *gin.Engine, database *gorm.DB, cfg config.Config, mailSvc ...*mail.Service) {
+	var mailer *mail.Service
+	if len(mailSvc) > 0 && mailSvc[0] != nil {
+		mailer = mailSvc[0]
+	} else {
+		mailer = mail.NewService(cfg)
+	}
+
 	authHandler := handlers.NewAuthHandler(database, cfg.JWTSecret)
 	categoryHandler := handlers.NewCategoryHandler(database)
 	listingHandler := handlers.NewListingHandler(database)
@@ -22,12 +37,12 @@ func Register(r *gin.Engine, database *gorm.DB, cfg config.Config) {
 	clientHandler := handlers.NewClientHandler(database)
 	statisticsHandler := handlers.NewSiteStatisticsHandler(database)
 	eventHandler := handlers.NewEventHandler(database)
-	eventMemberHandler := handlers.NewEventMemberHandler(database)
+	eventMemberHandler := handlers.NewEventMemberHandler(database, mailer)
 	eventCandidateHandler := handlers.NewEventCandidateHandler(database)
 	eventCommentHandler := handlers.NewEventCommentHandler(database)
 	eventActivityHandler := handlers.NewEventActivityHandler(database)
 	eventTaskHandler := handlers.NewEventTaskHandler(database)
-	eventRequestHandler := handlers.NewEventRequestHandler(database)
+	eventRequestHandler := handlers.NewEventRequestHandler(database, mailer)
 	notificationHandler := handlers.NewNotificationHandler(database)
 
 	r.GET("/api/health", func(c *gin.Context) {

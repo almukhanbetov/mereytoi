@@ -7,15 +7,17 @@ import (
 	"github.com/gin-gonic/gin"
 	"gorm.io/gorm"
 
+	"github.com/almukhanbetov/mereytoi/backend/internal/mail"
 	"github.com/almukhanbetov/mereytoi/backend/internal/models"
 )
 
 type EventMemberHandler struct {
-	DB *gorm.DB
+	DB   *gorm.DB
+	Mail *mail.Service
 }
 
-func NewEventMemberHandler(db *gorm.DB) *EventMemberHandler {
-	return &EventMemberHandler{DB: db}
+func NewEventMemberHandler(db *gorm.DB, mailer *mail.Service) *EventMemberHandler {
+	return &EventMemberHandler{DB: db, Mail: mailer}
 }
 
 // Members — GET /api/events/:id/members (any member).
@@ -98,6 +100,13 @@ func (h *EventMemberHandler) RemoveMember(c *gin.Context) {
 
 type createInvitationInput struct {
 	Role string `json:"role" binding:"required,oneof=editor viewer"`
+	// Email is optional (stage 11A, brief section 7) — the invitation link
+	// itself is created identically either way; if set, the backend also
+	// emails it to this address. Not validated beyond binding's `email`
+	// (an invalid/typo'd address just means the mail.Service's send fails
+	// and is logged — the invitation itself, and the link, are unaffected;
+	// see the stage report's "delivery safety" section).
+	Email string `json:"email" binding:"omitempty,email"`
 }
 
 // CreateInvitation — POST /api/events/:id/invitations (owner only). The
@@ -112,16 +121,31 @@ func (h *EventMemberHandler) CreateInvitation(c *gin.Context) {
 		return
 	}
 
+	eventID := currentEventID(c)
 	invitation := models.EventInvitation{
-		EventID:     currentEventID(c),
-		Token:       generateRef() + generateRef(), // 32 hex chars — plenty of entropy for a join link
-		Role:        in.Role,
-		CreatedByID: currentUserID(c),
+		EventID:      eventID,
+		Token:        generateRef() + generateRef(), // 32 hex chars — plenty of entropy for a join link
+		Role:         in.Role,
+		CreatedByID:  currentUserID(c),
+		InviteeEmail: in.Email,
 	}
 	if err := h.DB.Create(&invitation).Error; err != nil {
 		c.JSON(http.StatusInternalServerError, gin.H{"error": "failed to create invitation"})
 		return
 	}
+
+	// Email is entirely additive to the existing link-based flow — no
+	// email means no send (mail.Service.SendInvitation itself also no-ops
+	// safely on an empty "to", this check just avoids the DB lookups for
+	// the common case where no email was given at all).
+	if in.Email != "" {
+		var inviter models.User
+		var event models.Event
+		h.DB.First(&inviter, currentUserID(c))
+		h.DB.First(&event, eventID)
+		h.Mail.SendInvitation("ru", in.Email, inviter.Name, event.Title, in.Role, invitation.Token)
+	}
+
 	c.JSON(http.StatusCreated, gin.H{"invitation": invitation})
 }
 
@@ -233,6 +257,19 @@ func (h *EventMemberHandler) AcceptInvitation(c *gin.Context) {
 	payload := map[string]any{"name": user.Name, "role": member.Role}
 	owner := eventOwnerID(h.DB, invitation.EventID)
 	createNotification(h.DB, owner, userID, invitation.EventID, models.NotifInvitationAccepted, "member", userID, payload)
+
+	// Brief section 6B — explicitly optional; sent since it costs nothing
+	// extra once SendInvitation exists. Guarded by owner != userID the same
+	// way createNotification already guards actor==recipient above (an
+	// owner accepting their own link isn't a real scenario, but stays
+	// consistent regardless).
+	if owner != 0 && owner != userID {
+		var ownerUser models.User
+		var event models.Event
+		h.DB.First(&ownerUser, owner)
+		h.DB.First(&event, invitation.EventID)
+		h.Mail.SendInvitationAccepted("ru", ownerUser.Email, user.Name, event.Title, invitation.EventID)
+	}
 
 	others := memberUserIDs(h.DB, invitation.EventID, models.EventRoleViewer)
 	rest := make([]uint, 0, len(others))

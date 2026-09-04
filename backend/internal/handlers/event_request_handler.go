@@ -8,15 +8,17 @@ import (
 	"github.com/gin-gonic/gin"
 	"gorm.io/gorm"
 
+	"github.com/almukhanbetov/mereytoi/backend/internal/mail"
 	"github.com/almukhanbetov/mereytoi/backend/internal/models"
 )
 
 type EventRequestHandler struct {
-	DB *gorm.DB
+	DB   *gorm.DB
+	Mail *mail.Service
 }
 
-func NewEventRequestHandler(db *gorm.DB) *EventRequestHandler {
-	return &EventRequestHandler{DB: db}
+func NewEventRequestHandler(db *gorm.DB, mailer *mail.Service) *EventRequestHandler {
+	return &EventRequestHandler{DB: db, Mail: mailer}
 }
 
 // getOrCreate returns the event's single EventRequest row, creating a fresh
@@ -266,6 +268,15 @@ func (h *EventRequestHandler) Submit(c *gin.Context) {
 	// account is — see adminUserIDs for why "every admin" rather than one
 	// hard-coded user.
 	notifyMany(h.DB, adminUserIDs(h.DB), userID, eventID, notifType, "request", req.ID, payload)
+
+	// Brief section 6C/11 — same "every admin" resolution as the in-app
+	// notification above, not a second, separately-hard-coded recipient
+	// list. Fired only on the exact branch that just performed a real
+	// status transition (Submit's own editable-status guard above already
+	// makes this whole function idempotent — a retried/duplicate submit
+	// call hits the early `already_submitted` return before this line ever
+	// runs, so no duplicate admin emails on a retry, per brief section 18).
+	h.emailAdminsRequestSubmitted(event.Title, req.ID, uint(nextRevision), wasChangesRequested)
 
 	c.JSON(http.StatusOK, gin.H{"request": req, "already_submitted": false})
 }
@@ -522,5 +533,67 @@ func (h *EventRequestHandler) AdminUpdateStatus(c *gin.Context) {
 		}
 	}
 
+	// Brief sections 8/9/10 — organizer email. Deliberately not sent for
+	// in_review (not in the brief's section 6 required-events list — it's
+	// purely informational, same reasoning the in-app notification side
+	// already applies elsewhere in this stage's own design). Reached only
+	// once per real transition — CanTransition above already rejected this
+	// call entirely (409, before any of this function's side effects run)
+	// if `req.Status` had already moved past `in.Status`'s source state, so
+	// a duplicate/retried admin decision call can't send a second email
+	// (brief section 18).
+	switch in.Status {
+	case models.RequestChangesRequested, models.RequestApproved, models.RequestRejected:
+		h.emailOrganizerRequestDecision(&req, in.Status)
+	}
+
 	c.JSON(http.StatusOK, gin.H{"request": req})
+}
+
+// emailAdminsRequestSubmitted — brief section 11: every admin account with
+// an email, resolved the exact same way as adminUserIDs (notification_
+// helpers.go) rather than a second, independently-maintained admin list.
+// Every registered User.Email is required+validated at registration (see
+// auth_handler.go's registerInput), so in practice this never actually
+// skips anyone — the empty check is defensive (brief section 5), not
+// reachable via normal signup today.
+func (h *EventRequestHandler) emailAdminsRequestSubmitted(eventTitle string, requestID, revision uint, resubmitted bool) {
+	var admins []models.User
+	h.DB.Where("role = ?", "admin").Find(&admins)
+	for _, admin := range admins {
+		h.Mail.SendRequestSubmittedAdmin("ru", admin.Email, eventTitle, requestID, revision, resubmitted)
+	}
+}
+
+// emailOrganizerRequestDecision loads what the three organizer-facing
+// decision emails (changes_requested/approved/rejected) all need — the
+// event's title and the owner's own account — once, then dispatches the
+// one that matches `status`.
+func (h *EventRequestHandler) emailOrganizerRequestDecision(req *models.EventRequest, status string) {
+	var event models.Event
+	if h.DB.First(&event, req.EventID).Error != nil {
+		return
+	}
+	var owner models.User
+	if h.DB.First(&owner, event.OwnerID).Error != nil {
+		return
+	}
+
+	switch status {
+	case models.RequestChangesRequested:
+		h.Mail.SendRequestChangesRequested("ru", owner.Email, event.Title, req.ManagerComment, req.EventID, uint(req.LatestRevision))
+	case models.RequestApproved:
+		var revision models.EventRequestRevision
+		h.DB.Where("event_request_id = ? AND revision_number = ?", req.ID, req.LatestRevision).First(&revision)
+		bookingRef := ""
+		if req.BookingID != nil {
+			var booking models.Booking
+			if h.DB.First(&booking, *req.BookingID).Error == nil {
+				bookingRef = booking.PublicRef
+			}
+		}
+		h.Mail.SendRequestApproved("ru", owner.Email, event.Title, req.ManagerComment, req.EventID, revision.Total, bookingRef)
+	case models.RequestRejected:
+		h.Mail.SendRequestRejected("ru", owner.Email, event.Title, req.ManagerComment, req.EventID)
+	}
 }

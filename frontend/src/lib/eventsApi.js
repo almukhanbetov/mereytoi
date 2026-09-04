@@ -38,7 +38,9 @@ export const eventsApi = {
   changeRole: (id, userId, role) => request(`/api/events/${id}/members/${userId}`, { method: 'PUT', body: { role } }),
   removeMember: (id, userId) => request(`/api/events/${id}/members/${userId}`, { method: 'DELETE' }),
 
-  createInvitation: (id, role) => request(`/api/events/${id}/invitations`, { method: 'POST', body: { role } }),
+  // email is optional (stage 11A) — the link-based invitation is created
+  // identically either way; when given, the backend also emails it there.
+  createInvitation: (id, role, email) => request(`/api/events/${id}/invitations`, { method: 'POST', body: email ? { role, email } : { role } }),
   listInvitations: (id) => request(`/api/events/${id}/invitations`),
   revokeInvitation: (id, invId) => request(`/api/events/${id}/invitations/${invId}`, { method: 'DELETE' }),
 
