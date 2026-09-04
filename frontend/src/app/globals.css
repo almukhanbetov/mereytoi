@@ -1783,6 +1783,22 @@ a.ws-chip:hover, button.ws-chip:hover{ border-color: var(--gold); }
 
 /* ---------- Threads / discussion ---------- */
 .ws-thread{ display:flex; flex-direction:column; gap:16px; margin-bottom:20px; }
+/* Modifier only — .ws-thread on its own is also reused for the read-only
+   Overview activity feed, which should keep growing inline in the page
+   rather than becoming its own scroll box. Only CommentThread (the actual
+   live discussion) adds this. */
+.ws-thread--scroll{ max-height:60vh; overflow-y:auto; scroll-behavior:smooth; padding-right:4px; }
+@media (max-width: 640px){ .ws-thread--scroll{ max-height:50vh; } }
+.ws-thread-wrap{ position:relative; }
+.ws-thread-newpill{
+  position:absolute; left:50%; bottom:14px; transform:translateX(-50%);
+  display:inline-flex; align-items:center; gap:6px; padding:8px 18px; border-radius:999px;
+  background: linear-gradient(135deg, var(--gold-light), var(--gold)); color:#17140d;
+  font-size:12.5px; font-weight:700; border:none; cursor:pointer;
+  box-shadow: 0 10px 28px -10px rgba(212,175,106,0.7);
+  transition: transform .2s var(--ease), box-shadow .2s ease;
+}
+.ws-thread-newpill:hover{ transform: translateX(-50%) translateY(-2px); }
 .ws-message{ display:flex; gap:12px; }
 .ws-message__body{ flex:1; }
 .ws-message__head{ display:flex; align-items:baseline; gap:8px; margin-bottom:3px; }
