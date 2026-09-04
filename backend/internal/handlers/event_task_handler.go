@@ -45,7 +45,11 @@ func (h *EventTaskHandler) Create(c *gin.Context) {
 		return
 	}
 
-	logActivity(h.DB, eventID, currentUserID(c), "task.created", map[string]any{"title": task.Title})
+	actorID := currentUserID(c)
+	logActivity(h.DB, eventID, actorID, "task.created", map[string]any{"title": task.Title})
+	if task.AssigneeID != nil {
+		createNotification(h.DB, *task.AssigneeID, actorID, eventID, models.NotifTaskCreated, "task", task.ID, map[string]any{"title": task.Title})
+	}
 	c.JSON(http.StatusCreated, gin.H{"task": task})
 }
 
@@ -95,6 +99,9 @@ func (h *EventTaskHandler) Update(c *gin.Context) {
 		return
 	}
 
+	eventID := currentEventID(c)
+	actorID := currentUserID(c)
+
 	if in.Title != nil {
 		task.Title = *in.Title
 	}
@@ -114,8 +121,20 @@ func (h *EventTaskHandler) Update(c *gin.Context) {
 		return
 	}
 
+	if !onlyStatusChange {
+		logActivity(h.DB, eventID, actorID, "task.updated", map[string]any{"title": task.Title})
+		if task.AssigneeID != nil {
+			createNotification(h.DB, *task.AssigneeID, actorID, eventID, models.NotifTaskUpdated, "task", task.ID, map[string]any{"title": task.Title})
+		}
+	}
+
 	if !wasCompleted && task.Status == models.TaskDone {
-		logActivity(h.DB, currentEventID(c), currentUserID(c), "task.completed", map[string]any{"title": task.Title})
+		logActivity(h.DB, eventID, actorID, "task.completed", map[string]any{"title": task.Title})
+		recipients := []uint{task.CreatedByID}
+		if task.AssigneeID != nil {
+			recipients = append(recipients, *task.AssigneeID)
+		}
+		notifyMany(h.DB, recipients, actorID, eventID, models.NotifTaskCompleted, "task", task.ID, map[string]any{"title": task.Title})
 	}
 
 	c.JSON(http.StatusOK, gin.H{"task": task})

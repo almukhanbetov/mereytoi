@@ -21,7 +21,9 @@ export function eventTypeEmoji(type) {
 export function roleLabel(role, lang) {
   const ru = { owner: 'Организатор', editor: 'Участник', viewer: 'Наблюдатель' };
   const kz = { owner: 'Ұйымдастырушы', editor: 'Қатысушы', viewer: 'Бақылаушы' };
-  return (lang === 'kz' ? kz : ru)[role] || role;
+  const en = { owner: 'Organizer', editor: 'Participant', viewer: 'Viewer' };
+  const table = lang === 'kz' ? kz : lang === 'en' ? en : ru;
+  return table[role] || role;
 }
 
 export function candidateStatusLabel(status, lang) {

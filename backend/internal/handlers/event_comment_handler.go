@@ -63,6 +63,14 @@ func (h *EventCommentHandler) AddComment(c *gin.Context) {
 	}
 	logActivity(h.DB, eventID, userID, "comment.added", payload)
 
+	// Deep-link target: a per-candidate thread routes to Услуги, a general
+	// discussion message routes to Обсуждение — see brief section 15.
+	entityType, entityID := "discussion", uint(0)
+	if in.CandidateID != nil {
+		entityType, entityID = "candidate", *in.CandidateID
+	}
+	notifyMany(h.DB, memberUserIDs(h.DB, eventID, models.EventRoleViewer), userID, eventID, models.NotifCommentAdded, entityType, entityID, payload)
+
 	c.JSON(http.StatusCreated, gin.H{"comment": comment})
 }
 

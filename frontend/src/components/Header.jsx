@@ -7,6 +7,7 @@ import { useLang, useTheme, useCart, T } from '@/context/AppProviders';
 import { useAuth } from '@/context/AuthContext';
 import { AGENCY_WHATSAPP_DIGITS } from '@/lib/agencyContact';
 import { trackWhatsAppClick } from '@/lib/whatsapp';
+import NotificationBell from '@/components/NotificationBell';
 
 const NAV_LINKS = [
   { href: '/', ru: 'Главная', kz: 'Басты бет' },
@@ -79,6 +80,7 @@ export default function Header() {
             🛍
             <span className={`cart-icon__badge${count > 0 ? ' is-visible' : ''}`}>{count}</span>
           </button>
+          <NotificationBell />
           <Link
             href={isAuthenticated ? '/profile' : '/login'}
             className="cart-icon"

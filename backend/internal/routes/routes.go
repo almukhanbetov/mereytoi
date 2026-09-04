@@ -28,6 +28,7 @@ func Register(r *gin.Engine, database *gorm.DB, cfg config.Config) {
 	eventActivityHandler := handlers.NewEventActivityHandler(database)
 	eventTaskHandler := handlers.NewEventTaskHandler(database)
 	eventRequestHandler := handlers.NewEventRequestHandler(database)
+	notificationHandler := handlers.NewNotificationHandler(database)
 
 	r.GET("/api/health", func(c *gin.Context) {
 		c.JSON(http.StatusOK, gin.H{"status": "ok"})
@@ -215,6 +216,18 @@ func Register(r *gin.Engine, database *gorm.DB, cfg config.Config) {
 			adminEventRequests.GET("", eventRequestHandler.AdminList)
 			adminEventRequests.GET("/:id", eventRequestHandler.AdminGet)
 			adminEventRequests.POST("/:id/status", eventRequestHandler.AdminUpdateStatus)
+		}
+
+		// In-app notification center — user-scoped, not event-scoped, so
+		// this rides plain RequireAuth rather than RequireEventRole; every
+		// handler method itself further filters by "user_id = caller".
+		notifications := api.Group("/notifications")
+		notifications.Use(middleware.RequireAuth(cfg.JWTSecret))
+		{
+			notifications.GET("", notificationHandler.List)
+			notifications.GET("/unread-count", notificationHandler.UnreadCount)
+			notifications.POST("/:id/read", notificationHandler.MarkRead)
+			notifications.POST("/read-all", notificationHandler.MarkAllRead)
 		}
 	}
 }

@@ -1860,3 +1860,40 @@ body.no-scroll{ overflow: hidden; }
 .ws-manager-note{ padding:16px 18px; border-radius:14px; background: rgba(212,175,106,0.1); border:1px solid rgba(212,175,106,0.35); margin-bottom:22px; }
 .ws-manager-note__label{ font-size:11px; text-transform:uppercase; letter-spacing:.05em; color: var(--gold-light); font-weight:700; margin-bottom:6px; }
 .ws-manager-note__text{ color: var(--text); font-size:14px; line-height:1.55; }
+
+/* ---------- Notification bell (site header) ---------- */
+.notif-bell-wrap{ position:relative; }
+.notif-overlay{ display:none; }
+.notif-panel{
+  position:absolute; right:0; top:calc(100% + 12px); width:360px; max-height:70vh; overflow-y:auto;
+  background: var(--bg-card); border:1px solid var(--border); border-radius:18px; box-shadow: 0 24px 60px -20px rgba(0,0,0,0.6);
+  z-index:220; display:flex; flex-direction:column;
+}
+.notif-panel__head{ display:flex; align-items:center; justify-content:space-between; gap:10px; padding:16px 18px 12px; border-bottom:1px solid var(--border); }
+.notif-panel__title{ font-family: var(--font-playfair), serif; font-size:16px; color: var(--text); }
+.notif-panel__markall{ font-size:12px; color: var(--gold-light); font-weight:600; }
+.notif-panel__list{ display:flex; flex-direction:column; max-height:420px; overflow-y:auto; }
+.notif-panel__empty{ padding:28px 18px; text-align:center; color: var(--text-muted); font-size:13.5px; }
+.notif-panel__viewall{ display:block; text-align:center; padding:13px; font-size:13px; font-weight:600; color: var(--gold-light); border-top:1px solid var(--border); }
+
+.notif-item{
+  display:flex; align-items:flex-start; gap:10px; width:100%; padding:13px 18px; text-align:left;
+  border-bottom:1px solid var(--border); transition: background .15s ease;
+}
+.notif-item:last-child{ border-bottom:none; }
+.notif-item:hover{ background: var(--surface-tint); }
+.notif-item__dot{ width:8px; height:8px; border-radius:50%; margin-top:6px; flex-shrink:0; background:transparent; }
+.notif-item.is-unread .notif-item__dot{ background: var(--gold); }
+.notif-item__body{ display:flex; flex-direction:column; gap:2px; min-width:0; }
+.notif-item__title{ font-size:13px; font-weight:700; color: var(--text); }
+.notif-item.is-unread .notif-item__title{ color: var(--gold-light); }
+.notif-item__message{ font-size:13px; color: var(--text-muted); line-height:1.45; overflow-wrap:anywhere; }
+.notif-item__meta{ font-size:11px; color: var(--text-muted); opacity:.75; margin-top:2px; }
+
+@media (max-width: 640px){
+  .notif-overlay{ display:block; position:fixed; inset:0; background: rgba(0,0,0,0.55); z-index:219; }
+  .notif-panel{
+    position:fixed; left:0; right:0; top:auto; bottom:0; width:auto; max-height:80vh;
+    border-radius:22px 22px 0 0; box-shadow:none;
+  }
+}

@@ -202,7 +202,12 @@ func (h *EventHandler) Update(c *gin.Context) {
 	}
 
 	if budgetChanged {
-		logActivity(h.DB, event.ID, currentUserID(c), "budget.updated", map[string]any{"budget_total": event.BudgetTotal})
+		actorID := currentUserID(c)
+		logActivity(h.DB, event.ID, actorID, "budget.updated", map[string]any{"budget_total": event.BudgetTotal})
+		// Viewers are explicitly excluded — the brief scopes this to
+		// "organizer + participants", the people actually deciding.
+		recipients := memberUserIDs(h.DB, event.ID, models.EventRoleEditor)
+		notifyMany(h.DB, recipients, actorID, event.ID, models.NotifBudgetUpdated, "event", event.ID, map[string]any{"budget_total": event.BudgetTotal})
 	}
 
 	c.JSON(http.StatusOK, gin.H{"event": event})

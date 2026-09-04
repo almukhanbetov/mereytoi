@@ -27,6 +27,8 @@ func Connect(cfg config.Config) *gorm.DB {
 		&models.EventActivity{}, &models.EventTask{},
 		// Final event request / booking flow — see models/event_request.go.
 		&models.EventRequest{}, &models.EventRequestRevision{},
+		// In-app notification center — see models/notification.go.
+		&models.Notification{},
 	); err != nil {
 		log.Fatalf("failed to run migrations: %v", err)
 	}

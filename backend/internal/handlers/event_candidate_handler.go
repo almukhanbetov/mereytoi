@@ -69,7 +69,10 @@ func (h *EventCandidateHandler) AddCandidate(c *gin.Context) {
 	}
 	candidate.Listing = &listing
 
-	logActivity(h.DB, eventID, currentUserID(c), "candidate.added", map[string]any{"name": listing.NameRu, "price": listing.Price})
+	actorID := currentUserID(c)
+	logActivity(h.DB, eventID, actorID, "candidate.added", map[string]any{"name": listing.NameRu, "price": listing.Price})
+	notifyMany(h.DB, memberUserIDs(h.DB, eventID, models.EventRoleViewer), actorID, eventID, models.NotifCandidateAdded, "candidate", candidate.ID,
+		map[string]any{"name": listing.NameRu, "price": listing.Price})
 
 	c.JSON(http.StatusCreated, gin.H{"candidate": candidate, "already_added": false})
 }
@@ -247,6 +250,15 @@ func (h *EventCandidateHandler) Vote(c *gin.Context) {
 	}
 
 	userID := currentUserID(c)
+
+	// Determine before the upsert whether this is a brand-new vote or a
+	// genuine change of mind — re-submitting the *same* value (a retried or
+	// doubled request, since this operation is meant to be idempotent) must
+	// not spam the activity feed or create a duplicate notification.
+	var existingVote models.EventVote
+	hadVote := h.DB.Where("candidate_id = ? AND user_id = ?", candidate.ID, userID).First(&existingVote).Error == nil
+	valueChanged := !hadVote || existingVote.Value != in.Value
+
 	vote := models.EventVote{CandidateID: candidate.ID, UserID: userID, Value: in.Value}
 	err := h.DB.Clauses(clause.OnConflict{
 		Columns:   []clause.Column{{Name: "candidate_id"}, {Name: "user_id"}},
@@ -257,16 +269,26 @@ func (h *EventCandidateHandler) Vote(c *gin.Context) {
 		return
 	}
 
-	name := ""
-	if candidate.Listing != nil {
-		name = candidate.Listing.NameRu
-	} else {
-		var listing models.Listing
-		if h.DB.First(&listing, candidate.ListingID).Error == nil {
-			name = listing.NameRu
+	if valueChanged {
+		name := ""
+		if candidate.Listing != nil {
+			name = candidate.Listing.NameRu
+		} else {
+			var listing models.Listing
+			if h.DB.First(&listing, candidate.ListingID).Error == nil {
+				name = listing.NameRu
+			}
 		}
+		eventID := currentEventID(c)
+		logActivity(h.DB, eventID, userID, "vote.cast", map[string]any{"name": name, "value": in.Value})
+
+		notifType := models.NotifVoteChanged
+		if !hadVote {
+			notifType = models.NotifVoteAdded
+		}
+		recipients := []uint{eventOwnerID(h.DB, eventID), candidate.AddedByID}
+		notifyMany(h.DB, recipients, userID, eventID, notifType, "candidate", candidate.ID, map[string]any{"name": name, "value": in.Value})
 	}
-	logActivity(h.DB, currentEventID(c), userID, "vote.cast", map[string]any{"name": name, "value": in.Value})
 
 	c.JSON(http.StatusOK, gin.H{"vote": vote})
 }

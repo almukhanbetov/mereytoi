@@ -63,6 +63,12 @@ func (h *EventMemberHandler) ChangeRole(c *gin.Context) {
 		c.JSON(http.StatusInternalServerError, gin.H{"error": "failed to update role"})
 		return
 	}
+
+	eventID := currentEventID(c)
+	actorID := currentUserID(c)
+	logActivity(h.DB, eventID, actorID, "member.role_changed", map[string]any{"role": in.Role})
+	createNotification(h.DB, uint(targetUserID), actorID, eventID, models.NotifMemberRoleChanged, "member", uint(targetUserID), map[string]any{"role": in.Role})
+
 	c.JSON(http.StatusOK, gin.H{"member": member})
 }
 
@@ -218,6 +224,24 @@ func (h *EventMemberHandler) AcceptInvitation(c *gin.Context) {
 	var user models.User
 	h.DB.First(&user, userID)
 	logActivity(h.DB, invitation.EventID, userID, "member.joined", map[string]any{"name": user.Name, "role": member.Role})
+
+	// Two distinct audiences for one action: the organizer specifically
+	// hears "your invite was accepted" (invitation_accepted); everyone else
+	// already on the team hears the more general "someone joined"
+	// (member_joined) — the organizer is excluded from the second so they
+	// don't get pinged twice for the same event.
+	payload := map[string]any{"name": user.Name, "role": member.Role}
+	owner := eventOwnerID(h.DB, invitation.EventID)
+	createNotification(h.DB, owner, userID, invitation.EventID, models.NotifInvitationAccepted, "member", userID, payload)
+
+	others := memberUserIDs(h.DB, invitation.EventID, models.EventRoleViewer)
+	rest := make([]uint, 0, len(others))
+	for _, uid := range others {
+		if uid != owner {
+			rest = append(rest, uid)
+		}
+	}
+	notifyMany(h.DB, rest, userID, invitation.EventID, models.NotifMemberJoined, "member", userID, payload)
 
 	c.JSON(http.StatusOK, gin.H{"event_id": invitation.EventID, "role": member.Role, "already_member": false})
 }
