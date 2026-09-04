@@ -56,8 +56,13 @@ export function AuthProvider({ children }) {
     return user;
   }, []);
 
+  // Derived, not separately tracked — see context/AdminAuthContext.jsx,
+  // which is now just a thin selector over this same session rather than a
+  // second one (10C).
+  const isAdmin = !!user && user.role === 'admin';
+
   return (
-    <AuthContext.Provider value={{ user, loading, isAuthenticated: !!user, register, login, logout, updateProfile }}>
+    <AuthContext.Provider value={{ user, loading, isAuthenticated: !!user, isAdmin, register, login, logout, updateProfile }}>
       {children}
     </AuthContext.Provider>
   );

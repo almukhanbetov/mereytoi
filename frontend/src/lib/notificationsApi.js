@@ -1,18 +1,18 @@
 'use client';
 
 import { getUserToken } from '@/lib/authApi';
-import { getToken as getAdminToken } from '@/lib/adminApi';
 
 const API_URL = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:8090';
 
 async function request(path, { method = 'GET', body } = {}) {
   const headers = { 'Content-Type': 'application/json' };
-  // The bell is mounted both in the customer Header and (10B) in AdminShell
-  // — an admin session only ever stores a token under the separate
-  // mereytoi-admin-token key, but it's the exact same /api/auth/login JWT,
-  // so falling back to it here is correct, not a workaround: one account,
-  // one notification center, just two historically-separate login flows.
-  const token = getUserToken() || getAdminToken();
+  // 10B mounted the bell in AdminShell too and had to fall back to a
+  // separate admin token here, since admin/customer sessions were two
+  // different token stores for the same account. 10C unified that into one
+  // shared token (lib/authToken.js, read via getUserToken either way), so
+  // the fallback isn't needed anymore — this is the one workaround that
+  // stage explicitly asked to remove once it became unnecessary.
+  const token = getUserToken();
   if (token) headers.Authorization = `Bearer ${token}`;
 
   const res = await fetch(`${API_URL}${path}`, {

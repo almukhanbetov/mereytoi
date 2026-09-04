@@ -4,7 +4,6 @@ import { useCallback, useEffect, useRef, useState } from 'react';
 import Link from 'next/link';
 import { useRouter } from 'next/navigation';
 import { useAuth } from '@/context/AuthContext';
-import { useAdminAuth } from '@/context/AdminAuthContext';
 import { T, useLang } from '@/context/AppProviders';
 import { notificationsApi } from '@/lib/notificationsApi';
 import { notificationTitle, notificationMessage, notificationRoute, notificationActionRequired } from '@/lib/notificationHelpers';
@@ -17,13 +16,15 @@ import { timeAgo } from '@/lib/eventHelpers';
 const POLL_MS = 60000;
 
 export default function NotificationBell() {
-  const { isAuthenticated, user } = useAuth();
-  // Safe to call unconditionally: on customer pages there's no
-  // AdminAuthProvider ancestor, so this just reads the context's `null`
-  // default — no error, no admin-only import needed to know that.
-  const adminAuth = useAdminAuth();
-  const authed = isAuthenticated || !!adminAuth?.isAdmin;
-  const isAdmin = user?.role === 'admin' || !!adminAuth?.isAdmin;
+  // 10C: this used to also check useAdminAuth() here, because an admin
+  // session and a customer session were two separate token stores — an
+  // admin-only login left `isAuthenticated` from useAuth() false even
+  // though they were genuinely signed in. Auth is unified now (one shared
+  // session backs both AdminAuthContext and AuthContext), so this same
+  // component works correctly in both the site Header and AdminShell with
+  // no admin-specific import at all.
+  const { isAuthenticated: authed, user } = useAuth();
+  const isAdmin = user?.role === 'admin';
   const { lang } = useLang();
   const router = useRouter();
   const wrapRef = useRef(null);
