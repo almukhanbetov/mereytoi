@@ -17,9 +17,13 @@ type BookingItem struct {
 // Booking is a customer's booking request submitted from the cart — one or
 // more BookingItems bundled together with contact info.
 type Booking struct {
-	ID        uint          `gorm:"primaryKey" json:"id"`
-	PublicRef string        `gorm:"size:24;uniqueIndex" json:"public_ref"`
-	UserID    *uint         `gorm:"index" json:"user_id,omitempty"`
+	ID        uint   `gorm:"primaryKey" json:"id"`
+	PublicRef string `gorm:"size:24;uniqueIndex" json:"public_ref"`
+	UserID    *uint  `gorm:"index" json:"user_id,omitempty"`
+	// EventID links a Booking created from an event workspace's final
+	// request (see models/event_request.go) back to that event — nil for
+	// every ordinary cart checkout, which is unaffected by this column.
+	EventID   *uint         `gorm:"index" json:"event_id,omitempty"`
 	Name      string        `gorm:"size:150;not null" json:"name"`
 	Phone     string        `gorm:"size:30;not null" json:"phone"`
 	Message   string        `gorm:"type:text" json:"message"`

@@ -108,4 +108,9 @@ export const adminApi = {
 
   siteStatistics: () => request('/api/site-statistics'),
   updateSiteStatistics: (payload) => request('/api/site-statistics', { method: 'PUT', body: payload, auth: true }),
+
+  eventRequests: (status) => request(`/api/admin/event-requests${status && status !== 'all' ? `?status=${status}` : ''}`, { auth: true }),
+  eventRequest: (id) => request(`/api/admin/event-requests/${id}`, { auth: true }),
+  updateEventRequestStatus: (id, status, managerComment) =>
+    request(`/api/admin/event-requests/${id}/status`, { method: 'POST', body: { status, manager_comment: managerComment }, auth: true }),
 };

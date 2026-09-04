@@ -1,15 +1,26 @@
 'use client';
 
-import { useState } from 'react';
+import { Suspense, useState } from 'react';
 import Link from 'next/link';
-import { useRouter } from 'next/navigation';
+import { useRouter, useSearchParams } from 'next/navigation';
 import { useAuth } from '@/context/AuthContext';
 import { T } from '@/context/AppProviders';
 import PasswordInput from '@/components/PasswordInput';
 
+// See login/page.js for why this needs a Suspense boundary.
 export default function RegisterPage() {
+  return (
+    <Suspense>
+      <RegisterForm />
+    </Suspense>
+  );
+}
+
+function RegisterForm() {
   const { register } = useAuth();
   const router = useRouter();
+  const searchParams = useSearchParams();
+  const next = searchParams.get('next') || '/profile';
   const [name, setName] = useState('');
   const [email, setEmail] = useState('');
   const [phone, setPhone] = useState('');
@@ -23,7 +34,7 @@ export default function RegisterPage() {
     setSubmitting(true);
     try {
       await register(name, email, phone, password);
-      router.push('/profile');
+      router.push(next);
     } catch (err) {
       setError(err.message || 'Не удалось зарегистрироваться');
     } finally {

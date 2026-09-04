@@ -19,7 +19,15 @@ func Connect(cfg config.Config) *gorm.DB {
 		log.Fatalf("failed to connect to database: %v", err)
 	}
 
-	if err := database.AutoMigrate(&models.User{}, &models.Category{}, &models.Listing{}, &models.Booking{}, &models.Comment{}, &models.Client{}, &models.SiteStatistics{}); err != nil {
+	if err := database.AutoMigrate(
+		&models.User{}, &models.Category{}, &models.Listing{}, &models.Booking{}, &models.Comment{}, &models.Client{}, &models.SiteStatistics{},
+		// "Мой той" collaborative workspace — see models/event.go.
+		&models.Event{}, &models.EventMember{}, &models.EventInvitation{},
+		&models.EventCandidate{}, &models.EventVote{}, &models.EventComment{},
+		&models.EventActivity{}, &models.EventTask{},
+		// Final event request / booking flow — see models/event_request.go.
+		&models.EventRequest{}, &models.EventRequestRevision{},
+	); err != nil {
 		log.Fatalf("failed to run migrations: %v", err)
 	}
 

@@ -24,8 +24,13 @@ function LangProvider({ children }) {
     localStorage.setItem(LANG_KEY, next);
   }, []);
 
+  // ru -> kz -> en -> ru. EN was added for the event-request/booking flow
+  // (the one part of the site with authored English copy so far); every
+  // older `<T ru kz/>` call with no `en` prop just falls back to `ru` in EN
+  // mode — graceful degradation, not breakage, while that copy is filled in
+  // screen by screen.
   const toggleLang = useCallback(() => {
-    setLang(lang === 'ru' ? 'kz' : 'ru');
+    setLang(lang === 'ru' ? 'kz' : lang === 'kz' ? 'en' : 'ru');
   }, [lang, setLang]);
 
   const value = useMemo(() => ({ lang, setLang, toggleLang }), [lang, setLang, toggleLang]);
@@ -36,10 +41,14 @@ export function useLang() {
   return useContext(LangContext);
 }
 
-/** Bilingual text helper — mirrors the original data-kz/data-ru swap. */
-export function T({ ru, kz }) {
+/** Tri-lingual text helper — mirrors the original data-kz/data-ru swap, plus
+ * an optional `en` for newer screens; falls back to `ru` where `en` hasn't
+ * been authored yet. */
+export function T({ ru, kz, en }) {
   const { lang } = useLang();
-  return lang === 'kz' ? kz : ru;
+  if (lang === 'kz') return kz;
+  if (lang === 'en') return en ?? ru;
+  return ru;
 }
 
 /* ---------- Theme ---------- */

@@ -9,6 +9,7 @@ import { T, useLang, useCart } from '@/context/AppProviders';
 import { formatPrice } from '@/lib/format';
 import { mediaUrl } from '@/lib/media';
 import { flyToCart } from '@/lib/flyToCart';
+import AddToEventMenu from '@/components/profile/AddToEventMenu';
 
 export default function ServiceDetail({ listing, related }) {
   const { lang } = useLang();
@@ -153,6 +154,7 @@ export default function ServiceDetail({ listing, related }) {
                   <T ru="Оставить заявку" kz="Өтінім қалдыру" />
                 </a>
               )}
+              <AddToEventMenu listingId={listing.id} />
             </div>
             <p className={`booking-added${added ? ' is-visible' : ''}`}>
               <T ru="Добавлено в корзину!" kz="Себетке қосылды!" />
