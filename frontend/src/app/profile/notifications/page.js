@@ -5,13 +5,14 @@ import { useRouter } from 'next/navigation';
 import { useAuth } from '@/context/AuthContext';
 import { T, useLang } from '@/context/AppProviders';
 import { notificationsApi } from '@/lib/notificationsApi';
-import { notificationTitle, notificationMessage, notificationRoute } from '@/lib/notificationHelpers';
+import { notificationTitle, notificationMessage, notificationRoute, notificationActionRequired } from '@/lib/notificationHelpers';
 import { timeAgo } from '@/lib/eventHelpers';
 
 const PAGE_SIZE = 20;
 
 export default function NotificationsPage() {
-  const { isAuthenticated, loading: authLoading } = useAuth();
+  const { isAuthenticated, loading: authLoading, user } = useAuth();
+  const isAdmin = user?.role === 'admin';
   const { lang } = useLang();
   const router = useRouter();
 
@@ -54,7 +55,7 @@ export default function NotificationsPage() {
       setNotifications((prev) => prev.map((x) => (x.id === n.id ? { ...x, is_read: true } : x)));
       notificationsApi.markRead(n.id).catch(() => {});
     }
-    router.push(notificationRoute(n));
+    router.push(notificationRoute(n, { isAdmin }));
   }
 
   async function handleMarkAll() {
@@ -109,12 +110,15 @@ export default function NotificationsPage() {
               <button
                 type="button"
                 key={n.id}
-                className={`notif-item${!n.is_read ? ' is-unread' : ''}`}
+                className={`notif-item${!n.is_read ? ' is-unread' : ''}${notificationActionRequired(n) ? ' is-action-required' : ''}`}
                 style={{ width: '100%' }}
                 onClick={() => handleClick(n)}
               >
                 <span className="notif-item__dot" />
                 <span className="notif-item__body">
+                  {notificationActionRequired(n) && (
+                    <span className="notif-item__flag"><T ru="Требуется действие" kz="Әрекет қажет" en="Action required" /></span>
+                  )}
                   <span className="notif-item__title">{notificationTitle(n, lang)}</span>
                   <span className="notif-item__message">{notificationMessage(n, lang)}</span>
                   <span className="notif-item__meta">

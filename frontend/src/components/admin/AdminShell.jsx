@@ -6,6 +6,7 @@ import { usePathname } from 'next/navigation';
 import { useAdminAuth } from '@/context/AdminAuthContext';
 import { useTheme } from '@/context/AppProviders';
 import { adminApi } from '@/lib/adminApi';
+import NotificationBell from '@/components/NotificationBell';
 
 export default function AdminShell({ user, children }) {
   const pathname = usePathname();
@@ -81,6 +82,11 @@ export default function AdminShell({ user, children }) {
         <header className="admin-topbar">
           <div />
           <div className="admin-topbar__actions">
+            {/* Same component/API/unread-count as the site header's bell
+                (10A) — a second mount point, not a second notification
+                system, so admins actually see request_submitted etc. (10B)
+                without leaving the admin area. */}
+            <NotificationBell />
             <button className="theme-switch" onClick={toggleTheme} aria-label="Переключить тему">
               <span className="theme-switch__icon theme-switch__icon--sun">☀</span>
               <span className="theme-switch__icon theme-switch__icon--moon">☾</span>

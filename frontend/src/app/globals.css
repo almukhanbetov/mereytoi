@@ -1897,3 +1897,10 @@ body.no-scroll{ overflow: hidden; }
     border-radius:22px 22px 0 0; box-shadow:none;
   }
 }
+
+/* ---------- 10B: "action required" notification treatment ---------- */
+.notif-item.is-action-required{ background: rgba(212,175,106,0.07); border-left:2px solid var(--gold); padding-left:16px; }
+.notif-item__flag{
+  display:inline-flex; align-items:center; gap:5px; align-self:flex-start; padding:2px 9px; border-radius:999px;
+  background: var(--gold); color:#17140d; font-size:10px; font-weight:700; text-transform:uppercase; letter-spacing:.03em; margin-bottom:4px;
+}

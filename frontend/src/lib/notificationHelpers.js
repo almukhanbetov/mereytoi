@@ -19,7 +19,27 @@ const TITLES = {
   task_completed: { ru: 'Задача выполнена', kz: 'Тапсырма орындалды', en: 'Task completed' },
   member_joined: { ru: 'Новый участник', kz: 'Жаңа қатысушы', en: 'New member' },
   member_role_changed: { ru: 'Роль изменена', kz: 'Рөл өзгертілді', en: 'Role changed' },
+
+  // 10B — request lifecycle + manager decisions.
+  request_submitted: { ru: 'Новая заявка', kz: 'Жаңа өтінім', en: 'New request' },
+  request_resubmitted: { ru: 'Заявка отправлена повторно', kz: 'Өтінім қайта жіберілді', en: 'Request resubmitted' },
+  request_in_review: { ru: 'Заявка принята в работу', kz: 'Өтінім қарауға алынды', en: 'Request in review' },
+  request_changes_requested: { ru: 'Требуется действие', kz: 'Әрекет қажет', en: 'Action required' },
+  request_approved: { ru: 'Заявка подтверждена', kz: 'Өтінім расталды', en: 'Request approved' },
+  request_rejected: { ru: 'Заявка отклонена', kz: 'Өтінім қабылданбады', en: 'Request rejected' },
+  request_cancelled: { ru: 'Заявка отменена', kz: 'Өтінім бас тартылды', en: 'Request cancelled' },
 };
+
+// Notification types the UI should visually flag as needing the
+// organizer's attention, not just informational — currently just the one
+// the brief calls out explicitly (section 22). Kept as its own lookup
+// rather than a field on the notification itself, since "what counts as
+// actionable" is presentation, not domain data.
+const ACTION_REQUIRED_TYPES = new Set(['request_changes_requested']);
+
+export function notificationActionRequired(notification) {
+  return ACTION_REQUIRED_TYPES.has(notification.type);
+}
 
 const VOTE_LABEL = {
   up: { ru: '«За»', kz: '«Жақтап»', en: '"Yes"' },
@@ -95,6 +115,45 @@ export function notificationMessage(notification, lang) {
       kz: `${actor} сіздің рөліңізді «${roleLabel(p.role, lang)}» етіп өзгертті`,
       en: `${actor} changed your role to "${roleLabel(p.role, lang)}"`,
     },
+
+    // 10B — the actor here is always an admin/manager, or (for
+    // submitted/resubmitted/cancelled) the organizer — never "you" talking
+    // to yourself, since createNotification already excludes self-notify.
+    request_submitted: {
+      ru: `Мероприятие «${notification.event?.title || ''}» отправлено на рассмотрение`,
+      kz: `«${notification.event?.title || ''}» іс-шарасы қарауға жіберілді`,
+      en: `The request for "${notification.event?.title || ''}" was submitted for review`,
+    },
+    request_resubmitted: {
+      ru: `Организатор отправил версию №${p.revision ?? ''}`,
+      kz: `Ұйымдастырушы №${p.revision ?? ''} нұсқасын жіберді`,
+      en: `The organizer submitted revision #${p.revision ?? ''}`,
+    },
+    request_in_review: {
+      ru: 'Менеджер MEREYTOI начал рассмотрение вашей заявки',
+      kz: 'MEREYTOI менеджері өтінімді қарауды бастады',
+      en: 'A MEREYTOI manager started reviewing your request',
+    },
+    request_changes_requested: {
+      ru: `Менеджер просит уточнить заявку${p.manager_comment ? `: «${p.manager_comment}»` : ''}`,
+      kz: `Менеджер өтінімді нақтылауды сұрайды${p.manager_comment ? `: «${p.manager_comment}»` : ''}`,
+      en: `The manager asked for changes${p.manager_comment ? `: "${p.manager_comment}"` : ''}`,
+    },
+    request_approved: {
+      ru: `MEREYTOI подтвердил вашу заявку${p.total ? ` — ${price(p.total)}` : ''}${p.booking_id ? ` · № ${p.booking_id}` : ''}`,
+      kz: `MEREYTOI өтінімді растады${p.total ? ` — ${price(p.total)}` : ''}${p.booking_id ? ` · № ${p.booking_id}` : ''}`,
+      en: `MEREYTOI approved your request${p.total ? ` — ${price(p.total)}` : ''}${p.booking_id ? ` · #${p.booking_id}` : ''}`,
+    },
+    request_rejected: {
+      ru: `Менеджер MEREYTOI отклонил заявку${p.manager_comment ? `: «${p.manager_comment}»` : ''}`,
+      kz: `MEREYTOI менеджері өтінімді қабылдамады${p.manager_comment ? `: «${p.manager_comment}»` : ''}`,
+      en: `MEREYTOI rejected the request${p.manager_comment ? `: "${p.manager_comment}"` : ''}`,
+    },
+    request_cancelled: {
+      ru: `${actor} отменил(а) заявку`,
+      kz: `${actor} өтінімнен бас тартты`,
+      en: `${actor} cancelled the request`,
+    },
   };
 
   const forType = templates[notification.type];
@@ -103,32 +162,54 @@ export function notificationMessage(notification, lang) {
 }
 
 // Maps a notification's structured refs (type/event_id/entity_type/
-// entity_id) to a real, current workspace route — never a stored URL, so a
-// later route rename can't leave old notifications pointing at a dead link
-// (brief section 15).
-export function notificationRoute(notification) {
+// entity_id) to a real, current route — never a stored URL, so a later
+// route rename can't leave old notifications pointing at a dead link
+// (brief section 15). `isAdmin` disambiguates the one case where the same
+// type reaches two different audiences with two different destinations:
+// request_submitted/resubmitted/cancelled can land in either an admin's or
+// an organizer/member's notification list, and each needs its own page —
+// the notification itself is just a pointer either way, never a bypass of
+// the real per-page auth checks (backend section 25).
+export function notificationRoute(notification, { isAdmin = false } = {}) {
   const eventId = notification.event_id;
-  if (!eventId) return '/profile/notifications';
+  const base = eventId ? `/profile/events/${eventId}` : null;
 
-  const base = `/profile/events/${eventId}`;
   switch (notification.type) {
     case 'vote_added':
     case 'vote_changed':
     case 'candidate_added':
-      return `${base}/services`;
+      return base ? `${base}/services` : '/profile/notifications';
     case 'comment_added':
+      if (!base) return '/profile/notifications';
       return notification.entity_type === 'candidate' ? `${base}/services` : `${base}/discussion`;
     case 'budget_updated':
-      return `${base}/budget`;
+      return base ? `${base}/budget` : '/profile/notifications';
     case 'task_created':
     case 'task_updated':
     case 'task_completed':
-      return `${base}/tasks`;
+      return base ? `${base}/tasks` : '/profile/notifications';
     case 'invitation_accepted':
     case 'member_joined':
     case 'member_role_changed':
-      return `${base}/members`;
+      return base ? `${base}/members` : '/profile/notifications';
+
+    // 10B
+    case 'request_submitted':
+    case 'request_resubmitted':
+      return notification.entity_id ? `/admin/event-requests/${notification.entity_id}` : '/admin/event-requests';
+    case 'request_cancelled':
+      // Admins get this one too (only when the request had already reached
+      // them) — everyone else gets the workspace Request tab.
+      return isAdmin && notification.entity_id
+        ? `/admin/event-requests/${notification.entity_id}`
+        : (base ? `${base}/request` : '/profile/notifications');
+    case 'request_in_review':
+    case 'request_changes_requested':
+    case 'request_approved':
+    case 'request_rejected':
+      return base ? `${base}/request` : '/profile/notifications';
+
     default:
-      return base;
+      return base || '/profile/notifications';
   }
 }

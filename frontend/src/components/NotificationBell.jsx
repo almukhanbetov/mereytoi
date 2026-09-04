@@ -4,9 +4,10 @@ import { useCallback, useEffect, useRef, useState } from 'react';
 import Link from 'next/link';
 import { useRouter } from 'next/navigation';
 import { useAuth } from '@/context/AuthContext';
+import { useAdminAuth } from '@/context/AdminAuthContext';
 import { T, useLang } from '@/context/AppProviders';
 import { notificationsApi } from '@/lib/notificationsApi';
-import { notificationTitle, notificationMessage, notificationRoute } from '@/lib/notificationHelpers';
+import { notificationTitle, notificationMessage, notificationRoute, notificationActionRequired } from '@/lib/notificationHelpers';
 import { timeAgo } from '@/lib/eventHelpers';
 
 // No WebSocket/SSE in this project yet (brief section 18) — a modest 60s
@@ -16,7 +17,13 @@ import { timeAgo } from '@/lib/eventHelpers';
 const POLL_MS = 60000;
 
 export default function NotificationBell() {
-  const { isAuthenticated } = useAuth();
+  const { isAuthenticated, user } = useAuth();
+  // Safe to call unconditionally: on customer pages there's no
+  // AdminAuthProvider ancestor, so this just reads the context's `null`
+  // default — no error, no admin-only import needed to know that.
+  const adminAuth = useAdminAuth();
+  const authed = isAuthenticated || !!adminAuth?.isAdmin;
+  const isAdmin = user?.role === 'admin' || !!adminAuth?.isAdmin;
   const { lang } = useLang();
   const router = useRouter();
   const wrapRef = useRef(null);
@@ -32,11 +39,11 @@ export default function NotificationBell() {
   }, []);
 
   useEffect(() => {
-    if (!isAuthenticated) return undefined;
+    if (!authed) return undefined;
     refreshCount();
     const id = setInterval(refreshCount, POLL_MS);
     return () => clearInterval(id);
-  }, [isAuthenticated, refreshCount]);
+  }, [authed, refreshCount]);
 
   useEffect(() => {
     function onOutside(e) {
@@ -70,7 +77,7 @@ export default function NotificationBell() {
       setNotifications((prev) => prev?.map((x) => (x.id === n.id ? { ...x, is_read: true } : x)) || null);
       notificationsApi.markRead(n.id).catch(() => {});
     }
-    router.push(notificationRoute(n));
+    router.push(notificationRoute(n, { isAdmin }));
   }
 
   async function handleMarkAll(e) {
@@ -85,7 +92,7 @@ export default function NotificationBell() {
     }
   }
 
-  if (!isAuthenticated) return null;
+  if (!authed) return null;
 
   return (
     <div className="notif-bell-wrap" ref={wrapRef}>
@@ -114,9 +121,17 @@ export default function NotificationBell() {
               <p className="notif-panel__empty"><T ru="Нет новых уведомлений" kz="Жаңа хабарландырулар жоқ" en="No new notifications" /></p>
             )}
             {!loading && notifications?.map((n) => (
-              <button type="button" key={n.id} className={`notif-item${!n.is_read ? ' is-unread' : ''}`} onClick={() => handleItemClick(n)}>
+              <button
+                type="button"
+                key={n.id}
+                className={`notif-item${!n.is_read ? ' is-unread' : ''}${notificationActionRequired(n) ? ' is-action-required' : ''}`}
+                onClick={() => handleItemClick(n)}
+              >
                 <span className="notif-item__dot" />
                 <span className="notif-item__body">
+                  {notificationActionRequired(n) && (
+                    <span className="notif-item__flag"><T ru="Требуется действие" kz="Әрекет қажет" en="Action required" /></span>
+                  )}
                   <span className="notif-item__title">{notificationTitle(n, lang)}</span>
                   <span className="notif-item__message">{notificationMessage(n, lang)}</span>
                   <span className="notif-item__meta">

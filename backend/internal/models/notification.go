@@ -64,3 +64,28 @@ const (
 	NotifMemberJoined       = "member_joined"
 	NotifMemberRoleChanged  = "member_role_changed"
 )
+
+// 10B types — request lifecycle + manager decisions.
+//
+// NotifRequestCreated and NotifRequestUpdated are declared for naming
+// completeness (matching the domain's EventActivity verbs) but are
+// intentionally never fired as Notification rows: preparing/editing a
+// draft never requires another user to act, so — like
+// invitation_received above — creating one here would just be noise.
+// NotifManagerCommentAdded is declared for the same reason: the current
+// API can only change ManagerComment together with a status transition
+// (AdminUpdateStatus requires `status`), so a comment is always already
+// carried inside that transition's own notification payload — a separate
+// "comment added" notification would be a guaranteed duplicate of it.
+const (
+	NotifRequestCreated          = "request_created" // reserved, never fired — see comment above
+	NotifRequestUpdated          = "request_updated" // reserved, never fired — see comment above
+	NotifRequestSubmitted        = "request_submitted"
+	NotifRequestResubmitted      = "request_resubmitted"
+	NotifRequestInReview         = "request_in_review"
+	NotifRequestChangesRequested = "request_changes_requested"
+	NotifRequestApproved         = "request_approved"
+	NotifRequestRejected         = "request_rejected"
+	NotifRequestCancelled        = "request_cancelled"
+	NotifManagerCommentAdded     = "manager_comment_added" // reserved, never fired — see comment above
+)

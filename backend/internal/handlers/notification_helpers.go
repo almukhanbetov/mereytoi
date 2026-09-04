@@ -81,3 +81,20 @@ func eventOwnerID(db *gorm.DB, eventID uint) uint {
 	}
 	return event.OwnerID
 }
+
+// adminUserIDs resolves "the manager" for request-review notifications by
+// reusing the existing User.Role == "admin" flag — the same flag
+// middleware.RequireAdmin already gates every /api/admin/* route with.
+// There is no separate "manager" role in this system, and inventing one
+// just for notification routing isn't justified; every admin account
+// receives new/resubmitted-request notifications equally (documented in
+// the stage report as the deliberate, simplest-correct choice).
+func adminUserIDs(db *gorm.DB) []uint {
+	var users []models.User
+	db.Where("role = ?", "admin").Find(&users)
+	ids := make([]uint, 0, len(users))
+	for _, u := range users {
+		ids = append(ids, u.ID)
+	}
+	return ids
+}

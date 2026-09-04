@@ -254,11 +254,18 @@ func (h *EventRequestHandler) Submit(c *gin.Context) {
 		return
 	}
 
-	verb := "request_submitted"
+	verb, notifType := "request_submitted", models.NotifRequestSubmitted
 	if wasChangesRequested {
-		verb = "request_resubmitted"
+		verb, notifType = "request_resubmitted", models.NotifRequestResubmitted
 	}
-	logActivity(h.DB, eventID, userID, verb, map[string]any{"revision": nextRevision, "total": total})
+	payload := map[string]any{"revision": nextRevision, "total": total}
+	logActivity(h.DB, eventID, userID, verb, payload)
+
+	// The organizer submitting is never notified about their own submission
+	// (createNotification already guards actor==recipient); every admin
+	// account is — see adminUserIDs for why "every admin" rather than one
+	// hard-coded user.
+	notifyMany(h.DB, adminUserIDs(h.DB), userID, eventID, notifType, "request", req.ID, payload)
 
 	c.JSON(http.StatusOK, gin.H{"request": req, "already_submitted": false})
 }
@@ -308,6 +315,7 @@ func (h *EventRequestHandler) Cancel(c *gin.Context) {
 		c.JSON(http.StatusConflict, gin.H{"error": "request can no longer be cancelled"})
 		return
 	}
+	hadReachedManager := req.Status != models.RequestDraft
 
 	req.Status = models.RequestCancelled
 	if err := h.DB.Save(req).Error; err != nil {
@@ -315,6 +323,18 @@ func (h *EventRequestHandler) Cancel(c *gin.Context) {
 		return
 	}
 	logActivity(h.DB, eventID, userID, "request_cancelled", map[string]any{})
+
+	// The organizer who cancelled isn't notified about their own action.
+	// Everyone else who was collaborating still hears about it; admins only
+	// hear about it if the request had actually reached them already —
+	// cancelling an untouched local draft they never saw isn't their concern.
+	payload := map[string]any{}
+	others := memberUserIDs(h.DB, eventID, models.EventRoleViewer)
+	notifyMany(h.DB, others, userID, eventID, models.NotifRequestCancelled, "request", req.ID, payload)
+	if hadReachedManager {
+		notifyMany(h.DB, adminUserIDs(h.DB), userID, eventID, models.NotifRequestCancelled, "request", req.ID, payload)
+	}
+
 	c.JSON(http.StatusOK, gin.H{"request": req})
 }
 
@@ -392,6 +412,25 @@ type adminStatusInput struct {
 	ManagerComment *string `json:"manager_comment"`
 }
 
+// requestActivityVerbs and requestNotifTypes are deliberately two small,
+// parallel maps rather than one — the EventActivity verb feeds the
+// event's shared audit feed regardless of target status, while not every
+// status necessarily needs its own notification type long-term; keeping
+// them separate means adding/removing one doesn't silently affect the other.
+var requestActivityVerbs = map[string]string{
+	models.RequestInReview:         "request_in_review",
+	models.RequestChangesRequested: "request_changes_requested",
+	models.RequestApproved:         "request_approved",
+	models.RequestRejected:         "request_rejected",
+}
+
+var requestNotifTypes = map[string]string{
+	models.RequestInReview:         models.NotifRequestInReview,
+	models.RequestChangesRequested: models.NotifRequestChangesRequested,
+	models.RequestApproved:         models.NotifRequestApproved,
+	models.RequestRejected:         models.NotifRequestRejected,
+}
+
 // AdminUpdateStatus — POST /api/admin/event-requests/:id/status. Validates
 // the transition server-side via models.CanTransition — an admin cannot,
 // say, "approve" a request that's still a draft or already rejected.
@@ -441,17 +480,46 @@ func (h *EventRequestHandler) AdminUpdateStatus(c *gin.Context) {
 		}
 	}
 
-	verbByStatus := map[string]string{
-		models.RequestChangesRequested: "request_changes_requested",
-		models.RequestApproved:         "request_approved",
-		models.RequestRejected:         "request_rejected",
+	actorID := currentUserID(c)
+	// Revision number is captured so this notification always points at the
+	// exact revision under review when the decision was made — if a newer
+	// revision is submitted later, this row still correctly refers to the
+	// one it was actually about (brief section 18).
+	payload := map[string]any{"revision": req.LatestRevision}
+	if req.ManagerComment != "" {
+		payload["manager_comment"] = req.ManagerComment
 	}
-	if verb, ok := verbByStatus[in.Status]; ok {
-		payload := map[string]any{}
-		if req.ManagerComment != "" {
-			payload["manager_comment"] = req.ManagerComment
+	if in.Status == models.RequestApproved {
+		// "Final price / booking number" for the approval notification
+		// (brief section 23) — both already exist on the record, nothing
+		// new is added to Booking just for display here.
+		var revision models.EventRequestRevision
+		if h.DB.Where("event_request_id = ? AND revision_number = ?", req.ID, req.LatestRevision).First(&revision).Error == nil {
+			payload["total"] = revision.Total
 		}
-		logActivity(h.DB, req.EventID, currentUserID(c), verb, payload)
+		if req.BookingID != nil {
+			payload["booking_id"] = *req.BookingID
+		}
+	}
+
+	if verb, ok := requestActivityVerbs[in.Status]; ok {
+		logActivity(h.DB, req.EventID, actorID, verb, payload)
+	}
+
+	if notifType, ok := requestNotifTypes[in.Status]; ok {
+		switch in.Status {
+		case models.RequestInReview, models.RequestChangesRequested:
+			// Only the organizer needs to know/act right now — in_review is
+			// informational, changes_requested is the actionable one; both
+			// are strictly the organizer's business, not the whole team's.
+			createNotification(h.DB, eventOwnerID(h.DB, req.EventID), actorID, req.EventID, notifType, "request", req.ID, payload)
+		case models.RequestApproved, models.RequestRejected:
+			// A terminal decision on the whole event's plan concerns
+			// everyone collaborating on it — viewers included, unlike the
+			// day-to-day editor-scoped notifications (e.g. budget_updated).
+			recipients := memberUserIDs(h.DB, req.EventID, models.EventRoleViewer)
+			notifyMany(h.DB, recipients, actorID, req.EventID, notifType, "request", req.ID, payload)
+		}
 	}
 
 	c.JSON(http.StatusOK, gin.H{"request": req})
