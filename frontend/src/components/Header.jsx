@@ -58,6 +58,7 @@ export default function Header() {
                   <Link
                     href={link.href}
                     className={`nav__link${isActive ? ' is-active' : ''}`}
+                    aria-current={isActive ? 'page' : undefined}
                     onClick={() => setNavOpen(false)}
                   >
                     <T ru={link.ru} kz={link.kz} />

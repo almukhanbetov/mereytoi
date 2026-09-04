@@ -78,7 +78,15 @@ export default function EventTasksPage() {
         <div style={{ marginBottom: 28 }}>
           {tasks.map((t) => (
             <div className={`ws-task-row${t.status === 'done' ? ' is-done' : ''}`} key={t.id}>
-              <button type="button" className={`ws-task-check${t.status === 'done' ? ' is-done' : ''}`} onClick={() => toggleDone(t)} aria-label="toggle">
+              <button
+                type="button"
+                className={`ws-task-check${t.status === 'done' ? ' is-done' : ''}`}
+                onClick={() => toggleDone(t)}
+                aria-pressed={t.status === 'done'}
+                aria-label={t.status === 'done'
+                  ? (lang === 'kz' ? 'Орындалды деп белгіленген, алып тастау' : 'Отмечено выполненным, снять отметку')
+                  : (lang === 'kz' ? 'Орындалды деп белгілеу' : 'Отметить как выполненное')}
+              >
                 {t.status === 'done' ? '✓' : ''}
               </button>
               <span className="ws-task-row__title">{t.title}</span>

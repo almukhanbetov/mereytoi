@@ -82,6 +82,7 @@ export default function NewEventPage() {
                 <button
                   key={t}
                   type="button"
+                  aria-pressed={type === t}
                   className={`ws-type-option${type === t ? ' is-selected' : ''}`}
                   onClick={() => setType(t)}
                 >
