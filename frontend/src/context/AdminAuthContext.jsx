@@ -1,60 +1,43 @@
 'use client';
 
-import { createContext, useCallback, useContext, useEffect, useState } from 'react';
-import { adminApi, getToken, setToken, clearToken } from '@/lib/adminApi';
+import { useCallback } from 'react';
+import { useAuth } from '@/context/AuthContext';
 
-const AdminAuthContext = createContext(null);
-
-export function AdminAuthProvider({ children }) {
-  const [user, setUser] = useState(null);
-  const [loading, setLoading] = useState(true);
-
-  const loadUser = useCallback(async () => {
-    const token = getToken();
-    if (!token) {
-      setUser(null);
-      setLoading(false);
-      return;
-    }
-    try {
-      const { user } = await adminApi.me();
-      setUser(user);
-    } catch {
-      clearToken();
-      setUser(null);
-    } finally {
-      setLoading(false);
-    }
-  }, []);
-
-  useEffect(() => {
-    loadUser();
-  }, [loadUser]);
-
-  const login = useCallback(async (email, password) => {
-    const { user, token } = await adminApi.login(email, password);
-    if (user.role !== 'admin') {
-      throw new Error('У этого аккаунта нет прав администратора');
-    }
-    setToken(token);
-    setUser(user);
-    return user;
-  }, []);
-
-  const logout = useCallback(() => {
-    clearToken();
-    setUser(null);
-  }, []);
-
-  const isAdmin = !!user && user.role === 'admin';
-
-  return (
-    <AdminAuthContext.Provider value={{ user, loading, isAdmin, login, logout }}>
-      {children}
-    </AdminAuthContext.Provider>
-  );
-}
-
+// 10C: this used to be its own Provider/Context holding a fully separate
+// `user`/`loading`/token — a second, parallel session for the exact same
+// backend account that AuthContext already tracks (both flows hit the same
+// /api/auth/login). That's gone: this is now a thin selector over the one
+// shared session, kept as its own hook (not just inlining useAuth()
+// everywhere in AdminGuard/AdminShell/admin/login) purely for readability —
+// "this component cares about the admin view of the session" reads better
+// at each call site than re-deriving isAdmin/rewrapping login by hand.
+//
+// No <AdminAuthProvider> anymore — there's nothing left for it to own.
+// app/admin/layout.js reads straight from the root <AuthProvider>, which
+// already wraps the whole app.
 export function useAdminAuth() {
-  return useContext(AdminAuthContext);
+  const auth = useAuth();
+
+  const login = useCallback(
+    async (identifier, password) => {
+      const user = await auth.login(identifier, password);
+      if (user.role !== 'admin') {
+        // Never leave a non-admin "signed in" via the admin flow — roll the
+        // shared session back out exactly like the old separate context did
+        // before it ever persisted a token under its own key.
+        auth.logout();
+        throw new Error('У этого аккаунта нет прав администратора');
+      }
+      return user;
+    },
+    [auth],
+  );
+
+  return {
+    user: auth.user,
+    loading: auth.loading,
+    isAdmin: auth.isAdmin,
+    login,
+    logout: auth.logout,
+  };
 }

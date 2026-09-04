@@ -12,5 +12,19 @@ services:
     volumes:
       - mereytoi_pgdata:/var/lib/postgresql/data
 
+  # Stage 11A dev mail transport — a local SMTP server with a web UI, no
+  # outbound internet/real provider needed. Backend .env.example points
+  # MAIL_HOST/MAIL_PORT at this by default; set MAIL_ENABLED=true to use it.
+  # Nothing here is part of the production stack (docker-compose.prod.yml
+  # doesn't include it) — it's purely a local dev convenience, opt-in via
+  # `docker compose up -d mailpit`.
+  mailpit:
+    image: axllent/mailpit:latest
+    container_name: mereytoi_mailpit
+    restart: unless-stopped
+    ports:
+      - "1025:1025" # SMTP — backend sends here
+      - "8025:8025" # web UI — open http://localhost:8025 to see mail arrive
+
 volumes:
   mereytoi_pgdata:

@@ -7,6 +7,7 @@ import { useLang, useTheme, useCart, T } from '@/context/AppProviders';
 import { useAuth } from '@/context/AuthContext';
 import { AGENCY_WHATSAPP_DIGITS } from '@/lib/agencyContact';
 import { trackWhatsAppClick } from '@/lib/whatsapp';
+import NotificationBell from '@/components/NotificationBell';
 
 const NAV_LINKS = [
   { href: '/', ru: 'Главная', kz: 'Басты бет' },
@@ -72,13 +73,14 @@ export default function Header() {
             <span className="theme-switch__icon theme-switch__icon--sun">☀</span>
             <span className="theme-switch__icon theme-switch__icon--moon">☾</span>
           </button>
-          <button className="lang-switch" onClick={toggleLang} aria-label="Тілді ауыстыру / Переключить язык">
-            {lang === 'ru' ? 'РУС' : 'ҚАЗ'}
+          <button className="lang-switch" onClick={toggleLang} aria-label="Тілді ауыстыру / Переключить язык / Switch language">
+            {lang === 'ru' ? 'РУС' : lang === 'kz' ? 'ҚАЗ' : 'ENG'}
           </button>
           <button className="cart-icon" id="cart-icon" onClick={openDrawer} aria-label="Себет / Корзина">
             🛍
             <span className={`cart-icon__badge${count > 0 ? ' is-visible' : ''}`}>{count}</span>
           </button>
+          <NotificationBell />
           <Link
             href={isAuthenticated ? '/profile' : '/login'}
             className="cart-icon"

@@ -18,6 +18,26 @@ type Config struct {
 	DBSSLMode   string
 	JWTSecret   string
 	CORSOrigins []string
+
+	// FrontendURL builds the deep links inside transactional emails
+	// (invite links, request-tab links, admin review links) — there was no
+	// existing "what's the frontend's origin" config value anywhere in this
+	// backend before 11A (CORSOrigins is a list for a different purpose,
+	// access control, not link-building), so this is a genuinely new var.
+	FrontendURL string
+
+	// Mail* — stage 11A transactional email (see internal/mail). Every
+	// value here is read once at startup by mail.NewService; nothing in
+	// internal/mail reads os.Getenv directly.
+	MailEnabled     bool
+	MailDriver      string // "smtp" (default) | "log"
+	MailHost        string
+	MailPort        string
+	MailUsername    string
+	MailPassword    string
+	MailFromAddress string
+	MailFromName    string
+	MailUseTLS      bool
 }
 
 func Load() Config {
@@ -43,6 +63,21 @@ func Load() Config {
 		DBSSLMode:   getEnv("DB_SSLMODE", "disable"),
 		JWTSecret:   getEnv("JWT_SECRET", "dev-secret-change-me"),
 		CORSOrigins: origins,
+		FrontendURL: getEnv("FRONTEND_URL", "http://localhost:3000"),
+
+		// Off by default (brief section 21): a fresh clone/CI run must not
+		// start attempting SMTP connections nobody configured. A developer
+		// who wants to see real emails opts in with MAIL_ENABLED=true (and,
+		// normally, `docker compose up -d mailpit` — see docker-compose.yml).
+		MailEnabled:     getEnv("MAIL_ENABLED", "false") == "true",
+		MailDriver:      getEnv("MAIL_DRIVER", "smtp"),
+		MailHost:        getEnv("MAIL_HOST", "localhost"),
+		MailPort:        getEnv("MAIL_PORT", "1025"),
+		MailUsername:    getEnv("MAIL_USERNAME", ""),
+		MailPassword:    getEnv("MAIL_PASSWORD", ""),
+		MailFromAddress: getEnv("MAIL_FROM_ADDRESS", "no-reply@mereytoi.kz"),
+		MailFromName:    getEnv("MAIL_FROM_NAME", "MEREYTOI"),
+		MailUseTLS:      getEnv("MAIL_USE_TLS", "false") == "true",
 	}
 }
 

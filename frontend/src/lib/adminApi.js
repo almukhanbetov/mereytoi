@@ -1,20 +1,16 @@
 'use client';
 
+// 10C: the admin area used to keep its own separate token under
+// 'mereytoi-admin-token' — a second, parallel session for the exact same
+// /api/auth/login account. That's gone; this now reads/writes the one
+// shared token in lib/authToken.js, still exported here under the original
+// getToken/setToken/clearToken names so nothing importing them needed to
+// change (this file's own uploadImages/uploadVideo below included).
+import { getToken, setToken, clearToken } from '@/lib/authToken';
+
+export { getToken, setToken, clearToken };
+
 const API_URL = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:8090';
-const TOKEN_KEY = 'mereytoi-admin-token';
-
-export function getToken() {
-  if (typeof window === 'undefined') return null;
-  return localStorage.getItem(TOKEN_KEY);
-}
-
-export function setToken(token) {
-  localStorage.setItem(TOKEN_KEY, token);
-}
-
-export function clearToken() {
-  localStorage.removeItem(TOKEN_KEY);
-}
 
 async function request(path, { method = 'GET', body, auth = false } = {}) {
   const headers = { 'Content-Type': 'application/json' };
@@ -108,4 +104,9 @@ export const adminApi = {
 
   siteStatistics: () => request('/api/site-statistics'),
   updateSiteStatistics: (payload) => request('/api/site-statistics', { method: 'PUT', body: payload, auth: true }),
+
+  eventRequests: (status) => request(`/api/admin/event-requests${status && status !== 'all' ? `?status=${status}` : ''}`, { auth: true }),
+  eventRequest: (id) => request(`/api/admin/event-requests/${id}`, { auth: true }),
+  updateEventRequestStatus: (id, status, managerComment) =>
+    request(`/api/admin/event-requests/${id}/status`, { method: 'POST', body: { status, manager_comment: managerComment }, auth: true }),
 };

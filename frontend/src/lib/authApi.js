@@ -1,20 +1,15 @@
 'use client';
 
+import { getToken, setToken, clearToken } from '@/lib/authToken';
+
 const API_URL = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:8090';
-const TOKEN_KEY = 'mereytoi-user-token';
 
-export function getUserToken() {
-  if (typeof window === 'undefined') return null;
-  return localStorage.getItem(TOKEN_KEY);
-}
-
-export function setUserToken(token) {
-  localStorage.setItem(TOKEN_KEY, token);
-}
-
-export function clearUserToken() {
-  localStorage.removeItem(TOKEN_KEY);
-}
+// Re-exported under their original names (10C unified the actual storage
+// into lib/authToken.js — every existing importer of these three names
+// keeps working unchanged).
+export const getUserToken = getToken;
+export const setUserToken = setToken;
+export const clearUserToken = clearToken;
 
 async function request(path, { method = 'GET', body, auth = false } = {}) {
   const headers = { 'Content-Type': 'application/json' };

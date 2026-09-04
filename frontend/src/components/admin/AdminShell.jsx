@@ -6,6 +6,7 @@ import { usePathname } from 'next/navigation';
 import { useAdminAuth } from '@/context/AdminAuthContext';
 import { useTheme } from '@/context/AppProviders';
 import { adminApi } from '@/lib/adminApi';
+import NotificationBell from '@/components/NotificationBell';
 
 export default function AdminShell({ user, children }) {
   const pathname = usePathname();
@@ -14,6 +15,7 @@ export default function AdminShell({ user, children }) {
   const [categories, setCategories] = useState([]);
   const [newBookings, setNewBookings] = useState(0);
   const [pendingComments, setPendingComments] = useState(0);
+  const [pendingEventRequests, setPendingEventRequests] = useState(0);
 
   useEffect(() => {
     adminApi.categories().then((d) => setCategories(d.categories || [])).catch(() => {});
@@ -22,6 +24,9 @@ export default function AdminShell({ user, children }) {
       .catch(() => {});
     adminApi.comments(false)
       .then((d) => setPendingComments((d.comments || []).length))
+      .catch(() => {});
+    adminApi.eventRequests('submitted')
+      .then((d) => setPendingEventRequests((d.requests || []).length))
       .catch(() => {});
   }, [pathname]);
 
@@ -40,6 +45,10 @@ export default function AdminShell({ user, children }) {
           <Link href="/admin/bookings" className={`admin-nav__link${pathname === '/admin/bookings' ? ' is-active' : ''}`}>
             <span>Заявки</span>
             {newBookings > 0 && <span className="admin-nav__badge">{newBookings}</span>}
+          </Link>
+          <Link href="/admin/event-requests" className={`admin-nav__link${pathname.startsWith('/admin/event-requests') ? ' is-active' : ''}`}>
+            <span>Заявки на мероприятия</span>
+            {pendingEventRequests > 0 && <span className="admin-nav__badge">{pendingEventRequests}</span>}
           </Link>
           <Link href="/admin/comments" className={`admin-nav__link${pathname === '/admin/comments' ? ' is-active' : ''}`}>
             <span>Комментарии</span>
@@ -73,6 +82,11 @@ export default function AdminShell({ user, children }) {
         <header className="admin-topbar">
           <div />
           <div className="admin-topbar__actions">
+            {/* Same component/API/unread-count as the site header's bell
+                (10A) — a second mount point, not a second notification
+                system, so admins actually see request_submitted etc. (10B)
+                without leaving the admin area. */}
+            <NotificationBell />
             <button className="theme-switch" onClick={toggleTheme} aria-label="Переключить тему">
               <span className="theme-switch__icon theme-switch__icon--sun">☀</span>
               <span className="theme-switch__icon theme-switch__icon--moon">☾</span>

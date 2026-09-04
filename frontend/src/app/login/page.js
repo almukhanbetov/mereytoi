@@ -1,15 +1,31 @@
 'use client';
 
-import { useState } from 'react';
+import { Suspense, useState } from 'react';
 import Link from 'next/link';
-import { useRouter } from 'next/navigation';
+import { useRouter, useSearchParams } from 'next/navigation';
 import { useAuth } from '@/context/AuthContext';
 import { T } from '@/context/AppProviders';
 import PasswordInput from '@/components/PasswordInput';
 
+// useSearchParams() forces client-side rendering up to the nearest Suspense
+// boundary during prerendering — without this wrapper the build fails with
+// "useSearchParams() should be wrapped in a suspense boundary".
 export default function LoginPage() {
+  return (
+    <Suspense>
+      <LoginForm />
+    </Suspense>
+  );
+}
+
+function LoginForm() {
   const { login } = useAuth();
   const router = useRouter();
+  const searchParams = useSearchParams();
+  // Lets a flow like "open an invite link while logged out" return the user
+  // to where they actually meant to go instead of always landing on the
+  // generic /profile — defaults to the previous behavior when absent.
+  const next = searchParams.get('next') || '/profile';
   const [identifier, setIdentifier] = useState('');
   const [password, setPassword] = useState('');
   const [error, setError] = useState('');
@@ -21,7 +37,7 @@ export default function LoginPage() {
     setSubmitting(true);
     try {
       await login(identifier, password);
-      router.push('/profile');
+      router.push(next);
     } catch (err) {
       setError(err.message || 'Не удалось войти');
     } finally {
