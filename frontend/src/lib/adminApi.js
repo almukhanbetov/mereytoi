@@ -109,4 +109,11 @@ export const adminApi = {
   eventRequest: (id) => request(`/api/admin/event-requests/${id}`, { auth: true }),
   updateEventRequestStatus: (id, status, managerComment) =>
     request(`/api/admin/event-requests/${id}/status`, { method: 'POST', body: { status, manager_comment: managerComment }, auth: true }),
+
+  // Manager chat dialogs (brief section 24) — deliberately not a separate
+  // CRM: list/detail/reply/status, same shape as eventRequests above.
+  managerChats: (status) => request(`/api/admin/manager-chat${status && status !== 'all' ? `?status=${status}` : ''}`, { auth: true }),
+  managerChat: (id) => request(`/api/admin/manager-chat/${id}`, { auth: true }),
+  replyManagerChat: (id, body) => request(`/api/admin/manager-chat/${id}/messages`, { method: 'POST', body: { body }, auth: true }),
+  updateManagerChatStatus: (id, status) => request(`/api/admin/manager-chat/${id}/status`, { method: 'POST', body: { status }, auth: true }),
 };

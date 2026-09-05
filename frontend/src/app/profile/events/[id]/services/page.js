@@ -2,7 +2,7 @@
 
 import { useCallback, useEffect, useState } from 'react';
 import Link from 'next/link';
-import { T, useLang } from '@/context/AppProviders';
+import { T, useLang, useManagerChat } from '@/context/AppProviders';
 import { useEventWorkspace } from '@/context/EventWorkspaceContext';
 import { eventsApi } from '@/lib/eventsApi';
 import { mediaUrl } from '@/lib/media';
@@ -25,8 +25,9 @@ function groupByCategory(candidates, lang) {
 }
 
 export default function EventServicesPage() {
-  const { eventId, canEdit, refreshSummary } = useEventWorkspace();
+  const { eventId, event, canEdit, refreshSummary } = useEventWorkspace();
   const { lang } = useLang();
+  const { openChat } = useManagerChat();
   const [candidates, setCandidates] = useState([]);
   const [loading, setLoading] = useState(true);
   const [compareIds, setCompareIds] = useState([]);
@@ -159,6 +160,29 @@ export default function EventServicesPage() {
 
                       <button type="button" className="ws-chip" onClick={() => setThreadCandidate(c.id)}>
                         💬 {c.comment_count || 0}
+                      </button>
+
+                      {/* Two distinct flows, never merged (brief section
+                          21): the 💬 chip above opens the team's own
+                          internal discussion; this opens the real manager
+                          chat with this exact service (and event) already
+                          attached as context. */}
+                      <button
+                        type="button"
+                        className="admin-table__link"
+                        onClick={() => openChat({
+                          listingId: c.listing_id,
+                          listingName: lang === 'kz' ? listing.name_kz : listing.name_ru,
+                          listingPrice: listing.price,
+                          eventId,
+                          eventTitle: event.title,
+                          eventDate: event.event_date,
+                          eventCity: event.city,
+                          eventGuests: event.guests,
+                          eventBudget: event.budget_total,
+                        })}
+                      >
+                        <T ru="Спросить MEREYTOI" kz="MEREYTOI-дан сұрау" />
                       </button>
 
                       <label className="ws-candidate-card__select">

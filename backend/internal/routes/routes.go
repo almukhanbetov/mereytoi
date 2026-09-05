@@ -44,6 +44,7 @@ func Register(r *gin.Engine, database *gorm.DB, cfg config.Config, mailSvc ...*m
 	eventTaskHandler := handlers.NewEventTaskHandler(database)
 	eventRequestHandler := handlers.NewEventRequestHandler(database, mailer)
 	notificationHandler := handlers.NewNotificationHandler(database)
+	managerChatHandler := handlers.NewManagerChatHandler(database)
 
 	r.GET("/api/health", func(c *gin.Context) {
 		c.JSON(http.StatusOK, gin.H{"status": "ok"})
@@ -243,6 +244,29 @@ func Register(r *gin.Engine, database *gorm.DB, cfg config.Config, mailSvc ...*m
 			notifications.GET("/unread-count", notificationHandler.UnreadCount)
 			notifications.POST("/:id/read", notificationHandler.MarkRead)
 			notifications.POST("/read-all", notificationHandler.MarkAllRead)
+		}
+
+		// Manager chat — real two-way conversation, auth-only (guests keep
+		// using the pre-existing FloatingManagerWidget "leave a message"
+		// form, which still creates a Booking via /api/bookings, untouched).
+		// Get/AddMessage are the same handler methods mounted here AND under
+		// /api/admin/manager-chat below — sender_type/ownership is resolved
+		// from who's actually calling, not from the route it came in on.
+		managerChat := api.Group("/manager-chat")
+		managerChat.Use(middleware.RequireAuth(cfg.JWTSecret))
+		{
+			managerChat.POST("/start", managerChatHandler.Start)
+			managerChat.GET("/:id", managerChatHandler.Get)
+			managerChat.POST("/:id/messages", managerChatHandler.AddMessage)
+		}
+
+		adminManagerChat := api.Group("/admin/manager-chat")
+		adminManagerChat.Use(middleware.RequireAuth(cfg.JWTSecret), middleware.RequireAdmin())
+		{
+			adminManagerChat.GET("", managerChatHandler.AdminList)
+			adminManagerChat.GET("/:id", managerChatHandler.Get)
+			adminManagerChat.POST("/:id/messages", managerChatHandler.AddMessage)
+			adminManagerChat.POST("/:id/status", managerChatHandler.AdminUpdateStatus)
 		}
 	}
 }

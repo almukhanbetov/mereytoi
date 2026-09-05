@@ -16,6 +16,7 @@ export default function AdminShell({ user, children }) {
   const [newBookings, setNewBookings] = useState(0);
   const [pendingComments, setPendingComments] = useState(0);
   const [pendingEventRequests, setPendingEventRequests] = useState(0);
+  const [unreadChats, setUnreadChats] = useState(0);
 
   useEffect(() => {
     adminApi.categories().then((d) => setCategories(d.categories || [])).catch(() => {});
@@ -27,6 +28,9 @@ export default function AdminShell({ user, children }) {
       .catch(() => {});
     adminApi.eventRequests('submitted')
       .then((d) => setPendingEventRequests((d.requests || []).length))
+      .catch(() => {});
+    adminApi.managerChats('open')
+      .then((d) => setUnreadChats((d.conversations || []).filter((c) => c.unread_count > 0).length))
       .catch(() => {});
   }, [pathname]);
 
@@ -49,6 +53,10 @@ export default function AdminShell({ user, children }) {
           <Link href="/admin/event-requests" className={`admin-nav__link${pathname.startsWith('/admin/event-requests') ? ' is-active' : ''}`}>
             <span>Заявки на мероприятия</span>
             {pendingEventRequests > 0 && <span className="admin-nav__badge">{pendingEventRequests}</span>}
+          </Link>
+          <Link href="/admin/manager-chat" className={`admin-nav__link${pathname.startsWith('/admin/manager-chat') ? ' is-active' : ''}`}>
+            <span>Диалоги</span>
+            {unreadChats > 0 && <span className="admin-nav__badge">{unreadChats}</span>}
           </Link>
           <Link href="/admin/comments" className={`admin-nav__link${pathname === '/admin/comments' ? ' is-active' : ''}`}>
             <span>Комментарии</span>
