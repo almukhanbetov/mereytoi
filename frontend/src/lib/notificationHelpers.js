@@ -161,6 +161,133 @@ export function notificationMessage(notification, lang) {
   return forType[lang] || forType.ru;
 }
 
+// A small per-type glyph for the dropdown/list row — the rest of this site
+// already uses plain emoji as icons everywhere (see Header.jsx) rather
+// than an icon library, so this stays consistent with that instead of
+// introducing one just for this.
+const TYPE_ICONS = {
+  invitation_accepted: '🤝',
+  candidate_added: '🎯',
+  vote_added: '🗳️',
+  vote_changed: '🗳️',
+  comment_added: '💬',
+  budget_updated: '💰',
+  task_created: '✅',
+  task_updated: '✅',
+  task_completed: '✅',
+  member_joined: '🤝',
+  member_role_changed: '🔧',
+  request_submitted: '📨',
+  request_resubmitted: '📨',
+  request_in_review: '🔍',
+  request_changes_requested: '✍️',
+  request_approved: '✅',
+  request_rejected: '⛔',
+  request_cancelled: '🚫',
+};
+
+export function notificationTypeIcon(type) {
+  return TYPE_ICONS[type] || '🔔';
+}
+
+// ---- Grouping repeated comment_added notifications ------------------
+//
+// Root cause of the "Nurlan wrote a comment ×3" spam: event_comment_handler.go's
+// AddComment fans a fresh Notification row out to every other member on
+// *every single* comment — correct backend behavior (each is a real,
+// independent event), but three quick messages in the same thread produce
+// three near-identical rows. Rather than changing that backend fan-out
+// (more rows is harmless/more auditable; the complaint is purely about
+// how they're *displayed*), this collapses same-conversation bursts into
+// one row client-side, for whichever list renders through it (the bell
+// dropdown and the full /profile/notifications page both do).
+//
+// Deliberately narrow: only comment_added ever collapses. Every other
+// type (votes, tasks, budget, invitations, requests...) always renders as
+// its own row — grouping is keyed by (type, event_id, entity_type,
+// entity_id), so a vote burst on the same candidate *could* collapse the
+// same way in the future, but nothing today ever mixes two different
+// types into one card (brief section 6).
+export function groupNotifications(notifications) {
+  const order = [];
+  const byKey = new Map();
+
+  for (const n of notifications) {
+    if (n.type !== 'comment_added') {
+      order.push({ kind: 'single', notification: n });
+      continue;
+    }
+    const key = `${n.type}:${n.event_id}:${n.entity_type}:${n.entity_id ?? ''}`;
+    let bucket = byKey.get(key);
+    if (!bucket) {
+      bucket = { kind: 'group', key, items: [] };
+      byKey.set(key, bucket);
+      order.push(bucket);
+    }
+    bucket.items.push(n);
+  }
+
+  return order.map((entry) => {
+    if (entry.kind === 'single' || entry.items.length === 1) {
+      return { kind: 'single', notification: entry.kind === 'single' ? entry.notification : entry.items[0] };
+    }
+    // Input is already created_at-desc (both API list endpoints order that
+    // way); items were pushed in that same order, so items[0] is latest.
+    const items = entry.items;
+    const latest = items[0];
+    const isRead = items.every((n) => n.is_read);
+    const actorNames = [...new Set(items.map((n) => n.actor?.name).filter(Boolean))];
+    return { kind: 'group', key: entry.key, items, latest, isRead, actorNames, count: items.length };
+  });
+}
+
+function ruPlural(n, one, few, many) {
+  const mod10 = n % 10;
+  const mod100 = n % 100;
+  if (mod10 === 1 && mod100 !== 11) return one;
+  if (mod10 >= 2 && mod10 <= 4 && (mod100 < 10 || mod100 >= 20)) return few;
+  return many;
+}
+
+// Two shapes, chosen by how many distinct people are in the burst — both
+// are the two options this fix was asked to weigh, kept side by side
+// since real data can land either way: "Nurlan: 3 новых сообщения" reads
+// better for one chatty participant, "3 новых сообщения в обсуждении" +
+// "Nurlan и ещё 1 участник" reads better once several people are involved.
+export function notificationGroupTitle(group, lang) {
+  const n = group.count;
+  if (group.actorNames.length <= 1) {
+    const actor = group.actorNames[0] || (lang === 'kz' ? 'Жүйе' : lang === 'en' ? 'System' : 'Система');
+    if (lang === 'kz') return `${actor}: ${n} жаңа хабарлама`;
+    if (lang === 'en') return `${actor}: ${n} new message${n === 1 ? '' : 's'}`;
+    return `${actor}: ${n} ${ruPlural(n, 'новое сообщение', 'новых сообщения', 'новых сообщений')}`;
+  }
+  if (lang === 'kz') return `${n} жаңа хабарлама`;
+  if (lang === 'en') return `${n} new messages`;
+  return `${n} ${ruPlural(n, 'новое сообщение', 'новых сообщения', 'новых сообщений')} в обсуждении`;
+}
+
+export function notificationGroupSubtitle(group, lang) {
+  if (group.actorNames.length <= 1) return '';
+  const [first, ...rest] = group.actorNames;
+  const extra = rest.length;
+  if (lang === 'kz') return extra > 0 ? `${first} және тағы ${extra} қатысушы` : first;
+  if (lang === 'en') return extra > 0 ? `${first} and ${extra} more` : first;
+  const extraWord = extra === 1 ? 'участник' : extra >= 2 && extra <= 4 ? 'участника' : 'участников';
+  return extra > 0 ? `${first} и ещё ${extra} ${extraWord}` : first;
+}
+
+// Shared by both the dropdown and the full list: what clicking a row (or
+// group) should mark read and where it should navigate. A group marks
+// every still-unread item within it, not just the newest.
+export function notificationClickTargets(item, opts) {
+  const latest = item.kind === 'group' ? item.latest : item.notification;
+  const unreadIds = item.kind === 'group'
+    ? item.items.filter((n) => !n.is_read).map((n) => n.id)
+    : (latest.is_read ? [] : [latest.id]);
+  return { unreadIds, route: notificationRoute(latest, opts) };
+}
+
 // Maps a notification's structured refs (type/event_id/entity_type/
 // entity_id) to a real, current route — never a stored URL, so a later
 // route rename can't leave old notifications pointing at a dead link
