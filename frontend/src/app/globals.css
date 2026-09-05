@@ -1290,6 +1290,10 @@ section{ position:relative; padding: 130px 0; }
   cursor:pointer; font-size:16px; transition: border-color .3s ease;
 }
 .cart-icon:hover{ border-color: var(--gold); }
+/* The activity/chat bell is the one .cart-icon whose glyph is a real
+   stroke-based SVG (currentColor) rather than an emoji — emoji ignore
+   `color`, so this only ever mattered once that swap happened. */
+.notif-bell-btn{ color: var(--gold-light); }
 .cart-icon__badge{
   position:absolute; top:-6px; right:-6px; min-width:18px; height:18px; padding:0 4px;
   border-radius:999px; background: var(--maroon); color:#fff; font-size:10px; font-weight:700;
@@ -1965,6 +1969,12 @@ a.ws-chip:hover, button.ws-chip:hover{ border-color: var(--gold); }
 }
 .notif-item:last-child{ border-bottom:none; }
 .notif-item:hover{ background: var(--surface-tint); }
+/* Read rows are visually quieter than unread ones — a muted whole-row
+   opacity on top of the existing gold-dot/gold-title unread treatment,
+   restored to full on hover so the text stays legible while scanning. */
+.notif-item:not(.is-unread){ opacity:.68; }
+.notif-item:not(.is-unread):hover{ opacity:1; }
+.notif-item__icon{ font-size:15px; line-height:1; margin-top:1px; flex-shrink:0; }
 .notif-item__dot{ width:8px; height:8px; border-radius:50%; margin-top:6px; flex-shrink:0; background:transparent; }
 .notif-item.is-unread .notif-item__dot{ background: var(--gold); }
 .notif-item__body{ display:flex; flex-direction:column; gap:2px; min-width:0; }

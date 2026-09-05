@@ -6,14 +6,28 @@ import { useRouter } from 'next/navigation';
 import { useAuth } from '@/context/AuthContext';
 import { T, useLang } from '@/context/AppProviders';
 import { notificationsApi } from '@/lib/notificationsApi';
-import { notificationTitle, notificationMessage, notificationRoute, notificationActionRequired } from '@/lib/notificationHelpers';
-import { timeAgo } from '@/lib/eventHelpers';
+import { groupNotifications, notificationClickTargets } from '@/lib/notificationHelpers';
+import NotificationRow from '@/components/NotificationRow';
 
-// No WebSocket/SSE in this project yet (brief section 18) — a modest 60s
-// poll keeps the badge count reasonably fresh without inventing realtime
-// infrastructure for this stage. The full list is only ever fetched when
-// the panel is actually opened.
-const POLL_MS = 60000;
+// No WebSocket/SSE in this project yet — a short poll keeps the badge
+// count reasonably fresh without inventing realtime infrastructure. The
+// full list is only ever fetched when the panel is actually opened.
+// Deliberately much slower than the ~3s discussion-message poll — a badge
+// count doesn't need to feel instant the way a live chat does.
+const POLL_MS = 12000;
+
+// A simple "message circle" glyph (the collaborative workspace is
+// fundamentally about discussion, so this reads better here than a bell)
+// — drawn inline rather than pulling in an icon library for one icon.
+// Uses currentColor so it picks up the gold tint from .cart-icon's own
+// color the same way the header's theme-switch icon does.
+function ChatIcon() {
+  return (
+    <svg width="19" height="19" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
+      <path d="M21 11.5a8.38 8.38 0 0 1-.9 3.8 8.5 8.5 0 0 1-7.6 4.7 8.38 8.38 0 0 1-3.8-.9L3 21l1.9-5.7a8.38 8.38 0 0 1-.9-3.8 8.5 8.5 0 0 1 4.7-7.6 8.38 8.38 0 0 1 3.8-.9h.5a8.48 8.48 0 0 1 8 8v.5z" />
+    </svg>
+  );
+}
 
 export default function NotificationBell() {
   // 10C: this used to also check useAdminAuth() here, because an admin
@@ -71,14 +85,16 @@ export default function NotificationBell() {
     }
   }
 
-  async function handleItemClick(n) {
+  async function handleItemClick(item) {
     setOpen(false);
-    if (!n.is_read) {
-      setCount((c) => Math.max(0, c - 1));
-      setNotifications((prev) => prev?.map((x) => (x.id === n.id ? { ...x, is_read: true } : x)) || null);
-      notificationsApi.markRead(n.id).catch(() => {});
+    const { unreadIds, route } = notificationClickTargets(item, { isAdmin });
+    if (unreadIds.length > 0) {
+      const idSet = new Set(unreadIds);
+      setCount((c) => Math.max(0, c - unreadIds.length));
+      setNotifications((prev) => prev?.map((x) => (idSet.has(x.id) ? { ...x, is_read: true } : x)) || null);
+      Promise.all(unreadIds.map((id) => notificationsApi.markRead(id))).catch(() => {});
     }
-    router.push(notificationRoute(n, { isAdmin }));
+    router.push(route);
   }
 
   async function handleMarkAll(e) {
@@ -97,8 +113,8 @@ export default function NotificationBell() {
 
   return (
     <div className="notif-bell-wrap" ref={wrapRef}>
-      <button type="button" className="cart-icon" onClick={handleToggle} aria-label="Уведомления / Хабарландырулар / Notifications" aria-expanded={open} aria-haspopup="true">
-        🔔
+      <button type="button" className="cart-icon notif-bell-btn" onClick={handleToggle} aria-label="Активность / Белсенділік / Activity" aria-expanded={open} aria-haspopup="true">
+        <ChatIcon />
         {count > 0 && <span className="cart-icon__badge is-visible">{count > 99 ? '99+' : count}</span>}
       </button>
 
@@ -107,7 +123,7 @@ export default function NotificationBell() {
           <div className="notif-overlay" onClick={() => setOpen(false)} />
           <div className="notif-panel">
           <div className="notif-panel__head">
-            <span className="notif-panel__title"><T ru="Уведомления" kz="Хабарландырулар" en="Notifications" /></span>
+            <span className="notif-panel__title"><T ru="Активность" kz="Белсенділік" en="Activity" /></span>
             {count > 0 && (
               <button type="button" className="notif-panel__markall" onClick={handleMarkAll}>
                 <T ru="Прочитать всё" kz="Барлығын оқу" en="Mark all read" />
@@ -121,30 +137,18 @@ export default function NotificationBell() {
             {!loading && !error && notifications?.length === 0 && (
               <p className="notif-panel__empty"><T ru="Нет новых уведомлений" kz="Жаңа хабарландырулар жоқ" en="No new notifications" /></p>
             )}
-            {!loading && notifications?.map((n) => (
-              <button
-                type="button"
-                key={n.id}
-                className={`notif-item${!n.is_read ? ' is-unread' : ''}${notificationActionRequired(n) ? ' is-action-required' : ''}`}
-                onClick={() => handleItemClick(n)}
-              >
-                <span className="notif-item__dot" />
-                <span className="notif-item__body">
-                  {notificationActionRequired(n) && (
-                    <span className="notif-item__flag"><T ru="Требуется действие" kz="Әрекет қажет" en="Action required" /></span>
-                  )}
-                  <span className="notif-item__title">{notificationTitle(n, lang)}</span>
-                  <span className="notif-item__message">{notificationMessage(n, lang)}</span>
-                  <span className="notif-item__meta">
-                    {n.event?.title ? `${n.event.title} · ` : ''}{timeAgo(n.created_at, lang)}
-                  </span>
-                </span>
-              </button>
+            {!loading && groupNotifications(notifications || []).map((item) => (
+              <NotificationRow
+                key={item.kind === 'group' ? item.key : item.notification.id}
+                item={item}
+                lang={lang}
+                onClick={handleItemClick}
+              />
             ))}
           </div>
 
           <Link href="/profile/notifications" className="notif-panel__viewall" onClick={() => setOpen(false)}>
-            <T ru="Все уведомления" kz="Барлық хабарландырулар" en="View all" />
+            <T ru="Вся активность" kz="Барлық белсенділік" en="All activity" />
           </Link>
           </div>
         </>

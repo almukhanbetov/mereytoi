@@ -5,8 +5,8 @@ import { useRouter } from 'next/navigation';
 import { useAuth } from '@/context/AuthContext';
 import { T, useLang } from '@/context/AppProviders';
 import { notificationsApi } from '@/lib/notificationsApi';
-import { notificationTitle, notificationMessage, notificationRoute, notificationActionRequired } from '@/lib/notificationHelpers';
-import { timeAgo } from '@/lib/eventHelpers';
+import { groupNotifications, notificationClickTargets } from '@/lib/notificationHelpers';
+import NotificationRow from '@/components/NotificationRow';
 
 const PAGE_SIZE = 20;
 
@@ -50,12 +50,14 @@ export default function NotificationsPage() {
     setPage(1);
   }
 
-  async function handleClick(n) {
-    if (!n.is_read) {
-      setNotifications((prev) => prev.map((x) => (x.id === n.id ? { ...x, is_read: true } : x)));
-      notificationsApi.markRead(n.id).catch(() => {});
+  async function handleClick(item) {
+    const { unreadIds, route } = notificationClickTargets(item, { isAdmin });
+    if (unreadIds.length > 0) {
+      const idSet = new Set(unreadIds);
+      setNotifications((prev) => prev.map((x) => (idSet.has(x.id) ? { ...x, is_read: true } : x)));
+      Promise.all(unreadIds.map((id) => notificationsApi.markRead(id))).catch(() => {});
     }
-    router.push(notificationRoute(n, { isAdmin }));
+    router.push(route);
   }
 
   async function handleMarkAll() {
@@ -75,7 +77,7 @@ export default function NotificationsPage() {
     <section className="page-hero" style={{ padding: '150px 0 100px' }}>
       <div className="hero__blob hero__blob--1"></div>
       <div className="container" style={{ maxWidth: 720 }}>
-        <h1><T ru="Уведомления" kz="Хабарландырулар" en="Notifications" /></h1>
+        <h1><T ru="Активность" kz="Белсенділік" en="Activity" /></h1>
 
         <div className="ws-tabs" role="tablist" style={{ marginTop: 26 }}>
           <button
@@ -118,26 +120,13 @@ export default function NotificationsPage() {
 
         {!loading && !error && notifications.length > 0 && (
           <div style={{ background: 'var(--bg-card)', border: '1px solid var(--border)', borderRadius: 16, overflow: 'hidden' }}>
-            {notifications.map((n) => (
-              <button
-                type="button"
-                key={n.id}
-                className={`notif-item${!n.is_read ? ' is-unread' : ''}${notificationActionRequired(n) ? ' is-action-required' : ''}`}
-                style={{ width: '100%' }}
-                onClick={() => handleClick(n)}
-              >
-                <span className="notif-item__dot" />
-                <span className="notif-item__body">
-                  {notificationActionRequired(n) && (
-                    <span className="notif-item__flag"><T ru="Требуется действие" kz="Әрекет қажет" en="Action required" /></span>
-                  )}
-                  <span className="notif-item__title">{notificationTitle(n, lang)}</span>
-                  <span className="notif-item__message">{notificationMessage(n, lang)}</span>
-                  <span className="notif-item__meta">
-                    {n.event?.title ? `${n.event.title} · ` : ''}{timeAgo(n.created_at, lang)}
-                  </span>
-                </span>
-              </button>
+            {groupNotifications(notifications).map((item) => (
+              <NotificationRow
+                key={item.kind === 'group' ? item.key : item.notification.id}
+                item={item}
+                lang={lang}
+                onClick={handleClick}
+              />
             ))}
           </div>
         )}
