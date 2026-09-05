@@ -94,6 +94,7 @@ func setupMailTestServer(t *testing.T) (*httptest.Server, *gorm.DB, *mockSender)
 		&models.EventActivity{}, &models.EventTask{},
 		&models.EventRequest{}, &models.EventRequestRevision{},
 		&models.Notification{},
+		&models.ManagerConversation{}, &models.ManagerMessage{},
 	); err != nil {
 		t.Fatalf("failed to migrate: %v", err)
 	}

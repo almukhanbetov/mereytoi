@@ -905,6 +905,68 @@ section{ position:relative; padding: 130px 0; }
 .manager-widget__success{ align-items:center; text-align:center; padding-top:10px; padding-bottom:10px; }
 .manager-widget__success-title{ font-family:var(--font-playfair), serif; font-size:19px; font-weight:700; color: var(--gold-light); margin:0; }
 
+/* ---------- Manager chat (real two-way conversation view) ---------- */
+.manager-widget__body--chat{ gap:10px; }
+
+/* Compact context block above the thread/composer — never repeated per
+   message (brief sections 17/19: "это metadata диалога, не вставлять в
+   каждое сообщение"). Two variants share the same shell: the service one
+   adds a price + deep link, the event one is read-only metadata. */
+.manager-chat-ctx{
+  padding:10px 12px; border-radius:12px; background: var(--surface-tint); border:1px solid var(--border);
+  font-size:12.5px;
+}
+.manager-chat-ctx--service{ border-color: rgba(212,175,106,0.35); }
+.manager-chat-ctx__label{ font-size:10.5px; text-transform:uppercase; letter-spacing:.04em; color: var(--gold-light); font-weight:700; margin-bottom:3px; }
+.manager-chat-ctx__title{ font-weight:700; color: var(--text); font-size:13.5px; }
+.manager-chat-ctx__price{ color: var(--gold-light); font-weight:600; margin-top:2px; }
+.manager-chat-ctx__meta{ display:flex; flex-wrap:wrap; gap:4px 8px; color: var(--text-muted); margin-top:2px; }
+.manager-chat-ctx__budget{ color: var(--text-muted); margin-top:2px; }
+.manager-chat-ctx__link{ display:inline-block; margin-top:6px; color: var(--gold-light); font-weight:600; font-size:12px; }
+.manager-chat-ctx__link:hover{ text-decoration: underline; }
+
+.manager-chat-thread{ display:flex; flex-direction:column; gap:10px; max-height:220px; overflow-y:auto; padding-right:2px; }
+.manager-chat-empty{ font-size:13px; color: var(--text-muted); text-align:center; padding:10px 0; margin:0; }
+
+.manager-chat-msg{ max-width:85%; display:flex; flex-direction:column; gap:2px; }
+/* --out/--in rather than --user/--manager: "which side sent it" always
+   means "was this my own message" regardless of which literal role is
+   looking at the thread — the customer widget renders sender_type=user as
+   --out, the admin page renders sender_type=manager as --out, same classes
+   either way. */
+.manager-chat-msg--out{ align-self:flex-end; align-items:flex-end; }
+.manager-chat-msg--in{ align-self:flex-start; align-items:flex-start; }
+.manager-chat-msg__text{
+  margin:0; padding:9px 12px; border-radius:14px; font-size:13.5px; line-height:1.45; overflow-wrap:anywhere;
+}
+.manager-chat-msg--out .manager-chat-msg__text{ background: rgba(212,175,106,0.16); color: var(--text); border-bottom-right-radius:4px; }
+.manager-chat-msg--in .manager-chat-msg__text{ background: var(--surface-tint); color: var(--text); border-bottom-left-radius:4px; }
+.manager-chat-msg__time{ font-size:10.5px; color: var(--text-muted); opacity:.75; padding:0 3px; }
+
+.manager-chat-chips{ display:flex; flex-wrap:wrap; gap:8px; }
+.manager-chat-chip{
+  padding:7px 13px; border-radius:999px; border:1px solid var(--border); background:transparent;
+  color: var(--text-muted); font-size:12px; font-weight:600; cursor:pointer; font-family:inherit;
+  transition: border-color .2s ease, color .2s ease;
+}
+.manager-chat-chip:hover{ border-color: var(--gold); color: var(--gold-light); }
+
+.manager-chat-composer{ display:flex; gap:8px; align-items:flex-end; }
+.manager-chat-composer textarea{
+  flex:1; resize:none; min-height:40px; max-height:100px; padding:10px 13px; border-radius:14px;
+  border:1px solid var(--border); background: var(--input-bg); color: var(--text); font-family:inherit; font-size:13.5px; outline:none;
+  transition: border-color .3s ease;
+}
+.manager-chat-composer textarea:focus{ border-color: var(--gold); }
+.manager-chat-composer button{ flex-shrink:0; padding:10px 16px; }
+
+/* ---------- Admin dialog list (brief section 24) ---------- */
+.manager-chat-dot{
+  width:9px; height:9px; border-radius:50%; background: var(--gold);
+  box-shadow: 0 0 6px 1px rgba(212,175,106,0.6); flex-shrink:0;
+}
+.manager-chat-admin-thread{ display:flex; flex-direction:column; gap:12px; margin:20px 0; max-height:50vh; overflow-y:auto; }
+
 @media (prefers-reduced-motion: reduce){
   .manager-widget__panel, .manager-widget__body, .manager-widget__panel-dot{ animation:none; }
   .manager-widget__avatar-btn, .manager-widget__phone-btn{ transition:none; }

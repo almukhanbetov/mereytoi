@@ -5,7 +5,7 @@ import Link from 'next/link';
 import Reveal from '@/components/Reveal';
 import ServiceCard from '@/components/services/ServiceCard';
 import CommentsSection from '@/components/services/CommentsSection';
-import { T, useLang, useCart } from '@/context/AppProviders';
+import { T, useLang, useCart, useManagerChat } from '@/context/AppProviders';
 import { formatPrice } from '@/lib/format';
 import { mediaUrl } from '@/lib/media';
 import { flyToCart } from '@/lib/flyToCart';
@@ -14,6 +14,7 @@ import AddToEventMenu from '@/components/profile/AddToEventMenu';
 export default function ServiceDetail({ listing, related }) {
   const { lang } = useLang();
   const { addItem } = useCart();
+  const { openChat } = useManagerChat();
   const category = listing.category;
   const categoryLabel = category ? (lang === 'kz' ? category.name_kz : category.name_ru) : '';
   const images = listing.image_urls || [];
@@ -155,6 +156,18 @@ export default function ServiceDetail({ listing, related }) {
                 </a>
               )}
               <AddToEventMenu listingId={listing.id} />
+              <button
+                type="button"
+                className="btn btn--outline"
+                onClick={() => openChat({
+                  listingId: listing.id,
+                  listingName: lang === 'kz' ? listing.name_kz : listing.name_ru,
+                  listingPrice: listing.price,
+                  categoryName: categoryLabel,
+                })}
+              >
+                <T ru="Спросить менеджера" kz="Менеджерден сұрау" />
+              </button>
             </div>
             <p className={`booking-added${added ? ' is-visible' : ''}`}>
               <T ru="Добавлено в корзину!" kz="Себетке қосылды!" />

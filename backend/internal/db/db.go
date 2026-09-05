@@ -29,6 +29,8 @@ func Connect(cfg config.Config) *gorm.DB {
 		&models.EventRequest{}, &models.EventRequestRevision{},
 		// In-app notification center — see models/notification.go.
 		&models.Notification{},
+		// Manager chat — see models/manager_chat.go.
+		&models.ManagerConversation{}, &models.ManagerMessage{},
 	); err != nil {
 		log.Fatalf("failed to run migrations: %v", err)
 	}

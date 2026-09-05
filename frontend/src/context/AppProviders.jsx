@@ -154,12 +154,49 @@ export function useCart() {
   return useContext(CartContext);
 }
 
+/* ---------- Manager chat ("Спросить менеджера" / "Спросить MEREYTOI") ---------- */
+// The floating widget (components/FloatingManagerWidget.jsx) is mounted
+// once at the root layout; this is how any other component — a service's
+// detail page, a shortlisted-service row in the event workspace — tells
+// that already-mounted widget "open yourself, and here's what page the
+// visitor was actually on" (brief section 17's whole point: the user
+// never has to explain that themselves). Same shape as CartContext's own
+// isOpen/openDrawer/closeDrawer just above, deliberately — the widget
+// reads isOpen/context straight from here rather than shadowing it in its
+// own local state.
+const ManagerChatContext = createContext(null);
+
+function ManagerChatProvider({ children }) {
+  const [isOpen, setIsOpen] = useState(false);
+  // chatContext shape: { listingId, listingName, listingPrice, categoryName,
+  // eventId } — every field optional; null means "no context, plain chat".
+  const [chatContext, setChatContext] = useState(null);
+
+  const openChat = useCallback((context = null) => {
+    setChatContext(context);
+    setIsOpen(true);
+  }, []);
+  const closeChat = useCallback(() => setIsOpen(false), []);
+
+  const value = useMemo(
+    () => ({ isOpen, chatContext, openChat, closeChat }),
+    [isOpen, chatContext, openChat, closeChat]
+  );
+  return <ManagerChatContext.Provider value={value}>{children}</ManagerChatContext.Provider>;
+}
+
+export function useManagerChat() {
+  return useContext(ManagerChatContext);
+}
+
 /* ---------- Root wrapper ---------- */
 export default function AppProviders({ children }) {
   return (
     <LangProvider>
       <ThemeProvider>
-        <CartProvider>{children}</CartProvider>
+        <CartProvider>
+          <ManagerChatProvider>{children}</ManagerChatProvider>
+        </CartProvider>
       </ThemeProvider>
     </LangProvider>
   );
