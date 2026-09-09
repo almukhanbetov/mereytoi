@@ -152,6 +152,20 @@ func (h *EventRequestHandler) buildSnapshot(event *models.Event, organizerCommen
 			"price":         s.Listing.Price,
 			"votes":         voteTally[s.ID],
 			"comment_count": commentCounts[s.ID],
+			// Restaurant/venue hall+menu snapshot (brief section 8) — the
+			// candidate's own already-frozen HallName/MenuName/
+			// MenuPricePerGuest (set at AddCandidate time), carried
+			// through into the request snapshot and, via
+			// snapshotItemsToBookingItems below, into the eventual
+			// Booking. nil/nil/"" for every non-restaurant candidate and
+			// every restaurant candidate added without a hall/menu —
+			// identical to today's behavior.
+			"hall_id":              s.HallID,
+			"hall_name":            s.HallName,
+			"menu_id":              s.MenuID,
+			"menu_name":            s.MenuName,
+			"menu_price_per_guest": s.MenuPricePerGuest,
+			"guests":               s.Guests,
 		})
 	}
 
@@ -291,6 +305,14 @@ func snapshotItemsToBookingItems(snapshotJSON string) []models.BookingItem {
 			CategoryName string `json:"category_name"`
 			Name         string `json:"name"`
 			Price        uint   `json:"price"`
+			// Restaurant/venue hall+menu snapshot — see buildSnapshot's own
+			// doc comment on these same keys.
+			HallID            *uint  `json:"hall_id"`
+			HallName          string `json:"hall_name"`
+			MenuID            *uint  `json:"menu_id"`
+			MenuName          string `json:"menu_name"`
+			MenuPricePerGuest uint   `json:"menu_price_per_guest"`
+			Guests            *uint  `json:"guests"`
 		} `json:"items"`
 	}
 	if json.Unmarshal([]byte(snapshotJSON), &snap) != nil {
@@ -298,12 +320,35 @@ func snapshotItemsToBookingItems(snapshotJSON string) []models.BookingItem {
 	}
 	out := make([]models.BookingItem, 0, len(snap.Items))
 	for _, it := range snap.Items {
+		var guests uint
+		if it.Guests != nil {
+			guests = *it.Guests
+		}
+		// EstimatedTotal here is derived (price × guests) rather than
+		// trusted-as-supplied like Cart's own EstimatedTotal — this path
+		// has no calculator session to trust; it's rebuilt from exactly
+		// the same two numbers Budget (see eventHelpers.js's
+		// candidateEstimate) already used to show this same figure in the
+		// workspace. No selected-extras equivalent exists on
+		// EventCandidate, so that field is simply left empty here.
+		var estimatedTotal uint
+		if it.MenuID != nil && guests > 0 {
+			estimatedTotal = it.MenuPricePerGuest * guests
+		}
 		out = append(out, models.BookingItem{
 			ListingID:  it.ListingID,
 			Name:       it.Name,
 			Category:   it.CategoryName,
+			Guests:     guests,
 			UnitPrice:  it.Price,
 			TotalPrice: it.Price,
+
+			HallID:            it.HallID,
+			HallName:          it.HallName,
+			MenuID:            it.MenuID,
+			MenuName:          it.MenuName,
+			MenuPricePerGuest: it.MenuPricePerGuest,
+			EstimatedTotal:    estimatedTotal,
 		})
 	}
 	return out

@@ -8,6 +8,7 @@ import { T, useLang } from '@/context/AppProviders';
 import { EventWorkspaceProvider } from '@/context/EventWorkspaceContext';
 import { eventsApi } from '@/lib/eventsApi';
 import { eventTypeEmoji, formatEventDate } from '@/lib/eventHelpers';
+import WelcomeModal from '@/components/profile/WelcomeModal';
 
 const TABS = [
   { key: 'overview', icon: '📊', ru: 'Обзор', kz: 'Шолу', en: 'Overview', suffix: '' },
@@ -44,6 +45,7 @@ export default function EventWorkspaceShell({ eventId, children }) {
 
   const [state, setState] = useState({ status: 'loading' });
   const [moreOpen, setMoreOpen] = useState(false);
+  const [showWelcome, setShowWelcome] = useState(false);
 
   useEffect(() => {
     if (authLoading) return;
@@ -63,6 +65,37 @@ export default function EventWorkspaceShell({ eventId, children }) {
     })();
     return () => { cancelled = true; };
   }, [eventId, isAuthenticated, authLoading, router]);
+
+  // First-login welcome (see /claim/[token]/page.js, which appends
+  // ?welcome=1 right after a successful claim) — shown at most once per
+  // event per browser, tracked the same way FloatingManagerWidget already
+  // tracks its own one-time session greeting (a plain localStorage flag,
+  // no new backend field). Read directly off window.location rather than
+  // next/navigation's useSearchParams so this shared shell doesn't need a
+  // Suspense boundary added around it just for a one-time cosmetic check.
+  useEffect(() => {
+    if (state.status !== 'ready' || typeof window === 'undefined') return;
+    const params = new URLSearchParams(window.location.search);
+    if (params.get('welcome') !== '1') return;
+    const key = `mereytoi_workspace_welcome_shown_${eventId}`;
+    try {
+      if (window.localStorage.getItem(key)) return;
+    } catch {
+      return;
+    }
+    setShowWelcome(true);
+  }, [state.status, eventId]);
+
+  function dismissWelcome() {
+    setShowWelcome(false);
+    try {
+      window.localStorage.setItem(`mereytoi_workspace_welcome_shown_${eventId}`, '1');
+    } catch {
+      /* ignore — worst case the modal can show again next visit */
+    }
+    // Strips ?welcome=1 so refreshing/bookmarking this URL doesn't re-check.
+    router.replace(`/profile/events/${eventId}`);
+  }
 
   if (authLoading || state.status === 'loading') return <WorkspaceSkeleton />;
 
@@ -169,6 +202,8 @@ export default function EventWorkspaceShell({ eventId, children }) {
           </div>
         </div>
       )}
+
+      {showWelcome && <WelcomeModal onClose={dismissWelcome} />}
     </EventWorkspaceProvider>
   );
 }

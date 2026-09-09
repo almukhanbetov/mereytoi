@@ -7,6 +7,7 @@ import { useEventWorkspace } from '@/context/EventWorkspaceContext';
 import { eventsApi } from '@/lib/eventsApi';
 import { mediaUrl } from '@/lib/media';
 import { formatPrice } from '@/lib/format';
+import { candidateEstimate } from '@/lib/eventHelpers';
 import CommentThread from '@/components/profile/CommentThread';
 import WsModal from '@/components/profile/WsModal';
 
@@ -139,8 +140,50 @@ export default function EventServicesPage() {
                           {c.status === 'selected' && <span className="ws-chip ws-chip--gold" style={{ marginLeft: 8 }}>✓ <T ru="выбрано" kz="таңдалды" /></span>}
                           {c.status === 'rejected' && <span className="ws-chip ws-chip--outline" style={{ marginLeft: 8 }}><T ru="отклонено" kz="қабылданбады" /></span>}
                         </div>
+                        {/* Hall/menu/guests — restaurant variant identity
+                            (final integration stage, brief section 3's own
+                            "Sultan Hall / Зал Grand / Меню 25 000 ₸ /
+                            150 гостей" example). Absent entirely for every
+                            non-restaurant candidate. */}
+                        {(c.hall_name || c.menu_name) && (
+                          <div className="ws-candidate-card__variant">
+                            {c.hall_name && <span>{c.hall_name}</span>}
+                            {c.menu_name && <span>{c.menu_name} · {formatPrice(c.menu_price_per_guest || 0)}/чел.</span>}
+                            {c.guests > 0 && <span>{c.guests} <T ru="гостей" kz="қонақ" /></span>}
+                          </div>
+                        )}
+                        {/* Only links/text, never an inline map (brief
+                            section 7 — "не вставлять большую карту прямо в
+                            общий список кандидатов"); the actual embedded
+                            map lives on the listing's own detail page
+                            (RestaurantLocation.jsx). */}
+                        {(listing.address || listing.city) && (
+                          <div className="ws-candidate-card__location">
+                            📍 {listing.address || listing.city}
+                            {typeof listing.latitude === 'number' && typeof listing.longitude === 'number' ? (
+                              <>
+                                <a
+                                  href={`https://www.google.com/maps?q=${listing.latitude},${listing.longitude}`}
+                                  target="_blank" rel="noopener noreferrer" className="ws-candidate-card__location-link"
+                                >
+                                  <T ru="Посмотреть на карте" kz="Картадан көру" />
+                                </a>
+                                <a
+                                  href={`https://www.google.com/maps/dir/?api=1&destination=${listing.latitude},${listing.longitude}`}
+                                  target="_blank" rel="noopener noreferrer" className="ws-candidate-card__location-link"
+                                >
+                                  <T ru="Построить маршрут" kz="Бағыт салу" />
+                                </a>
+                              </>
+                            ) : (
+                              <Link href={`/services/${c.listing_id}`} className="ws-candidate-card__location-link">
+                                <T ru="Открыть страницу" kz="Бетті ашу" />
+                              </Link>
+                            )}
+                          </div>
+                        )}
                       </div>
-                      <div className="ws-candidate-card__price">{formatPrice(listing.price || 0)}</div>
+                      <div className="ws-candidate-card__price">{formatPrice(candidateEstimate(c, event))}</div>
                     </div>
 
                     <div className="ws-candidate-card__actions">
@@ -180,6 +223,16 @@ export default function EventServicesPage() {
                           eventCity: event.city,
                           eventGuests: event.guests,
                           eventBudget: event.budget_total,
+                          // Restaurant variant context (brief section 6) —
+                          // undefined for every non-restaurant candidate,
+                          // same as everywhere else this shape appears.
+                          hallId: c.hall_id,
+                          hallName: c.hall_name,
+                          menuId: c.menu_id,
+                          menuName: c.menu_name,
+                          menuPricePerGuest: c.menu_price_per_guest,
+                          guestCount: c.guests,
+                          estimatedTotal: c.menu_id ? candidateEstimate(c, event) : undefined,
                         })}
                       >
                         <T ru="Спросить MEREYTOI" kz="MEREYTOI-дан сұрау" />
@@ -205,7 +258,7 @@ export default function EventServicesPage() {
                       )}
 
                       <Link href={`/services/${c.listing_id}`} className="admin-table__link" style={{ marginLeft: 'auto' }}>
-                        <T ru="Открыть →" kz="Ашу →" />
+                        {c.menu_id ? <T ru="Изменить меню →" kz="Мәзірді өзгерту →" /> : <T ru="Открыть →" kz="Ашу →" />}
                       </Link>
 
                       {canEdit && (

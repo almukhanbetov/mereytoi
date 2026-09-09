@@ -89,3 +89,14 @@ const (
 	NotifRequestCancelled        = "request_cancelled"
 	NotifManagerCommentAdded     = "manager_comment_added" // reserved, never fired — see comment above
 )
+
+// Onboarding pipeline (handlers/onboarding.go) — system-generated
+// (ActorID nil), fired once when a brand-new pending account+draft event
+// is auto-created from a guest booking. NotifPhoneVerification is declared
+// for forward compatibility only (matches models.User.PhoneVerifiedAt) —
+// no OTP/verification flow exists yet to ever fire it, same "reserved,
+// never fired" convention as the two 10B constants above.
+const (
+	NotifWorkspaceCreated  = "workspace_created"
+	NotifPhoneVerification = "phone_verification" // reserved, never fired — no verification flow exists yet
+)

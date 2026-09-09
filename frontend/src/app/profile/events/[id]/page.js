@@ -52,6 +52,21 @@ export default function EventOverviewPage() {
     return { category: cat, selected, shortlistedCount: shortlisted.length };
   });
 
+  // "Что сделать дальше" — a small, dynamic nudge list; only what's still
+  // actually missing shows up, and it disappears entirely once everything
+  // is filled in. Date/guests link to the one existing place the event's
+  // own fields can be edited today (the budget tab's inline form already
+  // round-trips the full event object) — there's no separate "edit event
+  // details" page yet, so this reuses what already exists rather than
+  // adding new editing UI in this stage.
+  const nextSteps = [
+    !event.event_date && { key: 'date', icon: '📅', ru: 'Указать дату', kz: 'Күнін көрсету', href: `/profile/events/${eventId}/budget` },
+    !event.guests && { key: 'guests', icon: '👥', ru: 'Указать количество гостей', kz: 'Қонақтар санын көрсету', href: `/profile/events/${eventId}/budget` },
+    summary && summary.members_count <= 1 && { key: 'invite', icon: '🤝', ru: 'Пригласить близких', kz: 'Жақындарды шақыру', href: `/profile/events/${eventId}/members` },
+    candidates.length === 0 && { key: 'services', icon: '🎯', ru: 'Добавить услуги', kz: 'Қызметтер қосу', href: `/profile/events/${eventId}/services` },
+    !event.budget_total && { key: 'budget', icon: '💰', ru: 'Указать бюджет', kz: 'Бюджетті көрсету', href: `/profile/events/${eventId}/budget` },
+  ].filter(Boolean);
+
   return (
     <div>
       {summary && (
@@ -71,6 +86,21 @@ export default function EventOverviewPage() {
           <div className="ws-stat">
             <div className="ws-stat__label"><T ru="Команда" kz="Команда" /></div>
             <div className="ws-stat__value">{summary.members_count} <small><T ru="участников" kz="қатысушы" /></small></div>
+          </div>
+        </div>
+      )}
+
+      {nextSteps.length > 0 && (
+        <div className="ws-next-steps">
+          <h2 className="ws-section-title" style={{ fontSize: 16 }}><T ru="Что сделать дальше" kz="Ары қарай не істеу керек" /></h2>
+          <div className="ws-next-steps__list">
+            {nextSteps.map((step) => (
+              <Link key={step.key} href={step.href} className="ws-next-steps__item">
+                <span className="ws-next-steps__icon">{step.icon}</span>
+                <span><T ru={step.ru} kz={step.kz} /></span>
+                <span className="ws-next-steps__arrow">→</span>
+              </Link>
+            ))}
           </div>
         </div>
       )}

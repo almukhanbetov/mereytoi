@@ -10,6 +10,9 @@ import { formatPrice } from '@/lib/format';
 import { mediaUrl } from '@/lib/media';
 import { flyToCart } from '@/lib/flyToCart';
 import AddToEventMenu from '@/components/profile/AddToEventMenu';
+import RestaurantMenus from '@/components/services/RestaurantMenus';
+import RestaurantLocation from '@/components/services/RestaurantLocation';
+import { isRestaurantCategory } from '@/lib/restaurantCategory';
 
 export default function ServiceDetail({ listing, related }) {
   const { lang } = useLang();
@@ -175,6 +178,9 @@ export default function ServiceDetail({ listing, related }) {
           </div>
         </div>
       </section>
+
+      {isRestaurantCategory(category) && <RestaurantMenus listing={listing} />}
+      {isRestaurantCategory(category) && <RestaurantLocation listing={listing} />}
 
       {(listing.video_urls || []).length > 0 && (
         <section className="service-videos">

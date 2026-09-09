@@ -9,6 +9,7 @@ import { createBooking, lookupBookings } from '@/lib/bookingApi';
 import { authApi, getUserToken } from '@/lib/authApi';
 import { buildWhatsAppLink, trackWhatsAppClick } from '@/lib/whatsapp';
 import { downloadOfferPdf } from '@/lib/pdf';
+import BookingWorkspaceCTA from '@/components/BookingWorkspaceCTA';
 
 const STATUS_LABELS = {
   new: { ru: 'Новая', kz: 'Жаңа' },
@@ -33,6 +34,7 @@ export default function CartDrawer() {
   const [myBookings, setMyBookings] = useState([]);
   const [lastOrder, setLastOrder] = useState(null);
   const [pdfGenerating, setPdfGenerating] = useState(false);
+  const [onboarding, setOnboarding] = useState(null);
 
   const whatsappItems = items.length > 0 ? items : (lastOrder?.items || []);
   const whatsappTotal = items.length > 0 ? total : (lastOrder?.total || 0);
@@ -73,10 +75,15 @@ export default function CartDrawer() {
     setError('');
     setSubmitting(true);
     try {
-      const { booking } = await createBooking(
+      const result = await createBooking(
         {
           name,
           phone,
+          // hall_id/menu_id/etc. — restaurant snapshot (final integration
+          // stage). undefined for an ordinary item, so the booking item it
+          // produces is byte-identical to before this stage — the
+          // backend's own bookingItemInput already treats every one of
+          // these as optional.
           items: items.map((i) => ({
             listing_id: i.listingId,
             name: i.name,
@@ -84,13 +91,22 @@ export default function CartDrawer() {
             guests: i.guests || 0,
             unit_price: i.unitPrice,
             total_price: i.totalPrice,
+            hall_id: i.hallId || undefined,
+            hall_name: i.hallName || undefined,
+            menu_id: i.menuId || undefined,
+            menu_name: i.menuName || undefined,
+            menu_price_per_guest: i.menuPricePerGuest || undefined,
+            selected_extras: i.selectedExtras || undefined,
+            estimated_total: i.estimatedTotal || undefined,
           })),
         },
         getUserToken()
       );
+      const { booking } = result;
       if (!isAuthenticated) addBookingRef(booking.public_ref);
       setMyBookings((prev) => [booking, ...prev]);
       setLastOrder({ items, total, name, phone });
+      setOnboarding(result.onboarding || null);
       setCheckedOut(true);
       clear();
       if (!isAuthenticated) {
@@ -127,7 +143,7 @@ export default function CartDrawer() {
 
         <div className="cart-drawer__items">
           {items.map((item) => (
-            <div className="cart-item" key={item.listingId}>
+            <div className="cart-item" key={`${item.listingId}:${item.hallId || ''}:${item.menuId || ''}`}>
               <div
                 className="cart-item__media"
                 style={
@@ -140,12 +156,29 @@ export default function CartDrawer() {
               </div>
               <div className="cart-item__body">
                 <p className="cart-item__name">{item.name}</p>
+                {/* hallName/menuName — restaurant variant identity (final
+                    integration stage); item.guests already covers both the
+                    old per-person case and a restaurant's own guest count,
+                    reusing one field rather than adding a second
+                    near-duplicate "guestCount" (see CartContext's own doc
+                    comment). */}
+                {(item.hallName || item.menuName) && (
+                  <p className="cart-item__variant">
+                    {item.hallName && <span>{item.hallName}</span>}
+                    {item.menuName && <span>{item.menuName}</span>}
+                  </p>
+                )}
                 {item.guests ? (
                   <p className="cart-item__breakdown">{item.guests} <T ru="чел." kz="адам" /> × {formatPrice(item.unitPrice)}</p>
                 ) : null}
+                {item.selectedExtras?.length > 0 && (
+                  <p className="cart-item__extras">
+                    + {item.selectedExtras.map((e) => e.title).join(', ')}
+                  </p>
+                )}
                 <p className="cart-item__price">{formatPrice(item.totalPrice)}</p>
               </div>
-              <button className="cart-item__remove" onClick={() => removeItem(item.listingId)} aria-label="Remove">✕</button>
+              <button className="cart-item__remove" onClick={() => removeItem(item.listingId, item.hallId, item.menuId)} aria-label="Remove">✕</button>
             </div>
           ))}
 
@@ -216,6 +249,11 @@ export default function CartDrawer() {
             </p>
           </div>
         ) : null}
+
+        {/* Kept visible past checkedOut's own quick auto-hide, same reasoning
+            as the WhatsApp/PDF buttons just below staying up via lastOrder —
+            this is an action worth giving the customer real time to notice. */}
+        {onboarding && <BookingWorkspaceCTA onboarding={onboarding} phone={offerPhone} />}
 
         {(items.length > 0 || (lastOrder && lastOrder.items.length > 0)) && (
           <a className="cart-whatsapp" href={whatsappLink} target="_blank" rel="noopener noreferrer" onClick={trackWhatsAppClick}>

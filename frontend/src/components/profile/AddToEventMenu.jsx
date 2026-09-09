@@ -9,8 +9,14 @@ import { eventsApi } from '@/lib/eventsApi';
 /** "Добавить в мой той" — a Pinterest-style quick-save popover on the
  * service detail page. Click an event to add this listing to its
  * shortlist immediately (no separate confirm step); a checkmark shows it's
- * already there. Logged-out visitors get a plain login prompt instead. */
-export default function AddToEventMenu({ listingId }) {
+ * already there. Logged-out visitors get a plain login prompt instead.
+ *
+ * `variant` (final integration stage) — optional
+ * { hallId, menuId, guests, estimatedTotal } for a restaurant's specific
+ * hall/menu/guest-count/price combination, e.g. when this is rendered from
+ * inside RestaurantMenuCalculator rather than the plain top-level action
+ * bar; undefined for an ordinary service, which behaves exactly as before. */
+export default function AddToEventMenu({ listingId, variant }) {
   const { isAuthenticated } = useAuth();
   const { lang } = useLang();
   const [open, setOpen] = useState(false);
@@ -36,7 +42,7 @@ export default function AddToEventMenu({ listingId }) {
 
   async function handleAdd(eventId) {
     try {
-      await eventsApi.addCandidate(eventId, listingId);
+      await eventsApi.addCandidate(eventId, listingId, variant);
       setAddedIds((prev) => [...prev, eventId]);
     } catch (err) {
       alert(err.message);
