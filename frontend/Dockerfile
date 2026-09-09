@@ -16,6 +16,15 @@ COPY . .
 ARG NEXT_PUBLIC_API_URL
 ENV NEXT_PUBLIC_API_URL=${NEXT_PUBLIC_API_URL}
 
+# Admin-only (Places Autocomplete + draggable-marker preview map in
+# RestaurantAddressForm.jsx) — never read by the public "Расположение"
+# iframe (RestaurantLocation.jsx), which needs no key at all. Omit the
+# build-arg entirely and the app still works: hasGoogleMapsKey() is false,
+# the admin address editor just falls back to its plain manual
+# city/address/lat/lng/place_id fields, same as before this ARG existed.
+ARG NEXT_PUBLIC_GOOGLE_MAPS_API_KEY
+ENV NEXT_PUBLIC_GOOGLE_MAPS_API_KEY=$NEXT_PUBLIC_GOOGLE_MAPS_API_KEY
+
 ENV NEXT_TELEMETRY_DISABLED=1
 
 RUN mkdir -p public

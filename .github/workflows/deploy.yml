@@ -33,6 +33,7 @@ jobs:
           push: true
           build-args: |
             NEXT_PUBLIC_API_URL=https://mereytoi.kz
+            NEXT_PUBLIC_GOOGLE_MAPS_API_KEY=${{ secrets.NEXT_PUBLIC_GOOGLE_MAPS_API_KEY }}
           tags: |
             ${{ secrets.DOCKERHUB_USERNAME }}/mereytoi-frontend:latest
             ${{ secrets.DOCKERHUB_USERNAME }}/mereytoi-frontend:${{ github.sha }}
