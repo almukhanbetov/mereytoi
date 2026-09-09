@@ -45,7 +45,21 @@ export const eventsApi = {
   revokeInvitation: (id, invId) => request(`/api/events/${id}/invitations/${invId}`, { method: 'DELETE' }),
 
   candidates: (id) => request(`/api/events/${id}/candidates`),
-  addCandidate: (id, listingId) => request(`/api/events/${id}/candidates`, { method: 'POST', body: { listing_id: listingId } }),
+  // options: { hallId, menuId, guests, estimatedTotal } — restaurant
+  // variant identity (final integration stage) + estimatedTotal (Budget
+  // fix — brief's own exact "25000×150+100000=3850000" case), all
+  // optional; omitted entirely for an ordinary service, which the backend
+  // already treats as "no hall/menu chosen" exactly as before this stage.
+  addCandidate: (id, listingId, options = {}) => request(`/api/events/${id}/candidates`, {
+    method: 'POST',
+    body: {
+      listing_id: listingId,
+      hall_id: options.hallId || undefined,
+      menu_id: options.menuId || undefined,
+      guests: options.guests || undefined,
+      estimated_total: options.estimatedTotal || undefined,
+    },
+  }),
   updateCandidateStatus: (id, candidateId, status) =>
     request(`/api/events/${id}/candidates/${candidateId}`, { method: 'PUT', body: { status } }),
   removeCandidate: (id, candidateId) => request(`/api/events/${id}/candidates/${candidateId}`, { method: 'DELETE' }),

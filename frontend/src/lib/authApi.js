@@ -43,4 +43,21 @@ export const authApi = {
   updateMe: (name, phone) => request('/api/auth/me', { method: 'PUT', body: { name, phone }, auth: true }),
   myBookings: () => request('/api/users/me/bookings', { auth: true }),
   deleteMyBooking: (id) => request(`/api/users/me/bookings/${id}`, { method: 'DELETE', auth: true }),
+  // Booking->account onboarding (see backend/internal/handlers/onboarding.go)
+  // — logs in the "pending" account a guest booking just created/matched,
+  // exactly like register/login: returns { user, token }.
+  claim: (token) => request(`/api/auth/claim/${token}`, { method: 'POST' }),
+  // Claim-link delivery (see backend/internal/claimdelivery) — "lost the
+  // link" recovery. Always resolves with the same neutral message, whether
+  // or not the phone actually matched anything (no account enumeration —
+  // see auth_handler.go's ClaimResend), so the frontend never needs to
+  // branch on success/failure here at all.
+  claimResend: (phone) => request('/api/auth/claim/resend', { method: 'POST', body: { phone } }),
+  // Telegram linking (see backend/internal/handlers/telegram_handler.go) —
+  // { configured: false } when TELEGRAM_BOT_USERNAME isn't set yet, else
+  // { configured: true, link_url }. Authenticated only: linking a chat
+  // makes no sense before the visitor has any account/session at all.
+  telegramLinkToken: () => request('/api/users/me/telegram/link-token', { method: 'POST', auth: true }),
+  updateDeliveryPreference: (channel) =>
+    request('/api/users/me/delivery-preference', { method: 'PUT', body: { channel }, auth: true }),
 };

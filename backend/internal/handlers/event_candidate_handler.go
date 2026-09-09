@@ -31,12 +31,32 @@ type candidateOut struct {
 
 type addCandidateInput struct {
 	ListingID uint `json:"listing_id" binding:"required"`
+	// HallID/MenuID — restaurant/venue variant identity (see
+	// models/event.go's own doc comment on EventCandidate). Both optional
+	// and independent of each other; every other category simply never
+	// sends them.
+	HallID *uint `json:"hall_id"`
+	MenuID *uint `json:"menu_id"`
+	// Guests — the guest count this candidate was shortlisted for (brief
+	// section 3). Trusted as supplied, same as the calculator's own
+	// guestCount that produced it — not re-derived from anything server-side.
+	Guests *uint `json:"guests"`
+	// EstimatedTotal — the calculator's own final total (menu×guests +
+	// selected extras), same trust model as Guests above and as
+	// BookingItem's own EstimatedTotal already has (see booking_handler.go)
+	// — this endpoint has never re-verified a candidate's price against
+	// the live Menu/extras, so this follows that same established pattern
+	// rather than introducing server-side recomputation nothing else here
+	// does either.
+	EstimatedTotal *uint `json:"estimated_total"`
 }
 
-// AddCandidate — POST /api/events/:id/candidates (editor+). Idempotent: if
-// this listing is already shortlisted for the event, returns the existing
-// row instead of creating a duplicate — "Добавить в мой той" is safe to
-// click more than once.
+// AddCandidate — POST /api/events/:id/candidates (editor+). Idempotent on
+// the full variant identity — (listing_id, hall_id, menu_id), NULLs
+// included — not on listing_id alone: two different hall/menu
+// combinations of the same restaurant are two different candidates a
+// member can shortlist and compare side by side; only re-adding the exact
+// same combination returns the existing row instead of duplicating it.
 func (h *EventCandidateHandler) AddCandidate(c *gin.Context) {
 	var in addCandidateInput
 	if err := c.ShouldBindJSON(&in); err != nil {
@@ -50,29 +70,96 @@ func (h *EventCandidateHandler) AddCandidate(c *gin.Context) {
 		return
 	}
 
+	var hall *models.ListingHall
+	if in.HallID != nil {
+		var h2 models.ListingHall
+		if err := h.DB.Where("id = ? AND listing_id = ?", *in.HallID, in.ListingID).First(&h2).Error; err != nil {
+			c.JSON(http.StatusBadRequest, gin.H{"error": "hall not found for this listing"})
+			return
+		}
+		hall = &h2
+	}
+
+	var menu *models.ListingMenu
+	if in.MenuID != nil {
+		var m2 models.ListingMenu
+		if err := h.DB.Where("id = ? AND listing_id = ?", *in.MenuID, in.ListingID).First(&m2).Error; err != nil {
+			c.JSON(http.StatusBadRequest, gin.H{"error": "menu not found for this listing"})
+			return
+		}
+		// A hall-scoped menu must match the explicitly chosen hall, if
+		// any — never silently accepted for a mismatched/no hall (this is
+		// the one bit of cross-field validation worth doing here; nothing
+		// downstream re-checks it once the candidate exists).
+		if m2.HallID != nil && (in.HallID == nil || *m2.HallID != *in.HallID) {
+			c.JSON(http.StatusBadRequest, gin.H{"error": "menu does not belong to the selected hall"})
+			return
+		}
+		menu = &m2
+	}
+
 	eventID := currentEventID(c)
+
+	// NULL-safe variant-identity lookup — `hall_id = ?`/`menu_id = ?` would
+	// never match a NULL column in Postgres, so the nil/non-nil cases are
+	// spelled out explicitly rather than relying on `= ?` alone.
+	existQuery := h.DB.Where("event_id = ? AND listing_id = ?", eventID, in.ListingID)
+	if in.HallID != nil {
+		existQuery = existQuery.Where("hall_id = ?", *in.HallID)
+	} else {
+		existQuery = existQuery.Where("hall_id IS NULL")
+	}
+	if in.MenuID != nil {
+		existQuery = existQuery.Where("menu_id = ?", *in.MenuID)
+	} else {
+		existQuery = existQuery.Where("menu_id IS NULL")
+	}
 	var existing models.EventCandidate
-	if err := h.DB.Where("event_id = ? AND listing_id = ?", eventID, in.ListingID).First(&existing).Error; err == nil {
+	if err := existQuery.First(&existing).Error; err == nil {
 		c.JSON(http.StatusOK, gin.H{"candidate": existing, "already_added": true})
 		return
 	}
 
 	candidate := models.EventCandidate{
-		EventID:   eventID,
-		ListingID: in.ListingID,
-		Status:    models.CandidateShortlisted,
-		AddedByID: currentUserID(c),
+		EventID:        eventID,
+		ListingID:      in.ListingID,
+		HallID:         in.HallID,
+		MenuID:         in.MenuID,
+		Guests:         in.Guests,
+		EstimatedTotal: in.EstimatedTotal,
+		Status:         models.CandidateShortlisted,
+		AddedByID:      currentUserID(c),
+	}
+	// Snapshot at add-time — a defensive fallback only; List() below
+	// Preloads the live Hall/Menu rows as the actual display source while
+	// the candidate is still pre-booking (brief section 5).
+	if hall != nil {
+		candidate.HallName = hall.NameRu
+	}
+	if menu != nil {
+		candidate.MenuName = menu.NameRu
+		candidate.MenuPricePerGuest = menu.PricePerGuest
 	}
 	if err := h.DB.Create(&candidate).Error; err != nil {
 		c.JSON(http.StatusInternalServerError, gin.H{"error": "failed to add candidate"})
 		return
 	}
 	candidate.Listing = &listing
+	candidate.Hall = hall
+	candidate.Menu = menu
+
+	displayName := listing.NameRu
+	if hall != nil {
+		displayName += " · " + hall.NameRu
+	}
+	if menu != nil {
+		displayName += " · " + menu.NameRu
+	}
 
 	actorID := currentUserID(c)
-	logActivity(h.DB, eventID, actorID, "candidate.added", map[string]any{"name": listing.NameRu, "price": listing.Price})
+	logActivity(h.DB, eventID, actorID, "candidate.added", map[string]any{"name": displayName, "price": listing.Price})
 	notifyMany(h.DB, memberUserIDs(h.DB, eventID, models.EventRoleViewer), actorID, eventID, models.NotifCandidateAdded, "candidate", candidate.ID,
-		map[string]any{"name": listing.NameRu, "price": listing.Price})
+		map[string]any{"name": displayName, "price": listing.Price})
 
 	c.JSON(http.StatusCreated, gin.H{"candidate": candidate, "already_added": false})
 }
@@ -83,7 +170,8 @@ func (h *EventCandidateHandler) List(c *gin.Context) {
 	userID := currentUserID(c)
 
 	var candidates []models.EventCandidate
-	if err := h.DB.Preload("Listing").Preload("Listing.Category").Where("event_id = ?", eventID).Order("created_at asc").Find(&candidates).Error; err != nil {
+	if err := h.DB.Preload("Listing").Preload("Listing.Category").Preload("Hall").Preload("Menu").
+		Where("event_id = ?", eventID).Order("created_at asc").Find(&candidates).Error; err != nil {
 		c.JSON(http.StatusInternalServerError, gin.H{"error": "failed to fetch candidates"})
 		return
 	}
@@ -146,7 +234,14 @@ type updateCandidateInput struct {
 // candidate demotes any other currently-selected candidate in the same
 // category back to shortlisted — "заменить выбор другим кандидатом" from
 // the brief, enforced server-side so the dashboard's one-decision-per-
-// category view (Ресторан ✓ …) can never show two.
+// category view (Ресторан ✓ …) can never show two. This already covers
+// the restaurant hall/menu-variant case with no change needed: the
+// demotion query below joins purely on listings.category_id, so selecting
+// "Sultan Hall / Menu 25k" demotes "Sultan Hall / Menu 30k" (same
+// listing, different candidate row) exactly the same way it demotes a
+// wholly different restaurant in the same category — demoted candidates
+// go back to shortlisted, never deleted, so a member can still compare
+// them again later.
 func (h *EventCandidateHandler) UpdateStatus(c *gin.Context) {
 	candID, ok := atoiParam(c, "cid")
 	if !ok {
@@ -188,6 +283,12 @@ func (h *EventCandidateHandler) UpdateStatus(c *gin.Context) {
 		var price uint
 		if candidate.Listing != nil {
 			name, price = candidate.Listing.NameRu, candidate.Listing.Price
+		}
+		if candidate.HallName != "" {
+			name += " · " + candidate.HallName
+		}
+		if candidate.MenuName != "" {
+			name += " · " + candidate.MenuName
 		}
 		logActivity(h.DB, eventID, currentUserID(c), "candidate.selected", map[string]any{"name": name, "price": price})
 	}

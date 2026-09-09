@@ -40,6 +40,8 @@ func setupTestServer(t *testing.T) (*httptest.Server, *gorm.DB) {
 		&models.EventRequest{}, &models.EventRequestRevision{},
 		&models.Notification{},
 		&models.ManagerConversation{}, &models.ManagerMessage{},
+		&models.AccountClaim{}, &models.TelegramLinkToken{},
+		&models.ListingHall{}, &models.ListingMenu{}, &models.ListingMenuSection{}, &models.ListingMenuItem{}, &models.ListingMenuExtra{},
 	); err != nil {
 		t.Fatalf("failed to migrate: %v", err)
 	}

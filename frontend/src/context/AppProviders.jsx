@@ -86,6 +86,16 @@ const CartContext = createContext(null);
 const CART_KEY = 'mereytoi-booking-cart';
 const MY_BOOKINGS_KEY = 'mereytoi-my-bookings';
 
+// cartItemKey — variant identity (final integration stage, brief section
+// 2): a cart item is the same *line* only if listingId AND hallId AND
+// menuId all match. An ordinary item never sets hallId/menuId (both
+// undefined/null), so its key is just listingId with two empty segments —
+// identical dedup behavior to before this stage for every non-restaurant
+// item.
+function cartItemKey(item) {
+  return `${item.listingId}:${item.hallId || ''}:${item.menuId || ''}`;
+}
+
 function CartProvider({ children }) {
   const [items, setItems] = useState([]);
   const [isOpen, setIsOpen] = useState(false);
@@ -118,17 +128,27 @@ function CartProvider({ children }) {
     localStorage.setItem(CART_KEY, JSON.stringify(next));
   }
 
+  // addItem/removeItem dedup on the *variant identity*
+  // (listingId, hallId, menuId) — not listingId alone — mirroring the
+  // exact same fix EventCandidate got from the backend/database stage:
+  // "Меню 25 000" and "Меню 30 000" of the same restaurant are two
+  // different cart lines, not one silently overwriting the other. An
+  // ordinary service's item never sets hallId/menuId at all, so its key
+  // collapses to the old `${listingId}::` shape and behaves exactly as
+  // before — the dedup/removal logic itself didn't change, only what it
+  // keys on.
   const addItem = useCallback((item) => {
     setItems((prev) => {
-      const next = [...prev.filter((i) => i.listingId !== item.listingId), item];
+      const next = [...prev.filter((i) => cartItemKey(i) !== cartItemKey(item)), item];
       localStorage.setItem(CART_KEY, JSON.stringify(next));
       return next;
     });
   }, []);
 
-  const removeItem = useCallback((listingId) => {
+  const removeItem = useCallback((listingId, hallId = null, menuId = null) => {
     setItems((prev) => {
-      const next = prev.filter((i) => i.listingId !== listingId);
+      const key = cartItemKey({ listingId, hallId, menuId });
+      const next = prev.filter((i) => cartItemKey(i) !== key);
       localStorage.setItem(CART_KEY, JSON.stringify(next));
       return next;
     });

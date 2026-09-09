@@ -6,11 +6,13 @@ import (
 	"github.com/gin-gonic/gin"
 	"gorm.io/gorm"
 
+	"github.com/almukhanbetov/mereytoi/backend/internal/claimdelivery"
 	"github.com/almukhanbetov/mereytoi/backend/internal/config"
 	"github.com/almukhanbetov/mereytoi/backend/internal/handlers"
 	"github.com/almukhanbetov/mereytoi/backend/internal/mail"
 	"github.com/almukhanbetov/mereytoi/backend/internal/middleware"
 	"github.com/almukhanbetov/mereytoi/backend/internal/models"
+	"github.com/almukhanbetov/mereytoi/backend/internal/telegram"
 )
 
 // Register wires the full route tree. mailSvc is variadic purely so
@@ -27,12 +29,36 @@ func Register(r *gin.Engine, database *gorm.DB, cfg config.Config, mailSvc ...*m
 	} else {
 		mailer = mail.NewService(cfg)
 	}
+	// claimdelivery.Service has no test-injection seam through Register's
+	// own signature (unlike mailSvc above) — a second variadic parameter
+	// of a different type isn't legal Go, and every existing caller of
+	// Register already passes cfg by value, so tests that need a fake
+	// "WhatsApp/Telegram provider" instead point cfg.WhatsAppBaseURL /
+	// cfg.TelegramBaseURL at a local httptest.Server and let this build
+	// the real MetaCloudSender/BotSender around it (see
+	// claim_delivery_test.go) — exercising the actual HTTP transport end
+	// to end rather than a mock Sender.
+	delivery := claimdelivery.NewService(cfg)
 
-	authHandler := handlers.NewAuthHandler(database, cfg.JWTSecret)
+	// The Telegram bot's own Sender is also handed to TelegramHandler
+	// directly (not through claimdelivery.Service, which is specifically
+	// about *claim-link* delivery) — the webhook's post-link confirmation
+	// message is a distinct, simpler concern. Rebuilding it here rather
+	// than exposing an accessor on Service keeps that service's own
+	// surface limited to what onboarding.go/ClaimResend actually need.
+	var telegramSender telegram.Sender
+	if cfg.TelegramBotToken != "" {
+		telegramSender = &telegram.BotSender{BaseURL: cfg.TelegramBaseURL, Token: cfg.TelegramBotToken}
+	}
+	telegramHandler := handlers.NewTelegramHandler(database, telegramSender, cfg)
+
+	authHandler := handlers.NewAuthHandler(database, cfg.JWTSecret, delivery)
 	categoryHandler := handlers.NewCategoryHandler(database)
 	listingHandler := handlers.NewListingHandler(database)
+	listingHallHandler := handlers.NewListingHallHandler(database)
+	listingMenuHandler := handlers.NewListingMenuHandler(database)
 	uploadHandler := handlers.NewUploadHandler()
-	bookingHandler := handlers.NewBookingHandler(database)
+	bookingHandler := handlers.NewBookingHandler(database, cfg, delivery)
 	commentHandler := handlers.NewCommentHandler(database)
 	clientHandler := handlers.NewClientHandler(database)
 	statisticsHandler := handlers.NewSiteStatisticsHandler(database)
@@ -56,15 +82,32 @@ func Register(r *gin.Engine, database *gorm.DB, cfg config.Config, mailSvc ...*m
 		{
 			auth.POST("/register", authHandler.Register)
 			auth.POST("/login", authHandler.Login)
+			// Public — the only way a brand-new "pending" account (created
+			// by the booking→onboarding pipeline, see handlers/onboarding.go)
+			// can open a session; never reachable for/from an existing
+			// password-protected account (see AccountClaim's own doc comment).
+			auth.POST("/claim/:token", authHandler.Claim)
+			// Public — never reveals whether a phone has a pending account
+			// (see ClaimResend's own doc comment); rate-limited internally
+			// via claimdelivery.Service, same as a fresh booking's own
+			// delivery attempt.
+			auth.POST("/claim/resend", authHandler.ClaimResend)
 			auth.GET("/me", middleware.RequireAuth(cfg.JWTSecret), authHandler.Me)
 			auth.PUT("/me", middleware.RequireAuth(cfg.JWTSecret), authHandler.UpdateMe)
 		}
+
+		// Public — Telegram's own servers are the only real caller (brief
+		// section 5); see TelegramHandler.Webhook's own doc comment on why
+		// it always answers 200 regardless of outcome.
+		api.POST("/telegram/webhook", telegramHandler.Webhook)
 
 		users := api.Group("/users")
 		users.Use(middleware.RequireAuth(cfg.JWTSecret))
 		{
 			users.GET("/me/bookings", bookingHandler.MyBookings)
 			users.DELETE("/me/bookings/:id", bookingHandler.DeleteMine)
+			users.POST("/me/telegram/link-token", telegramHandler.MintLinkToken)
+			users.PUT("/me/delivery-preference", authHandler.UpdateDeliveryPreference)
 		}
 
 		categories := api.Group("/categories")
@@ -87,6 +130,11 @@ func Register(r *gin.Engine, database *gorm.DB, cfg config.Config, mailSvc ...*m
 			listings.GET("/:id", listingHandler.Get)
 			listings.GET("/:id/comments", commentHandler.ListApproved)
 			listings.POST("/:id/comments", middleware.RequireAuth(cfg.JWTSecret), commentHandler.Create)
+			// Restaurant/venue halls & menus — public read (brief section
+			// 9's "отдельным endpoint menus"/halls; List above never loads
+			// this tree, only aggregates — see listing_handler.go).
+			listings.GET("/:id/halls", listingHandler.Halls)
+			listings.GET("/:id/menus", listingHandler.Menus)
 
 			admin := listings.Group("")
 			admin.Use(middleware.RequireAuth(cfg.JWTSecret), middleware.RequireAdmin())
@@ -94,6 +142,30 @@ func Register(r *gin.Engine, database *gorm.DB, cfg config.Config, mailSvc ...*m
 				admin.POST("", listingHandler.Create)
 				admin.PUT("/:id", listingHandler.Update)
 				admin.DELETE("/:id", listingHandler.Delete)
+
+				// Halls (brief section 10).
+				admin.POST("/:id/halls", listingHallHandler.Create)
+				admin.PUT("/:id/halls/:hallId", listingHallHandler.Update)
+				admin.DELETE("/:id/halls/:hallId", listingHallHandler.Delete)
+
+				// Menus + their sections/items/extras — nested under the
+				// owning listing/menu the same way /api/events/:id/candidates/:cid
+				// already nests candidate-scoped actions under their event.
+				admin.POST("/:id/menus", listingMenuHandler.CreateMenu)
+				admin.PUT("/:id/menus/:menuId", listingMenuHandler.UpdateMenu)
+				admin.DELETE("/:id/menus/:menuId", listingMenuHandler.DeleteMenu)
+
+				admin.POST("/:id/menus/:menuId/sections", listingMenuHandler.CreateSection)
+				admin.PUT("/:id/menus/:menuId/sections/:sectionId", listingMenuHandler.UpdateSection)
+				admin.DELETE("/:id/menus/:menuId/sections/:sectionId", listingMenuHandler.DeleteSection)
+
+				admin.POST("/:id/menus/:menuId/sections/:sectionId/items", listingMenuHandler.CreateItem)
+				admin.PUT("/:id/menus/:menuId/sections/:sectionId/items/:itemId", listingMenuHandler.UpdateItem)
+				admin.DELETE("/:id/menus/:menuId/sections/:sectionId/items/:itemId", listingMenuHandler.DeleteItem)
+
+				admin.POST("/:id/menus/:menuId/extras", listingMenuHandler.CreateExtra)
+				admin.PUT("/:id/menus/:menuId/extras/:extraId", listingMenuHandler.UpdateExtra)
+				admin.DELETE("/:id/menus/:menuId/extras/:extraId", listingMenuHandler.DeleteExtra)
 			}
 		}
 

@@ -98,11 +98,62 @@ type EventInvitation struct {
 // "shortlisted" from the brief's state list collapse into one thing here —
 // anything added to an event IS shortlisted; the meaningful states past
 // that are only whether it's been decided on.
+//
+// HallID/MenuID — restaurant/venue variant identity (additive, see
+// listing_hall.go/listing_menu.go). nil/nil is the pre-existing shape:
+// "this listing, no specific hall or menu chosen" — every non-restaurant
+// category (hosts/shows/artists/stars) and every restaurant candidate
+// added before this stage keeps behaving exactly as before. A restaurant
+// Listing can now be shortlisted more than once for the same event with
+// *different* hall/menu combinations — see event_candidate_handler.go's
+// AddCandidate, whose dedup check now compares (ListingID, HallID,
+// MenuID), not ListingID alone, precisely so "Sultan Hall / Menu 25k" and
+// "Sultan Hall / Menu 30k" are two distinct candidates a member can
+// actually compare side by side, not one row silently deduplicated away.
+//
+// HallName/MenuName/MenuPricePerGuest are a denormalized snapshot taken
+// at AddCandidate time — a defensive fallback (e.g. if the hall/menu is
+// later renamed or removed in the admin), never the primary display
+// source while the candidate is still pre-booking: List() Preloads the
+// live Hall/Menu rows for that (brief section 5 — "source-of-truth до
+// booking остаётся related entity").
 type EventCandidate struct {
 	ID        uint     `gorm:"primaryKey" json:"id"`
 	EventID   uint     `gorm:"not null;index" json:"event_id"`
 	ListingID uint     `gorm:"not null;index" json:"listing_id"`
 	Listing   *Listing `gorm:"foreignKey:ListingID" json:"listing,omitempty"`
+
+	HallID *uint        `gorm:"index" json:"hall_id,omitempty"`
+	Hall   *ListingHall `gorm:"foreignKey:HallID" json:"hall,omitempty"`
+	MenuID *uint        `gorm:"index" json:"menu_id,omitempty"`
+	Menu   *ListingMenu `gorm:"foreignKey:MenuID" json:"menu,omitempty"`
+
+	HallName          string `gorm:"size:200" json:"hall_name,omitempty"`
+	MenuName          string `gorm:"size:200" json:"menu_name,omitempty"`
+	MenuPricePerGuest uint   `gorm:"default:0" json:"menu_price_per_guest,omitempty"`
+	// Guests — the guest count this specific candidate was shortlisted
+	// for (brief section 3 — "Listing + Hall + Menu + Guests" saved as one
+	// unit). A pointer, not plain uint: nil means "not specified," letting
+	// Budget (see eventHelpers.js's candidateEstimate) fall back to the
+	// event's own Guests instead of treating an unset value as literally
+	// zero guests. Only ever set on a restaurant candidate; every other
+	// category leaves it nil, unaffected.
+	Guests *uint `json:"guests,omitempty"`
+
+	// EstimatedTotal — the calculator's own final number (menu×guests +
+	// selected extras) at the moment this candidate was shortlisted,
+	// exactly what Cart/Booking already snapshot as BookingItem's own
+	// EstimatedTotal (see models/booking.go). A pointer, not plain uint:
+	// nil means "not provided" (every candidate created before this field
+	// existed, and every non-restaurant candidate), letting Budget (see
+	// eventHelpers.js's candidateEstimate) fall back to its pre-existing
+	// menuPricePerGuest×guests formula exactly as before for those rows —
+	// this field only ever changes behavior for a restaurant candidate
+	// that was added *with* it. Deliberately just the one total, not the
+	// extras list itself: Budget only ever needed the number to match
+	// Booking's own estimated_total, not a line-by-line breakdown.
+	EstimatedTotal *uint `json:"estimated_total,omitempty"`
+
 	// Status: shortlisted (default) | selected | rejected.
 	Status    string    `gorm:"size:20;not null;default:shortlisted" json:"status"`
 	AddedByID uint      `gorm:"not null" json:"added_by_id"`

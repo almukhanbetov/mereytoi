@@ -88,6 +88,44 @@ export const adminApi = {
   uploadImages,
   uploadVideo,
 
+  // Restaurant halls & menus (backend built in the prior stage — see
+  // backend/internal/handlers/listing_hall_handler.go and
+  // listing_menu_handler.go). adminApi.listing(id) above already returns
+  // the full halls/menus/sections/items/extras tree in one call (the
+  // public detail endpoint, brief section 9 from the prior stage) — these
+  // are only the mutation calls; the admin UI re-reads via adminApi.listing
+  // after each change rather than hand-patching local state everywhere,
+  // trading a little network chatter for never risking client/server
+  // drift on a tree this deep.
+  createHall: (listingId, payload) => request(`/api/listings/${listingId}/halls`, { method: 'POST', body: payload, auth: true }),
+  updateHall: (listingId, hallId, payload) => request(`/api/listings/${listingId}/halls/${hallId}`, { method: 'PUT', body: payload, auth: true }),
+  deleteHall: (listingId, hallId) => request(`/api/listings/${listingId}/halls/${hallId}`, { method: 'DELETE', auth: true }),
+
+  createMenu: (listingId, payload) => request(`/api/listings/${listingId}/menus`, { method: 'POST', body: payload, auth: true }),
+  updateMenu: (listingId, menuId, payload) => request(`/api/listings/${listingId}/menus/${menuId}`, { method: 'PUT', body: payload, auth: true }),
+  deleteMenu: (listingId, menuId) => request(`/api/listings/${listingId}/menus/${menuId}`, { method: 'DELETE', auth: true }),
+
+  createSection: (listingId, menuId, payload) =>
+    request(`/api/listings/${listingId}/menus/${menuId}/sections`, { method: 'POST', body: payload, auth: true }),
+  updateSection: (listingId, menuId, sectionId, payload) =>
+    request(`/api/listings/${listingId}/menus/${menuId}/sections/${sectionId}`, { method: 'PUT', body: payload, auth: true }),
+  deleteSection: (listingId, menuId, sectionId) =>
+    request(`/api/listings/${listingId}/menus/${menuId}/sections/${sectionId}`, { method: 'DELETE', auth: true }),
+
+  createItem: (listingId, menuId, sectionId, payload) =>
+    request(`/api/listings/${listingId}/menus/${menuId}/sections/${sectionId}/items`, { method: 'POST', body: payload, auth: true }),
+  updateItem: (listingId, menuId, sectionId, itemId, payload) =>
+    request(`/api/listings/${listingId}/menus/${menuId}/sections/${sectionId}/items/${itemId}`, { method: 'PUT', body: payload, auth: true }),
+  deleteItem: (listingId, menuId, sectionId, itemId) =>
+    request(`/api/listings/${listingId}/menus/${menuId}/sections/${sectionId}/items/${itemId}`, { method: 'DELETE', auth: true }),
+
+  createExtra: (listingId, menuId, payload) =>
+    request(`/api/listings/${listingId}/menus/${menuId}/extras`, { method: 'POST', body: payload, auth: true }),
+  updateExtra: (listingId, menuId, extraId, payload) =>
+    request(`/api/listings/${listingId}/menus/${menuId}/extras/${extraId}`, { method: 'PUT', body: payload, auth: true }),
+  deleteExtra: (listingId, menuId, extraId) =>
+    request(`/api/listings/${listingId}/menus/${menuId}/extras/${extraId}`, { method: 'DELETE', auth: true }),
+
   bookings: () => request('/api/bookings', { auth: true }),
   updateBookingStatus: (id, status) => request(`/api/bookings/${id}`, { method: 'PUT', body: { status }, auth: true }),
   updateBookingPaid: (id, paid) => request(`/api/bookings/${id}`, { method: 'PUT', body: { paid }, auth: true }),

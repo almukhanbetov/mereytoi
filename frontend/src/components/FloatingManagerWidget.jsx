@@ -10,6 +10,7 @@ import { managerChatApi } from '@/lib/managerChatApi';
 import { formatPrice } from '@/lib/format';
 import { formatEventDate, timeAgo } from '@/lib/eventHelpers';
 import { AGENCY_WHATSAPP_DIGITS } from '@/lib/agencyContact';
+import BookingWorkspaceCTA from '@/components/BookingWorkspaceCTA';
 
 const GREETING_KEY = 'mereytoi_manager_greeting_shown';
 const AUTO_DELAY = 800;
@@ -33,6 +34,22 @@ function pushDataLayer(event) {
   window.dataLayer.push({ event });
 }
 
+// restaurantContextText — final integration stage, brief section 6. Baked
+// into the *first* message of a thread (lead form or real chat) rather
+// than only shown on-screen, since Manager Chat's own backend/model isn't
+// touched this stage (no hall_id/menu_id column exists there to persist
+// it in) — this is the one thing that actually survives into the
+// conversation history a manager reads later, e.g. via /admin/manager-chat.
+function restaurantContextText(ctx) {
+  if (!ctx?.menuName && !ctx?.hallName) return '';
+  const parts = [];
+  if (ctx.hallName) parts.push(`Зал: ${ctx.hallName}`);
+  if (ctx.menuName) parts.push(`Меню: ${ctx.menuName}${ctx.menuPricePerGuest ? ` (${formatPrice(ctx.menuPricePerGuest)}/чел.)` : ''}`);
+  if (ctx.guestCount > 0) parts.push(`${ctx.guestCount} гостей`);
+  if (ctx.estimatedTotal > 0) parts.push(`≈${formatPrice(ctx.estimatedTotal)}`);
+  return parts.length ? `Контекст: ${parts.join(', ')}. ` : '';
+}
+
 export default function FloatingManagerWidget() {
   const pathname = usePathname();
   const { lang } = useLang();
@@ -45,6 +62,7 @@ export default function FloatingManagerWidget() {
   const [message, setMessage] = useState('');
   const [submitting, setSubmitting] = useState(false);
   const [error, setError] = useState('');
+  const [leadOnboarding, setLeadOnboarding] = useState(null);
 
   // ---- Real chat state (authenticated only) ----
   const [conversation, setConversation] = useState(null);
@@ -81,6 +99,7 @@ export default function FloatingManagerWidget() {
     closeChat();
     setView('menu');
     setError('');
+    setLeadOnboarding(null);
     pushDataLayer('manager_widget_close');
   }, [closeChat]);
 
@@ -269,9 +288,9 @@ export default function FloatingManagerWidget() {
       // (brief section 17's spirit, just via the pre-existing lead form
       // rather than a live thread).
       const contextLine = chatContext?.listingName
-        ? `Услуга: ${chatContext.listingName}${chatContext.listingPrice ? ` (${formatPrice(chatContext.listingPrice)})` : ''}. `
+        ? `Услуга: ${chatContext.listingName}${chatContext.listingPrice ? ` (${formatPrice(chatContext.listingPrice)})` : ''}. ${restaurantContextText(chatContext)}`
         : '';
-      await createBooking({
+      const result = await createBooking({
         name: name.trim(),
         phone: phone.trim(),
         message: `[Виджет менеджера · сообщение] ${contextLine}${message.trim()}`,
@@ -280,7 +299,11 @@ export default function FloatingManagerWidget() {
       pushDataLayer('manager_message_submit');
       setMessage('');
       setView('success');
-      scheduleAutoClose();
+      const onboarding = result?.onboarding || null;
+      setLeadOnboarding(onboarding);
+      // Give a real onboarding CTA time to actually be seen/clicked —
+      // the plain "thanks" screen keeps its original quick auto-close.
+      if (!onboarding) scheduleAutoClose();
     } catch {
       setError(lang === 'kz' ? 'Өтінімді жіберу сәтсіз аяқталды. Қайта көріңіз.' : 'Не удалось отправить заявку. Попробуйте ещё раз.');
     } finally {
@@ -297,7 +320,7 @@ export default function FloatingManagerWidget() {
     setError('');
     setSubmitting(true);
     try {
-      await createBooking({
+      const result = await createBooking({
         name: name.trim() || (lang === 'kz' ? 'Қоңырау шалу' : 'Обратный звонок'),
         phone: phone.trim(),
         message: '[Виджет менеджера · обратный звонок]',
@@ -305,7 +328,9 @@ export default function FloatingManagerWidget() {
       });
       pushDataLayer('manager_callback_submit');
       setView('success');
-      scheduleAutoClose();
+      const onboarding = result?.onboarding || null;
+      setLeadOnboarding(onboarding);
+      if (!onboarding) scheduleAutoClose();
     } catch {
       setError(lang === 'kz' ? 'Өтінімді жіберу сәтсіз аяқталды. Қайта көріңіз.' : 'Не удалось отправить заявку. Попробуйте ещё раз.');
     } finally {
@@ -324,7 +349,11 @@ export default function FloatingManagerWidget() {
       if (conversation?.id) {
         data = await managerChatApi.addMessage(conversation.id, text);
       } else {
-        data = await managerChatApi.start(text, { eventId: chatContext?.eventId, listingId: chatContext?.listingId });
+        // Only the *first* message of a brand-new thread gets the
+        // restaurant context prefix — same one-time-only rule the lead
+        // form's own contextLine already follows.
+        const firstText = `${restaurantContextText(chatContext)}${text}`;
+        data = await managerChatApi.start(firstText, { eventId: chatContext?.eventId, listingId: chatContext?.listingId });
       }
       setConversation(data.conversation);
       setChatMessages(data.messages || []);
@@ -469,6 +498,22 @@ export default function FloatingManagerWidget() {
                   <div className="manager-chat-ctx__label"><T ru="Вопрос по услуге" kz="Қызмет туралы сұрақ" en="Question about a service" /></div>
                   <div className="manager-chat-ctx__title">{lang === 'kz' ? ctxListing.name_kz : ctxListing.name_ru}</div>
                   {ctxListing.price > 0 && <div className="manager-chat-ctx__price">{formatPrice(ctxListing.price)}</div>}
+                  {/* Restaurant/menu context (final integration stage,
+                      brief section 6) — only ever present right after
+                      openChat() was called with it this same session; a
+                      reload loses it from the on-screen card (nothing
+                      here is persisted server-side, per "Manager Chat не
+                      менять" — see sendChat's own contextLine prefix,
+                      which IS what actually survives a reload, baked into
+                      the conversation's first message). */}
+                  {chatContext?.menuName && (
+                    <div className="manager-chat-ctx__meta">
+                      {chatContext.hallName && <span>{chatContext.hallName}</span>}
+                      <span>{chatContext.menuName}{chatContext.menuPricePerGuest ? ` · ${formatPrice(chatContext.menuPricePerGuest)}/чел.` : ''}</span>
+                      {chatContext.guestCount > 0 && <span>{chatContext.guestCount} <T ru="гостей" kz="қонақ" /></span>}
+                      {chatContext.estimatedTotal > 0 && <span><T ru="≈" kz="≈" />{formatPrice(chatContext.estimatedTotal)}</span>}
+                    </div>
+                  )}
                   <Link href={`/services/${ctxListing.id}`} className="manager-chat-ctx__link" onClick={closePanel}>
                     <T ru="Открыть услугу →" kz="Қызметті ашу →" en="Open service →" />
                   </Link>
@@ -536,6 +581,14 @@ export default function FloatingManagerWidget() {
                   <div className="manager-chat-ctx__label"><T ru="Вопрос по услуге" kz="Қызмет туралы сұрақ" /></div>
                   <div className="manager-chat-ctx__title">{chatContext.listingName}</div>
                   {chatContext.listingPrice > 0 && <div className="manager-chat-ctx__price">{formatPrice(chatContext.listingPrice)}</div>}
+                  {chatContext.menuName && (
+                    <div className="manager-chat-ctx__meta">
+                      {chatContext.hallName && <span>{chatContext.hallName}</span>}
+                      <span>{chatContext.menuName}{chatContext.menuPricePerGuest ? ` · ${formatPrice(chatContext.menuPricePerGuest)}/чел.` : ''}</span>
+                      {chatContext.guestCount > 0 && <span>{chatContext.guestCount} <T ru="гостей" kz="қонақ" /></span>}
+                      {chatContext.estimatedTotal > 0 && <span>≈{formatPrice(chatContext.estimatedTotal)}</span>}
+                    </div>
+                  )}
                 </div>
               )}
               <label className="manager-widget__field">
@@ -599,6 +652,7 @@ export default function FloatingManagerWidget() {
               <p className="manager-widget__greeting-text">
                 <T ru="Мы свяжемся с вами в ближайшее время." kz="Жақын арада сізбен байланысамыз." />
               </p>
+              <BookingWorkspaceCTA onboarding={leadOnboarding} phone={phone} />
             </div>
           )}
         </div>

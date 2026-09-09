@@ -32,6 +32,28 @@ export function candidateStatusLabel(status, lang) {
   return (lang === 'kz' ? kz : ru)[status] || status;
 }
 
+// candidateEstimate — final integration stage, brief section 4 (+ later
+// Budget-fix pass): a restaurant candidate prices as its own
+// estimated_total when one was saved with it — the calculator's actual
+// final number, menu×guests plus whichever extras were selected, exactly
+// matching what Cart/Booking already snapshot as EstimatedTotal (brief's
+// own "25000×150+100000=3850000" case). estimated_total is a nullable
+// additive field (see EventCandidate's own doc comment) — nil for every
+// candidate added before it existed, so those (and any menu candidate a
+// caller adds without it) fall straight back to the pre-existing
+// menuPricePerGuest × guests formula, unchanged. Every non-restaurant
+// candidate keeps using Listing.Price exactly as Budget always did.
+export function candidateEstimate(candidate, event) {
+  if (candidate.menu_id && candidate.estimated_total) {
+    return candidate.estimated_total;
+  }
+  if (candidate.menu_id && candidate.menu_price_per_guest) {
+    const guests = candidate.guests || event?.guests || 0;
+    return candidate.menu_price_per_guest * guests;
+  }
+  return candidate.listing?.price || 0;
+}
+
 export function formatEventDate(iso, lang) {
   if (!iso) return null;
   const date = new Date(iso);

@@ -26,4 +26,27 @@ type Listing struct {
 	IsActive      bool      `gorm:"not null;default:true" json:"is_active"`
 	CreatedAt     time.Time `json:"created_at"`
 	UpdatedAt     time.Time `json:"updated_at"`
+
+	// Address/Latitude/Longitude/PlaceID/Capacity — additive location
+	// fields from the restaurant/venue audit. City above is unchanged and
+	// still what search/filter use; Address is the fuller street address
+	// City never captured. Latitude/Longitude/PlaceID are nil until a map
+	// is actually wired up somewhere (none exists yet in this codebase) —
+	// every existing Listing simply has them empty, same as every other
+	// category (hosts/shows/artists/stars), which never populates these
+	// either and is completely unaffected by their existence.
+	//
+	// Capacity is the venue's own overall/nominal capacity — deliberately
+	// a *different* concept from MinGuests/MaxGuests above (a commercial
+	// per-person pricing-tier range used to compute a booking's price,
+	// untouched by this stage) and from ListingHall.Capacity (one
+	// specific hall's physical capacity, see listing_hall.go). A Listing
+	// with no halls yet can still report its own Capacity; once halls
+	// exist, each hall's own Capacity is the more precise figure for that
+	// specific hall.
+	Address   string   `gorm:"size:300" json:"address,omitempty"`
+	Latitude  *float64 `json:"latitude,omitempty"`
+	Longitude *float64 `json:"longitude,omitempty"`
+	PlaceID   *string  `gorm:"size:200" json:"place_id,omitempty"`
+	Capacity  uint     `gorm:"default:0" json:"capacity,omitempty"`
 }

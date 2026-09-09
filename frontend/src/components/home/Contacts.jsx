@@ -5,6 +5,7 @@ import Reveal from '@/components/Reveal';
 import { T, useLang } from '@/context/AppProviders';
 import { createBooking } from '@/lib/bookingApi';
 import { AGENCY_PHONE_DISPLAY, AGENCY_WHATSAPP_DIGITS } from '@/lib/agencyContact';
+import BookingWorkspaceCTA from '@/components/BookingWorkspaceCTA';
 
 const EVENT_TYPES = [
   { value: 'wedding', ru: 'Свадьба', kz: 'Үйлену тойы' },
@@ -18,10 +19,13 @@ export default function Contacts() {
   const [submitted, setSubmitted] = useState(false);
   const [submitting, setSubmitting] = useState(false);
   const [error, setError] = useState('');
+  const [onboarding, setOnboarding] = useState(null);
+  const [submittedPhone, setSubmittedPhone] = useState('');
 
   async function handleSubmit(e) {
     e.preventDefault();
     setError('');
+    setOnboarding(null);
     setSubmitting(true);
 
     const form = e.target;
@@ -50,6 +54,8 @@ export default function Contacts() {
       }
 
       setSubmitted(true);
+      setOnboarding(booking?.onboarding || null);
+      setSubmittedPhone(phone);
       form.reset();
       setTimeout(() => setSubmitted(false), 5000);
     } catch (err) {
@@ -112,6 +118,7 @@ export default function Contacts() {
           <p className={`form-success${submitted ? ' is-visible' : ''}`}>
             <T ru="Спасибо! Мы скоро свяжемся с вами." kz="Рахмет! Жақын арада хабарласамыз." />
           </p>
+          {submitted && <BookingWorkspaceCTA onboarding={onboarding} phone={submittedPhone} />}
         </Reveal>
       </div>
     </section>

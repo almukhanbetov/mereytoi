@@ -9,6 +9,7 @@ import { authApi } from '@/lib/authApi';
 import { eventsApi } from '@/lib/eventsApi';
 import { formatPrice } from '@/lib/format';
 import { eventTypeEmoji, eventTypeLabel, formatEventDate, roleLabel } from '@/lib/eventHelpers';
+import TelegramConnectCard from '@/components/profile/TelegramConnectCard';
 
 function paidLabel(paid, lang) {
   if (paid) return lang === 'kz' ? 'Белсенді' : 'Активна';
@@ -204,6 +205,8 @@ export default function ProfilePage() {
                 <button type="button" className="btn btn--outline" style={{ marginTop: 8 }} onClick={handleLogout}>
                   <T ru="Выйти из аккаунта" kz="Аккаунттан шығу" />
                 </button>
+
+                <TelegramConnectCard />
               </form>
 
               <div>
