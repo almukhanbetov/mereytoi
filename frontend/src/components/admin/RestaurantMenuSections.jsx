@@ -2,17 +2,17 @@
 
 import { useState } from 'react';
 import { adminApi } from '@/lib/adminApi';
+import { pluralRu } from '@/lib/format';
 import RestaurantMenuImport from './RestaurantMenuImport';
 
 const EMPTY_SECTION = { title_ru: '', title_kz: '', sort_order: 0 };
 const EMPTY_ITEM = { name_ru: '', name_kz: '', description_ru: '', description_kz: '', quantity_text: '', sort_order: 0 };
 
-/** Brief section 4 — sections → items, inside one menu. Reordering is
- * ↑/↓ buttons (same reasoning as RestaurantHallsTab's own — reliable and
- * keyboard-accessible without needing to visually verify a drag
- * interaction in this environment). `refresh` re-fetches the whole
- * listing tree after every mutation (see adminApi.js's own doc comment
- * on why) rather than hand-patching this deeply nested local state. */
+/** Sections → items inside one menu. Frontend-only restyle of the existing
+ * builder — every adminApi call, payload and the models behind them are
+ * unchanged. Reorder is ↑/↓ (reliable + keyboard-accessible). `refresh`
+ * re-fetches the whole listing tree after each mutation (see adminApi.js's
+ * own doc comment) rather than hand-patching this deeply nested state. */
 export default function RestaurantMenuSections({ listingId, menu, refresh }) {
   const sections = [...(menu.sections || [])].sort((a, b) => a.sort_order - b.sort_order);
 
@@ -25,8 +25,14 @@ export default function RestaurantMenuSections({ listingId, menu, refresh }) {
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState('');
   const [showImport, setShowImport] = useState(false);
+  const [confirmSectionId, setConfirmSectionId] = useState(null);
+  const [confirmItem, setConfirmItem] = useState(null); // { sectionId, itemId }
 
   async function createSection() {
+    if (!sectionForm.title_ru.trim() || !sectionForm.title_kz.trim()) {
+      setError('Укажите название секции на русском и казахском');
+      return;
+    }
     setBusy(true);
     setError('');
     try {
@@ -42,6 +48,10 @@ export default function RestaurantMenuSections({ listingId, menu, refresh }) {
   }
 
   async function saveSection(sectionId) {
+    if (!sectionForm.title_ru.trim() || !sectionForm.title_kz.trim()) {
+      setError('Укажите название секции на русском и казахском');
+      return;
+    }
     setBusy(true);
     setError('');
     try {
@@ -56,12 +66,16 @@ export default function RestaurantMenuSections({ listingId, menu, refresh }) {
   }
 
   async function removeSection(section) {
-    if (!window.confirm(`Удалить секцию «${section.title_ru}» вместе со всеми позициями?`)) return;
+    setBusy(true);
+    setError('');
     try {
       await adminApi.deleteSection(listingId, menu.id, section.id);
       await refresh();
+      setConfirmSectionId(null);
     } catch (err) {
-      alert(err.message || 'Не удалось удалить секцию');
+      setError(err.message || 'Не удалось удалить секцию');
+    } finally {
+      setBusy(false);
     }
   }
 
@@ -71,6 +85,7 @@ export default function RestaurantMenuSections({ listingId, menu, refresh }) {
     if (swapIdx < 0 || swapIdx >= sections.length) return;
     const a = sections[idx];
     const b = sections[swapIdx];
+    setError('');
     try {
       await Promise.all([
         adminApi.updateSection(listingId, menu.id, a.id, { title_ru: a.title_ru, title_kz: a.title_kz, sort_order: b.sort_order }),
@@ -78,11 +93,15 @@ export default function RestaurantMenuSections({ listingId, menu, refresh }) {
       ]);
       await refresh();
     } catch (err) {
-      alert(err.message || 'Не удалось изменить порядок секций');
+      setError(err.message || 'Не удалось изменить порядок секций');
     }
   }
 
   async function createItem(sectionId) {
+    if (!itemForm.name_ru.trim() || !itemForm.name_kz.trim()) {
+      setError('Укажите название позиции на русском и казахском');
+      return;
+    }
     setBusy(true);
     setError('');
     try {
@@ -99,6 +118,10 @@ export default function RestaurantMenuSections({ listingId, menu, refresh }) {
   }
 
   async function saveItem(sectionId, itemId) {
+    if (!itemForm.name_ru.trim() || !itemForm.name_kz.trim()) {
+      setError('Укажите название позиции на русском и казахском');
+      return;
+    }
     setBusy(true);
     setError('');
     try {
@@ -113,12 +136,16 @@ export default function RestaurantMenuSections({ listingId, menu, refresh }) {
   }
 
   async function removeItem(sectionId, item) {
-    if (!window.confirm(`Удалить «${item.name_ru}»?`)) return;
+    setBusy(true);
+    setError('');
     try {
       await adminApi.deleteItem(listingId, menu.id, sectionId, item.id);
       await refresh();
+      setConfirmItem(null);
     } catch (err) {
-      alert(err.message || 'Не удалось удалить позицию');
+      setError(err.message || 'Не удалось удалить позицию');
+    } finally {
+      setBusy(false);
     }
   }
 
@@ -129,6 +156,7 @@ export default function RestaurantMenuSections({ listingId, menu, refresh }) {
     if (swapIdx < 0 || swapIdx >= items.length) return;
     const a = items[idx];
     const b = items[swapIdx];
+    setError('');
     try {
       await Promise.all([
         adminApi.updateItem(listingId, menu.id, section.id, a.id, { ...a, sort_order: b.sort_order }),
@@ -136,25 +164,46 @@ export default function RestaurantMenuSections({ listingId, menu, refresh }) {
       ]);
       await refresh();
     } catch (err) {
-      alert(err.message || 'Не удалось изменить порядок позиций');
+      setError(err.message || 'Не удалось изменить порядок позиций');
     }
+  }
+
+  function startEditSection(section) {
+    setSectionForm({ title_ru: section.title_ru, title_kz: section.title_kz, sort_order: section.sort_order });
+    setEditingSectionId(section.id);
+    setError('');
+  }
+  function startEditItem(section, item) {
+    setItemForm({
+      name_ru: item.name_ru, name_kz: item.name_kz,
+      description_ru: item.description_ru || '', description_kz: item.description_kz || '',
+      quantity_text: item.quantity_text || '', sort_order: item.sort_order,
+    });
+    setEditingItem({ sectionId: section.id, itemId: item.id });
+    setError('');
   }
 
   return (
     <div>
-      <div className="admin-section-block__head" style={{ border: 'none', marginBottom: 4, paddingBottom: 0 }}>
-        <h4 style={{ margin: 0, fontSize: 14 }}>Секции и позиции</h4>
-        <div style={{ display: 'flex', gap: 14 }}>
+      <div className="menu-builder__block-head">
+        <span className="menu-builder__block-title">Секции меню</span>
+        <div className="menu-builder__block-actions">
           <button type="button" className="admin-table__link" onClick={() => setShowImport((v) => !v)}>
             {showImport ? 'Скрыть импорт' : 'Вставить меню текстом'}
           </button>
           {!addingSection && (
-            <button type="button" className="admin-table__link" onClick={() => { setSectionForm({ ...EMPTY_SECTION, sort_order: sections.length }); setAddingSection(true); }}>
-              + Секция
+            <button
+              type="button"
+              className="admin-table__link"
+              onClick={() => { setSectionForm({ ...EMPTY_SECTION, sort_order: sections.length }); setAddingSection(true); setError(''); }}
+            >
+              + Добавить секцию
             </button>
           )}
         </div>
       </div>
+
+      {error && <p className="admin-banner admin-banner--error">{error}</p>}
 
       {showImport && (
         <RestaurantMenuImport
@@ -162,129 +211,112 @@ export default function RestaurantMenuSections({ listingId, menu, refresh }) {
           menuId={menu.id}
           existingSectionCount={sections.length}
           onClose={() => setShowImport(false)}
-          onImported={async () => {
-            setShowImport(false);
-            await refresh();
-          }}
+          onImported={async () => { setShowImport(false); await refresh(); }}
         />
       )}
 
       {addingSection && (
-        <div className="admin-section-block">
-          <div className="form-row">
-            <label>
-              <span>Название секции (рус)</span>
-              <input value={sectionForm.title_ru} onChange={(e) => setSectionForm((f) => ({ ...f, title_ru: e.target.value }))} />
-            </label>
-            <label>
-              <span>Название секции (қаз)</span>
-              <input value={sectionForm.title_kz} onChange={(e) => setSectionForm((f) => ({ ...f, title_kz: e.target.value }))} />
-            </label>
-          </div>
-          {error && <p className="admin-login__error">{error}</p>}
-          <div style={{ display: 'flex', gap: 10 }}>
-            <button type="button" className="btn btn--gold btn--sm" disabled={busy} onClick={createSection}>Сохранить секцию</button>
-            <button type="button" className="btn btn--outline btn--sm" onClick={() => setAddingSection(false)}>Отмена</button>
-          </div>
-        </div>
+        <SectionForm
+          values={sectionForm}
+          setValues={setSectionForm}
+          onSave={createSection}
+          onCancel={() => { setAddingSection(false); setError(''); }}
+          busy={busy}
+          submitLabel="Добавить секцию"
+        />
       )}
 
-      {sections.length === 0 && !addingSection && <p className="admin-table__empty">Секций пока нет</p>}
+      {sections.length === 0 && !addingSection && (
+        <p className="admin-empty__text" style={{ textAlign: 'left', margin: '4px 0' }}>
+          Секций пока нет — добавьте первую или вставьте меню текстом.
+        </p>
+      )}
 
       {sections.map((section, si) => {
         const items = [...(section.items || [])].sort((a, b) => a.sort_order - b.sort_order);
+        const isEditingSection = editingSectionId === section.id;
         return (
-          <div className="admin-section-block" key={section.id}>
-            {editingSectionId === section.id ? (
-              <>
-                <div className="form-row">
-                  <label>
-                    <span>Название (рус)</span>
-                    <input value={sectionForm.title_ru} onChange={(e) => setSectionForm((f) => ({ ...f, title_ru: e.target.value }))} />
-                  </label>
-                  <label>
-                    <span>Название (қаз)</span>
-                    <input value={sectionForm.title_kz} onChange={(e) => setSectionForm((f) => ({ ...f, title_kz: e.target.value }))} />
-                  </label>
-                </div>
-                {error && <p className="admin-login__error">{error}</p>}
-                <div style={{ display: 'flex', gap: 10 }}>
-                  <button type="button" className="btn btn--gold btn--sm" disabled={busy} onClick={() => saveSection(section.id)}>Сохранить</button>
-                  <button type="button" className="btn btn--outline btn--sm" onClick={() => setEditingSectionId(null)}>Отмена</button>
-                </div>
-              </>
+          <div className="menu-section" key={section.id}>
+            {isEditingSection ? (
+              <SectionForm
+                values={sectionForm}
+                setValues={setSectionForm}
+                onSave={() => saveSection(section.id)}
+                onCancel={() => { setEditingSectionId(null); setError(''); }}
+                busy={busy}
+                submitLabel="Сохранить"
+              />
             ) : (
               <>
-                <div className="admin-section-block__head">
-                  <span className="admin-section-block__title">{section.title_ru}</span>
-                  <div style={{ display: 'flex', gap: 10, alignItems: 'center' }}>
+                <div className="menu-section__head">
+                  <div>
+                    <h4 className="menu-section__title">{section.title_ru}</h4>
+                    {section.title_kz && section.title_kz !== section.title_ru && (
+                      <p className="menu-section__sub">{section.title_kz}</p>
+                    )}
+                    <p className="menu-section__sub">
+                      {items.length} {pluralRu(items.length, ['позиция', 'позиции', 'позиций'])}
+                    </p>
+                  </div>
+                  <div className="menu-section__actions">
                     <span className="admin-card__order">
-                      <button type="button" className="admin-icon-btn" disabled={si === 0} onClick={() => moveSection(section, -1)} aria-label="Выше">↑</button>
-                      <button type="button" className="admin-icon-btn" disabled={si === sections.length - 1} onClick={() => moveSection(section, 1)} aria-label="Ниже">↓</button>
+                      <button type="button" className="admin-icon-btn admin-icon-btn--sm" disabled={si === 0} onClick={() => moveSection(section, -1)} aria-label="Секцию выше">↑</button>
+                      <button type="button" className="admin-icon-btn admin-icon-btn--sm" disabled={si === sections.length - 1} onClick={() => moveSection(section, 1)} aria-label="Секцию ниже">↓</button>
                     </span>
-                    <button
-                      type="button"
-                      className="admin-table__link"
-                      onClick={() => { setSectionForm({ title_ru: section.title_ru, title_kz: section.title_kz, sort_order: section.sort_order }); setEditingSectionId(section.id); }}
-                    >
-                      Изменить
-                    </button>
-                    <button type="button" className="admin-table__link admin-table__link--danger" onClick={() => removeSection(section)}>Удалить</button>
+                    <button type="button" className="admin-table__link" onClick={() => startEditSection(section)}>Изменить</button>
+                    {confirmSectionId === section.id ? (
+                      <>
+                        <button type="button" className="admin-table__link admin-table__link--danger" disabled={busy} onClick={() => removeSection(section)}>
+                          {busy ? 'Удаляем…' : 'Точно удалить'}
+                        </button>
+                        <button type="button" className="admin-table__link" onClick={() => setConfirmSectionId(null)}>Отмена</button>
+                      </>
+                    ) : (
+                      <button type="button" className="admin-table__link admin-table__link--danger" onClick={() => setConfirmSectionId(section.id)}>Удалить</button>
+                    )}
                   </div>
                 </div>
 
-                <div className="admin-inline-list">
-                  {items.length === 0 && <p className="admin-table__empty" style={{ padding: '8px 0' }}>Нет позиций</p>}
+                <div className="menu-item-list">
+                  {items.length === 0 && (
+                    <p className="menu-item-row__sub" style={{ padding: '2px' }}>В этой секции пока нет позиций</p>
+                  )}
                   {items.map((item, ii) =>
                     editingItem?.sectionId === section.id && editingItem?.itemId === item.id ? (
-                      <div className="admin-section-block" key={item.id} style={{ marginBottom: 0 }}>
-                        <div className="form-row">
-                          <label>
-                            <span>Название (рус)</span>
-                            <input value={itemForm.name_ru} onChange={(e) => setItemForm((f) => ({ ...f, name_ru: e.target.value }))} />
-                          </label>
-                          <label>
-                            <span>Название (қаз)</span>
-                            <input value={itemForm.name_kz} onChange={(e) => setItemForm((f) => ({ ...f, name_kz: e.target.value }))} />
-                          </label>
-                        </div>
-                        <div className="form-row">
-                          <label>
-                            <span>Описание (рус)</span>
-                            <input value={itemForm.description_ru} onChange={(e) => setItemForm((f) => ({ ...f, description_ru: e.target.value }))} />
-                          </label>
-                          <label>
-                            <span>Кол-во/вес</span>
-                            <input value={itemForm.quantity_text} onChange={(e) => setItemForm((f) => ({ ...f, quantity_text: e.target.value }))} placeholder="200 г" />
-                          </label>
-                        </div>
-                        {error && <p className="admin-login__error">{error}</p>}
-                        <div style={{ display: 'flex', gap: 10 }}>
-                          <button type="button" className="btn btn--gold btn--sm" disabled={busy} onClick={() => saveItem(section.id, item.id)}>Сохранить</button>
-                          <button type="button" className="btn btn--outline btn--sm" onClick={() => setEditingItem(null)}>Отмена</button>
-                        </div>
-                      </div>
+                      <ItemForm
+                        key={item.id}
+                        values={itemForm}
+                        setValues={setItemForm}
+                        onSave={() => saveItem(section.id, item.id)}
+                        onCancel={() => { setEditingItem(null); setError(''); }}
+                        busy={busy}
+                        submitLabel="Сохранить"
+                      />
                     ) : (
-                      <div className="admin-inline-row" key={item.id}>
-                        <span>{item.name_ru}{item.quantity_text ? ` — ${item.quantity_text}` : ''}</span>
-                        <span className="admin-inline-row__actions">
-                          <button type="button" className="admin-icon-btn" disabled={ii === 0} onClick={() => moveItem(section, item, -1)} aria-label="Выше">↑</button>
-                          <button type="button" className="admin-icon-btn" disabled={ii === items.length - 1} onClick={() => moveItem(section, item, 1)} aria-label="Ниже">↓</button>
-                          <button
-                            type="button"
-                            className="admin-table__link"
-                            onClick={() => {
-                              setItemForm({
-                                name_ru: item.name_ru, name_kz: item.name_kz,
-                                description_ru: item.description_ru || '', description_kz: item.description_kz || '',
-                                quantity_text: item.quantity_text || '', sort_order: item.sort_order,
-                              });
-                              setEditingItem({ sectionId: section.id, itemId: item.id });
-                            }}
-                          >
-                            Изменить
-                          </button>
-                          <button type="button" className="admin-table__link admin-table__link--danger" onClick={() => removeItem(section.id, item)}>Удалить</button>
+                      <div className="menu-item-row" key={item.id}>
+                        <div className="menu-item-row__main">
+                          <div className="menu-item-row__name">
+                            {item.name_ru}{item.quantity_text ? ` · ${item.quantity_text}` : ''}
+                          </div>
+                          {item.name_kz && item.name_kz !== item.name_ru && (
+                            <div className="menu-item-row__sub">{item.name_kz}</div>
+                          )}
+                          {item.description_ru && <div className="menu-item-row__sub">{item.description_ru}</div>}
+                        </div>
+                        <span className="menu-item-row__actions">
+                          <button type="button" className="admin-icon-btn admin-icon-btn--sm" disabled={ii === 0} onClick={() => moveItem(section, item, -1)} aria-label="Позицию выше">↑</button>
+                          <button type="button" className="admin-icon-btn admin-icon-btn--sm" disabled={ii === items.length - 1} onClick={() => moveItem(section, item, 1)} aria-label="Позицию ниже">↓</button>
+                          <button type="button" className="admin-table__link" onClick={() => startEditItem(section, item)}>Изменить</button>
+                          {confirmItem?.sectionId === section.id && confirmItem?.itemId === item.id ? (
+                            <>
+                              <button type="button" className="admin-table__link admin-table__link--danger" disabled={busy} onClick={() => removeItem(section.id, item)}>
+                                {busy ? '…' : 'Точно'}
+                              </button>
+                              <button type="button" className="admin-table__link" onClick={() => setConfirmItem(null)}>Отмена</button>
+                            </>
+                          ) : (
+                            <button type="button" className="admin-table__link admin-table__link--danger" onClick={() => setConfirmItem({ sectionId: section.id, itemId: item.id })}>Удалить</button>
+                          )}
                         </span>
                       </div>
                     )
@@ -292,35 +324,90 @@ export default function RestaurantMenuSections({ listingId, menu, refresh }) {
                 </div>
 
                 {addingItemTo === section.id ? (
-                  <div className="admin-section-block" style={{ marginBottom: 0 }}>
-                    <div className="form-row">
-                      <label>
-                        <span>Название (рус)</span>
-                        <input value={itemForm.name_ru} onChange={(e) => setItemForm((f) => ({ ...f, name_ru: e.target.value }))} />
-                      </label>
-                      <label>
-                        <span>Название (қаз)</span>
-                        <input value={itemForm.name_kz} onChange={(e) => setItemForm((f) => ({ ...f, name_kz: e.target.value }))} />
-                      </label>
-                    </div>
-                    <label>
-                      <span>Кол-во/вес</span>
-                      <input value={itemForm.quantity_text} onChange={(e) => setItemForm((f) => ({ ...f, quantity_text: e.target.value }))} placeholder="200 г" />
-                    </label>
-                    {error && <p className="admin-login__error">{error}</p>}
-                    <div style={{ display: 'flex', gap: 10 }}>
-                      <button type="button" className="btn btn--gold btn--sm" disabled={busy} onClick={() => createItem(section.id)}>Добавить позицию</button>
-                      <button type="button" className="btn btn--outline btn--sm" onClick={() => setAddingItemTo(null)}>Отмена</button>
-                    </div>
-                  </div>
+                  <ItemForm
+                    values={itemForm}
+                    setValues={setItemForm}
+                    onSave={() => createItem(section.id)}
+                    onCancel={() => { setAddingItemTo(null); setError(''); }}
+                    busy={busy}
+                    submitLabel="Добавить позицию"
+                  />
                 ) : (
-                  <button type="button" className="admin-table__link" onClick={() => { setItemForm(EMPTY_ITEM); setAddingItemTo(section.id); }}>+ Позиция</button>
+                  <button
+                    type="button"
+                    className="menu-add-btn menu-add-btn--block"
+                    onClick={() => { setItemForm(EMPTY_ITEM); setAddingItemTo(section.id); setError(''); }}
+                  >
+                    + Добавить позицию
+                  </button>
                 )}
               </>
             )}
           </div>
         );
       })}
+    </div>
+  );
+}
+
+function SectionForm({ values, setValues, onSave, onCancel, busy, submitLabel }) {
+  function set(key, value) {
+    setValues((f) => ({ ...f, [key]: value }));
+  }
+  return (
+    <div className="menu-inline-form">
+      <div className="form-row">
+        <label>
+          <span>Название секции на русском *</span>
+          <input value={values.title_ru} onChange={(e) => set('title_ru', e.target.value)} placeholder="Например: Холодные закуски" />
+        </label>
+        <label>
+          <span>Название секции на казахском</span>
+          <input value={values.title_kz} onChange={(e) => set('title_kz', e.target.value)} placeholder="Мысалы: Салқын тағамдар" />
+        </label>
+      </div>
+      <div className="menu-inline-form__actions">
+        <button type="button" className="btn btn--gold btn--sm" disabled={busy} onClick={onSave}>
+          {busy ? 'Сохранение…' : submitLabel}
+        </button>
+        <button type="button" className="btn btn--outline btn--sm" onClick={onCancel} disabled={busy}>Отмена</button>
+      </div>
+    </div>
+  );
+}
+
+function ItemForm({ values, setValues, onSave, onCancel, busy, submitLabel }) {
+  function set(key, value) {
+    setValues((f) => ({ ...f, [key]: value }));
+  }
+  return (
+    <div className="menu-inline-form">
+      <div className="form-row">
+        <label>
+          <span>Название на русском *</span>
+          <input value={values.name_ru} onChange={(e) => set('name_ru', e.target.value)} placeholder="Например: Мясное ассорти" />
+        </label>
+        <label>
+          <span>Название на казахском</span>
+          <input value={values.name_kz} onChange={(e) => set('name_kz', e.target.value)} placeholder="Мысалы: Ет ассортиси" />
+        </label>
+      </div>
+      <div className="form-row">
+        <label>
+          <span>Описание на русском</span>
+          <input value={values.description_ru} onChange={(e) => set('description_ru', e.target.value)} placeholder="Состав, подача…" />
+        </label>
+        <label>
+          <span>Количество / вес</span>
+          <input value={values.quantity_text} onChange={(e) => set('quantity_text', e.target.value)} placeholder="Например: 200 г" />
+        </label>
+      </div>
+      <div className="menu-inline-form__actions">
+        <button type="button" className="btn btn--gold btn--sm" disabled={busy} onClick={onSave}>
+          {busy ? 'Сохранение…' : submitLabel}
+        </button>
+        <button type="button" className="btn btn--outline btn--sm" onClick={onCancel} disabled={busy}>Отмена</button>
+      </div>
     </div>
   );
 }

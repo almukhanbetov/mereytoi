@@ -2,14 +2,12 @@
 
 import { useState } from 'react';
 import { adminApi } from '@/lib/adminApi';
+import { pluralRu } from '@/lib/format';
 
 // Lines with no leading "-"/"•" start a new section; "-"/"•"-prefixed
 // lines are items under the most recent section (an item before any
-// section header lands in an implicit "Без названия" one, rather than
-// being silently dropped). An optional " — <текст>" suffix on an item
-// line becomes its quantity_text — matches the brief's own example
-// ("Мясное ассорти" with no suffix is just a name; "200 г" style notes
-// are opt-in, not required).
+// section header lands in an implicit "Без названия" one). An optional
+// " — <текст>" suffix on an item line becomes its quantity_text.
 function parseMenuText(text) {
   const lines = text.split('\n').map((l) => l.trim()).filter((l) => l.length > 0);
   const sections = [];
@@ -37,17 +35,33 @@ function parseMenuText(text) {
   return sections;
 }
 
-/** Brief section 6 — "Вставить меню текстом": textarea → parse preview →
- * explicit confirm → only then does anything get saved. Nothing is
- * written to the backend until "Подтвердить и сохранить" is clicked. */
+const EXAMPLE = [
+  'Холодные закуски',
+  'Мясное ассорти',
+  'Рыбное ассорти',
+  '',
+  'Салаты',
+  'Салат с буратой',
+  'Салат с копченой семгой',
+  '',
+  'Основное горячее',
+  'Бешбармак',
+].join('\n');
+
+/** "Быстро создать меню из текста": textarea → распознать → preview →
+ * явное подтверждение → только тогда что-либо пишется в backend. Логика
+ * разбора и сохранения не менялась — только оформление. */
 export default function RestaurantMenuImport({ listingId, menuId, existingSectionCount, onClose, onImported }) {
   const [text, setText] = useState('');
   const [preview, setPreview] = useState(null);
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState('');
 
+  const itemTotal = preview ? preview.reduce((n, s) => n + s.items.length, 0) : 0;
+
   function handlePreview() {
     setPreview(parseMenuText(text));
+    setError('');
   }
 
   async function handleConfirm() {
@@ -56,10 +70,6 @@ export default function RestaurantMenuImport({ listingId, menuId, existingSectio
     try {
       let sectionOrder = existingSectionCount;
       for (const section of preview) {
-        // Kazakh names default to the Russian text — a bulk paste is
-        // Russian-only input; nothing here fabricates a translation, the
-        // admin can correct name_kz afterward via the normal per-item edit
-        // form (RestaurantMenuSections), same as every other field here.
         const { section: created } = await adminApi.createSection(listingId, menuId, {
           title_ru: section.title_ru,
           title_kz: section.title_ru,
@@ -84,29 +94,27 @@ export default function RestaurantMenuImport({ listingId, menuId, existingSectio
   }
 
   return (
-    <div className="admin-section-block">
-      <div className="admin-section-block__head">
-        <span className="admin-section-block__title">Вставить меню текстом</span>
+    <div className="menu-import">
+      <div className="menu-import__head">
+        <span className="menu-import__title">Быстро создать меню из текста</span>
         <button type="button" className="admin-table__link" onClick={onClose}>Закрыть</button>
       </div>
 
       {!preview && (
         <>
-          <p className="booking-workspace-cta__text" style={{ marginTop: 0 }}>
-            Строка без «-» — новая секция, строки с «-» — позиции внутри неё. Пример:
+          <p className="admin-field-hint" style={{ margin: '0 0 8px' }}>
+            Строка без «-» — новая секция, строки под ней — позиции. Пример:
           </p>
-          <pre style={{ fontSize: 12.5, background: 'var(--surface-tint)', padding: '10px 14px', borderRadius: 8, margin: '0 0 12px' }}>
-            {'Холодные закуски\n- Мясное ассорти\n- Рыбное ассорти\n\nСалаты\n- Салат с буратой'}
-          </pre>
+          <pre className="menu-import__example">{EXAMPLE}</pre>
           <textarea
             className="admin-import-textarea"
             value={text}
             onChange={(e) => setText(e.target.value)}
-            placeholder={'Холодные закуски\n- Мясное ассорти\n- Рыбное ассорти'}
+            placeholder={EXAMPLE}
           />
-          <div style={{ display: 'flex', gap: 10, marginTop: 12 }}>
-            <button type="button" className="btn btn--outline btn--sm" onClick={handlePreview} disabled={!text.trim()}>
-              Предпросмотр
+          <div className="menu-inline-form__actions" style={{ marginTop: 12 }}>
+            <button type="button" className="btn btn--gold btn--sm" onClick={handlePreview} disabled={!text.trim()}>
+              Распознать меню
             </button>
           </div>
         </>
@@ -114,12 +122,12 @@ export default function RestaurantMenuImport({ listingId, menuId, existingSectio
 
       {preview && (
         <>
-          <div className="admin-import-preview">
-            {preview.length === 0 && <p className="admin-table__empty">Не удалось распознать ни одной секции</p>}
+          <div className="menu-import__preview">
+            {preview.length === 0 && <p className="admin-empty__text" style={{ textAlign: 'left', margin: 0 }}>Не удалось распознать ни одной секции</p>}
             {preview.map((section, i) => (
-              <div key={i} style={{ marginBottom: 12 }}>
+              <div className="menu-import__preview-section" key={i}>
                 <strong>{section.title_ru}</strong>
-                <ul style={{ margin: '6px 0 0', paddingLeft: 20 }}>
+                <ul>
                   {section.items.map((item, j) => (
                     <li key={j}>{item.name_ru}{item.quantity_text ? ` — ${item.quantity_text}` : ''}</li>
                   ))}
@@ -127,13 +135,18 @@ export default function RestaurantMenuImport({ listingId, menuId, existingSectio
               </div>
             ))}
           </div>
-          <p className="booking-workspace-cta__text booking-workspace-cta__text--muted">
-            Названия на казахском заполнятся так же, как на русском — их можно поправить после сохранения.
+
+          <p className="menu-import__counts">
+            {preview.length} {pluralRu(preview.length, ['секция', 'секции', 'секций'])} ·{' '}
+            {itemTotal} {pluralRu(itemTotal, ['позиция', 'позиции', 'позиций'])}.
+            Названия на казахском заполнятся так же, как на русском — их можно поправить после.
           </p>
-          {error && <p className="admin-login__error">{error}</p>}
-          <div style={{ display: 'flex', gap: 10, marginTop: 12 }}>
+
+          {error && <p className="admin-banner admin-banner--error">{error}</p>}
+
+          <div className="menu-inline-form__actions" style={{ marginTop: 12 }}>
             <button type="button" className="btn btn--gold btn--sm" onClick={handleConfirm} disabled={saving || preview.length === 0}>
-              {saving ? 'Сохраняем…' : 'Подтвердить и сохранить'}
+              {saving ? 'Добавляем…' : 'Подтвердить и добавить'}
             </button>
             <button type="button" className="btn btn--outline btn--sm" onClick={() => setPreview(null)} disabled={saving}>
               Назад к тексту
