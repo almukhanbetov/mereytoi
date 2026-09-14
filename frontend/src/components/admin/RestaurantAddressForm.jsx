@@ -29,6 +29,14 @@ export default function RestaurantAddressForm({ listing, listingId, onSaved }) {
   const [saved, setSaved] = useState(false);
   const [error, setError] = useState('');
   const [mapsError, setMapsError] = useState(false);
+  // Places-specific diagnosis, separate from mapsError above: the Maps
+  // JavaScript API script can load fine (map renders) while the *Places*
+  // API is disabled/unbilled/restricted for the same key — a distinct,
+  // independently-enabled API in Google Cloud Console. When that happens
+  // the Autocomplete widget fails silently: no dropdown, no error, nothing
+  // for the admin to act on. This surfaces Google's own status code
+  // instead of leaving that failure invisible.
+  const [placesStatus, setPlacesStatus] = useState(null);
 
   const addressInputRef = useRef(null);
   const mapDivRef = useRef(null);
@@ -77,6 +85,25 @@ export default function RestaurantAddressForm({ listing, listingId, onSaved }) {
           const autocomplete = new maps.places.Autocomplete(addressInputRef.current, {
             fields: ['formatted_address', 'geometry', 'place_id'],
           });
+          // Bias suggestions toward wherever the admin is actually looking
+          // on the map (Google's own recommended usage) — also doubles as
+          // a cheap, one-off diagnostic: if Places predictions are blocked
+          // (API not enabled / no billing / key restricted to Maps JS
+          // only), AutocompleteService reports it via `status`, which the
+          // map-rendering-fine / no-dropdown symptom never otherwise
+          // reveals to the admin.
+          autocomplete.bindTo('bounds', map);
+          if (maps.places.AutocompleteService) {
+            new maps.places.AutocompleteService().getPlacePredictions(
+              { input: 'Алматы' },
+              (_predictions, status) => {
+                if (cancelled) return;
+                const ok = status === maps.places.PlacesServiceStatus.OK
+                  || status === maps.places.PlacesServiceStatus.ZERO_RESULTS;
+                setPlacesStatus(ok ? null : status);
+              }
+            );
+          }
           autocomplete.addListener('place_changed', () => {
             const place = autocomplete.getPlace();
             const loc = place.geometry?.location;
@@ -89,7 +116,12 @@ export default function RestaurantAddressForm({ listing, listingId, onSaved }) {
             setValues((v) => ({
               ...v,
               address: place.formatted_address || place.name || v.address,
-              place_id: place.place_id || v.place_id,
+              // place_id is now a read-only, autocomplete-only field (see
+              // the input below) — it must always reflect the currently
+              // selected place, never a stale value from a previous pick,
+              // so a place with no place_id clears it rather than keeping
+              // an old one that no longer matches `address`.
+              place_id: place.place_id || '',
               ...(loc ? { latitude: loc.lat(), longitude: loc.lng() } : {}),
             }));
             setSaved(false);
@@ -168,6 +200,7 @@ export default function RestaurantAddressForm({ listing, listingId, onSaved }) {
             value={values.address}
             onChange={(e) => set('address', e.target.value)}
             placeholder="ул. Абая, 1"
+            autoComplete="off"
           />
         </label>
       </div>
@@ -180,6 +213,13 @@ export default function RestaurantAddressForm({ listing, listingId, onSaved }) {
             <>
               <div ref={mapDivRef} className="admin-map-preview" />
               <p className="admin-upload-status" style={{ fontSize: 12 }}>Перетащите маркер, чтобы уточнить точку на карте</p>
+              {placesStatus && (
+                <p className="admin-login__error" style={{ marginTop: 8 }}>
+                  Подсказки адреса Google не работают (Places API: {placesStatus}). Карта грузится через отдельный
+                  Maps JavaScript API — включите Places API (и биллинг) для этого ключа в Google Cloud Console,
+                  либо задайте координаты вручную/перетаскиванием маркера.
+                </p>
+              )}
             </>
           )}
         </div>
@@ -197,8 +237,16 @@ export default function RestaurantAddressForm({ listing, listingId, onSaved }) {
       </div>
 
       <label>
-        <span>Place ID (Google Maps{mapsOn ? '' : ', если известен — автоподбор не подключён'})</span>
-        <input value={values.place_id} onChange={(e) => set('place_id', e.target.value)} placeholder="ChIJ..." readOnly={mapsOn} />
+        <span>Google Place ID</span>
+        <input
+          value={values.place_id}
+          placeholder="Заполнится автоматически"
+          readOnly
+          style={{ cursor: 'default', background: 'var(--surface-tint)', color: 'var(--text-muted)' }}
+        />
+        <small style={{ fontWeight: 400, fontSize: 12, color: 'var(--text-muted)', marginTop: 2 }}>
+          Заполняется автоматически после выбора адреса из подсказок Google
+        </small>
       </label>
 
       {error && <p className="admin-login__error">{error}</p>}
