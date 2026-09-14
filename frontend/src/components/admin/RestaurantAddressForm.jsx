@@ -79,20 +79,25 @@ export default function RestaurantAddressForm({ listing, listingId, onSaved }) {
           });
           autocomplete.addListener('place_changed', () => {
             const place = autocomplete.getPlace();
-            if (!place.geometry?.location) return;
-            const lat = place.geometry.location.lat();
-            const lng = place.geometry.location.lng();
+            const loc = place.geometry?.location;
+            // Capture the chosen address + place_id even when the Place
+            // Details response carried no geometry (e.g. the key doesn't
+            // have Places API / geocoding enabled). Without this, a
+            // suggestion the admin clearly selected is silently dropped on
+            // save: the Autocomplete widget only writes it into the input's
+            // raw DOM value, which this controlled field never sees.
             setValues((v) => ({
               ...v,
-              address: place.formatted_address || v.address,
-              latitude: lat,
-              longitude: lng,
+              address: place.formatted_address || place.name || v.address,
               place_id: place.place_id || v.place_id,
+              ...(loc ? { latitude: loc.lat(), longitude: loc.lng() } : {}),
             }));
             setSaved(false);
-            map.setCenter({ lat, lng });
-            map.setZoom(16);
-            marker.setPosition({ lat, lng });
+            if (loc) {
+              map.setCenter({ lat: loc.lat(), lng: loc.lng() });
+              map.setZoom(16);
+              marker.setPosition({ lat: loc.lat(), lng: loc.lng() });
+            }
           });
         }
       })
@@ -123,10 +128,15 @@ export default function RestaurantAddressForm({ listing, listingId, onSaved }) {
     setSaving(true);
     setError('');
     try {
+      // The address field is controlled, but Google's Places Autocomplete
+      // writes the picked address straight into the DOM node without firing
+      // React's tracked onChange — so `values.address` can lag behind what
+      // the admin actually sees. Trust the live input value.
+      const address = (addressInputRef.current?.value ?? values.address ?? '').trim();
       const payload = {
         ...listing,
         city: values.city,
-        address: values.address,
+        address,
         latitude: values.latitude === '' ? null : Number(values.latitude),
         longitude: values.longitude === '' ? null : Number(values.longitude),
         place_id: values.place_id || null,
