@@ -50,6 +50,10 @@ func Connect(cfg config.Config) *gorm.DB {
 		// correctly regardless of list order, but the columns simply don't
 		// exist as FK targets until these run at least once.
 		&models.ListingHall{}, &models.ListingMenu{}, &models.ListingMenuSection{}, &models.ListingMenuItem{}, &models.ListingMenuExtra{},
+		// Restaurant/venue ownership — see models/listing_manager.go. Links a
+		// user to a listing they may manage (role owner|manager); a global
+		// admin needs no row here.
+		&models.ListingManager{},
 	); err != nil {
 		log.Fatalf("failed to run migrations: %v", err)
 	}

@@ -7,6 +7,7 @@ import (
 	"github.com/gin-gonic/gin"
 	"gorm.io/gorm"
 
+	"github.com/almukhanbetov/mereytoi/backend/internal/middleware"
 	"github.com/almukhanbetov/mereytoi/backend/internal/models"
 )
 
@@ -61,20 +62,30 @@ func (h *ListingHandler) List(c *gin.Context) {
 		return
 	}
 
+	c.JSON(http.StatusOK, gin.H{"listings": attachListingCounts(h.DB, listings)})
+}
+
+// attachListingCounts computes hall_count/menu_count/min_menu_price_per_
+// guest for a batch of listings in exactly two grouped queries total,
+// regardless of how many listings were passed in — brief section 9's
+// "не создавать N+1" — shared by List and MyListings below so the two
+// management/catalog views can never drift out of sync on how a count is
+// computed.
+func attachListingCounts(db *gorm.DB, listings []models.Listing) []listingOut {
+	if len(listings) == 0 {
+		return []listingOut{}
+	}
 	listingIDs := make([]uint, len(listings))
 	for i, l := range listings {
 		listingIDs[i] = l.ID
 	}
 
-	// Two grouped queries total, regardless of how many listings are on
-	// the page — brief section 9's "не создавать N+1" — never one query
-	// per listing.
 	type hallCountRow struct {
 		ListingID uint
 		Count     int64
 	}
 	var hallCounts []hallCountRow
-	h.DB.Model(&models.ListingHall{}).Select("listing_id, count(*) as count").
+	db.Model(&models.ListingHall{}).Select("listing_id, count(*) as count").
 		Where("listing_id IN ? AND is_active = ?", listingIDs, true).Group("listing_id").Scan(&hallCounts)
 	hallByListing := map[uint]int64{}
 	for _, row := range hallCounts {
@@ -87,7 +98,7 @@ func (h *ListingHandler) List(c *gin.Context) {
 		MinPrice  uint
 	}
 	var menuAggs []menuAggRow
-	h.DB.Model(&models.ListingMenu{}).Select("listing_id, count(*) as count, min(price_per_guest) as min_price").
+	db.Model(&models.ListingMenu{}).Select("listing_id, count(*) as count, min(price_per_guest) as min_price").
 		Where("listing_id IN ? AND is_active = ?", listingIDs, true).Group("listing_id").Scan(&menuAggs)
 	menuByListing := map[uint]menuAggRow{}
 	for _, row := range menuAggs {
@@ -104,7 +115,67 @@ func (h *ListingHandler) List(c *gin.Context) {
 		}
 		out = append(out, row)
 	}
+	return out
+}
 
+// myListingOut adds the current caller's own role for that listing — an
+// always-admin sentinel for a global admin (who never has a real
+// ListingManager row), the actual ListingManager.Role otherwise. Never
+// added to listingOut/List itself — that response is the public catalog
+// shape every other client already parses, unrelated to "who manages
+// this."
+type myListingOut struct {
+	listingOut
+	Role string `json:"role,omitempty"`
+}
+
+// MyListings — GET /api/users/me/listings (brief section: "Мои
+// рестораны"). A global admin sees every listing regardless of category
+// or is_active (this is a management view, not the public catalog, which
+// filters to active-only); anyone else sees only listings they're an
+// owner/manager of via ListingManager. Deliberately not scoped to the
+// `venues` category — ListingManager itself carries no such restriction,
+// so a future non-restaurant use of this same ownership table (if any)
+// isn't silently filtered out here.
+func (h *ListingHandler) MyListings(c *gin.Context) {
+	role, _ := c.Get(middleware.ContextUserRoleKey)
+	userIDVal, _ := c.Get(middleware.ContextUserIDKey)
+	userID, _ := userIDVal.(uint)
+
+	var listings []models.Listing
+	roleByListing := map[uint]string{}
+
+	if role == "admin" {
+		if err := h.DB.Order("name_ru").Find(&listings).Error; err != nil {
+			c.JSON(http.StatusInternalServerError, gin.H{"error": "failed to fetch listings"})
+			return
+		}
+		for _, l := range listings {
+			roleByListing[l.ID] = "admin"
+		}
+	} else {
+		var managers []models.ListingManager
+		h.DB.Where("user_id = ?", userID).Find(&managers)
+		if len(managers) == 0 {
+			c.JSON(http.StatusOK, gin.H{"listings": []myListingOut{}})
+			return
+		}
+		listingIDs := make([]uint, len(managers))
+		for i, m := range managers {
+			listingIDs[i] = m.ListingID
+			roleByListing[m.ListingID] = m.Role
+		}
+		if err := h.DB.Where("id IN ?", listingIDs).Order("name_ru").Find(&listings).Error; err != nil {
+			c.JSON(http.StatusInternalServerError, gin.H{"error": "failed to fetch listings"})
+			return
+		}
+	}
+
+	counted := attachListingCounts(h.DB, listings)
+	out := make([]myListingOut, 0, len(counted))
+	for _, row := range counted {
+		out = append(out, myListingOut{listingOut: row, Role: roleByListing[row.Listing.ID]})
+	}
 	c.JSON(http.StatusOK, gin.H{"listings": out})
 }
 
