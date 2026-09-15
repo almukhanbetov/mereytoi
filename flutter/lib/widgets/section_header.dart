@@ -18,7 +18,12 @@ class SectionHeader extends StatelessWidget {
       children: [
         Text(
           eyebrow.toUpperCase(),
-          style: const TextStyle(color: AppColors.goldPrimary, fontSize: 11.5, fontWeight: FontWeight.w700, letterSpacing: 1.6),
+          style: TextStyle(
+            color: context.mereytoiColors.goldPrimary,
+            fontSize: 11.5,
+            fontWeight: FontWeight.w700,
+            letterSpacing: 1.6,
+          ),
         ),
         const SizedBox(height: 4),
         Text(title, style: Theme.of(context).textTheme.titleLarge),

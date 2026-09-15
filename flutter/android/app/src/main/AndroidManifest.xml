@@ -28,6 +28,26 @@
                 <action android:name="android.intent.action.MAIN"/>
                 <category android:name="android.intent.category.LAUNCHER"/>
             </intent-filter>
+            <!-- App Links for https://mereytoi.kz/claim/:token (Stage 6).
+                 android:autoVerify="true" only actually grants automatic
+                 (no-chooser) opening once Android's Digital Asset Links
+                 check succeeds — that check fetches
+                 https://mereytoi.kz/.well-known/assetlinks.json, a file
+                 that must be hosted on the web domain itself and is NOT
+                 part of this Flutter project. Until that file exists,
+                 Android still offers this app as an option (via the
+                 disambiguation sheet) but won't open it automatically. See
+                 the Stage 6 report for exactly what's still outstanding on
+                 the web side. -->
+            <intent-filter android:autoVerify="true">
+                <action android:name="android.intent.action.VIEW"/>
+                <category android:name="android.intent.category.DEFAULT"/>
+                <category android:name="android.intent.category.BROWSABLE"/>
+                <data
+                    android:scheme="https"
+                    android:host="mereytoi.kz"
+                    android:pathPrefix="/claim"/>
+            </intent-filter>
         </activity>
         <!-- Don't delete the meta-data below.
              This is used by the Flutter tool to generate GeneratedPluginRegistrant.java -->

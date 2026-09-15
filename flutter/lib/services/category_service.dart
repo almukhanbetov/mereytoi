@@ -12,11 +12,15 @@ class CategoryService {
   Future<List<Category>> fetchCategories() async {
     final json = await _client.getJson('/api/categories');
     final raw = json['categories'] as List? ?? const [];
-    return raw.map((e) => Category.fromJson(Map<String, dynamic>.from(e as Map))).toList();
+    return raw
+        .map((e) => Category.fromJson(Map<String, dynamic>.from(e as Map)))
+        .toList();
   }
 
   Future<Category> fetchBySlug(String slug) async {
     final json = await _client.getJson('/api/categories/$slug');
-    return Category.fromJson(Map<String, dynamic>.from(json['category'] as Map));
+    return Category.fromJson(
+      Map<String, dynamic>.from(json['category'] as Map),
+    );
   }
 }

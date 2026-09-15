@@ -1,0 +1,17 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
+<plist version="1.0">
+<dict>
+	<!-- Universal Links for https://mereytoi.kz/claim/:token (Stage 6). This
+	     alone only lets iOS route matching links to this app IF Apple's own
+	     verification succeeds — that verification fetches
+	     https://mereytoi.kz/.well-known/apple-app-site-association at
+	     install/update time, a file that must be hosted on the web domain
+	     itself. This entitlement is the app-side half only; see the Stage 6
+	     report for exactly what's still needed on the web side. -->
+	<key>com.apple.developer.associated-domains</key>
+	<array>
+		<string>applinks:mereytoi.kz</string>
+	</array>
+</dict>
+</plist>

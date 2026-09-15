@@ -3,82 +3,100 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../../core/config/api_config.dart';
 import '../../core/theme/app_theme.dart';
-import '../../core/utils/error_messages.dart';
 import '../../core/utils/format.dart';
 import '../../core/utils/whatsapp.dart';
+import '../../domain/checkout/checkout_validation.dart';
 import '../../models/cart_item.dart';
-import '../../state/booking_submit_provider.dart';
 import '../../state/cart_provider.dart';
 import '../../state/locale_provider.dart';
 import '../../widgets/app_card.dart';
+import '../../widgets/app_icon_badge.dart';
 import '../../widgets/network_image_box.dart';
+import '../checkout/checkout_screen.dart';
+import '../root_shell.dart';
+
+String _blockReasonText(AppLocale locale, CheckoutBlockReason reason) {
+  switch (reason) {
+    case CheckoutBlockReason.emptyCart:
+      return t(locale, ru: 'Корзина пуста', kz: 'Себет бос');
+    case CheckoutBlockReason.missingEstimatedTotal:
+      return t(
+        locale,
+        ru: 'Не удалось определить стоимость позиции. Удалите её и добавьте заново.',
+        kz: 'Позицияның құнын анықтау мүмкін болмады. Оны жойып, қайта қосыңыз.',
+      );
+    case CheckoutBlockReason.invalidGuestCount:
+      return t(
+        locale,
+        ru: 'Проверьте количество гостей в корзине.',
+        kz: 'Себеттегі қонақтар санын тексеріңіз.',
+      );
+  }
+}
 
 /// The mobile counterpart of frontend/src/components/CartDrawer.jsx: cart
-/// items with subtotal/total, a name/phone/message form, submit via the
-/// existing POST /api/bookings, a success screen, and a WhatsApp action —
-/// all local, in-memory cart state (see state/cart_provider.dart).
-class CartScreen extends ConsumerStatefulWidget {
+/// items with subtotal/total, a WhatsApp action, and "Оформить заявку" —
+/// which now (Stage 6) validates the cart via [validateCartForCheckout]
+/// and pushes the dedicated [CheckoutScreen] instead of submitting from
+/// here directly; all local, in-memory cart state (see
+/// state/cart_provider.dart).
+class CartScreen extends ConsumerWidget {
   const CartScreen({super.key});
 
   @override
-  ConsumerState<CartScreen> createState() => _CartScreenState();
-}
-
-class _CartScreenState extends ConsumerState<CartScreen> {
-  final _nameController = TextEditingController();
-  final _phoneController = TextEditingController();
-  final _messageController = TextEditingController();
-  final _formKey = GlobalKey<FormState>();
-
-  @override
-  void dispose() {
-    _nameController.dispose();
-    _phoneController.dispose();
-    _messageController.dispose();
-    super.dispose();
-  }
-
-  @override
-  Widget build(BuildContext context) {
+  Widget build(BuildContext context, WidgetRef ref) {
     final locale = ref.watch(localeProvider);
     final items = ref.watch(cartProvider);
     final total = ref.watch(cartTotalProvider);
-    final submitState = ref.watch(bookingSubmitProvider);
 
     return Scaffold(
-      appBar: AppBar(title: Text(t(locale, ru: 'Корзина', kz: 'Себет'))),
-      body: submitState.maybeWhen(
-        data: (booking) => booking != null
-            ? _SuccessView(locale: locale)
-            : _CartBody(
-                items: items,
-                total: total,
-                locale: locale,
-                formKey: _formKey,
-                nameController: _nameController,
-                phoneController: _phoneController,
-                messageController: _messageController,
-                submitting: false,
+      appBar: AppBar(
+        title: Text(t(locale, ru: 'Корзина', kz: 'Себет')),
+      ),
+      body: items.isEmpty
+          ? _EmptyCart(locale: locale)
+          : _CartBody(items: items, total: total, locale: locale),
+    );
+  }
+}
+
+class _EmptyCart extends ConsumerWidget {
+  const _EmptyCart({required this.locale});
+
+  final AppLocale locale;
+
+  @override
+  Widget build(BuildContext context, WidgetRef ref) {
+    return Center(
+      child: Padding(
+        padding: const EdgeInsets.all(AppSpacing.xl),
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            const AppIconBadge(icon: Icons.shopping_bag_outlined),
+            const SizedBox(height: AppSpacing.md),
+            Text(
+              t(locale, ru: 'Корзина пока пуста', kz: 'Себет әлі бос'),
+              style: Theme.of(context).textTheme.titleMedium,
+            ),
+            const SizedBox(height: AppSpacing.xs),
+            Text(
+              t(
+                locale,
+                ru: 'Добавьте услуги из каталога',
+                kz: 'Каталогтан қызметтерді қосыңыз',
               ),
-        loading: () => _CartBody(
-          items: items,
-          total: total,
-          locale: locale,
-          formKey: _formKey,
-          nameController: _nameController,
-          phoneController: _phoneController,
-          messageController: _messageController,
-          submitting: true,
-        ),
-        orElse: () => _CartBody(
-          items: items,
-          total: total,
-          locale: locale,
-          formKey: _formKey,
-          nameController: _nameController,
-          phoneController: _phoneController,
-          messageController: _messageController,
-          submitting: false,
+              textAlign: TextAlign.center,
+              style: Theme.of(context).textTheme.bodyMedium,
+            ),
+            const SizedBox(height: AppSpacing.lg),
+            OutlinedButton(
+              onPressed: () => ref.read(selectedTabProvider.notifier).state = 1,
+              child: Text(
+                t(locale, ru: 'Выбрать услуги', kz: 'Қызметтерді таңдау'),
+              ),
+            ),
+          ],
         ),
       ),
     );
@@ -90,56 +108,34 @@ class _CartBody extends ConsumerWidget {
     required this.items,
     required this.total,
     required this.locale,
-    required this.formKey,
-    required this.nameController,
-    required this.phoneController,
-    required this.messageController,
-    required this.submitting,
   });
 
   final List<CartItem> items;
   final int total;
   final AppLocale locale;
-  final GlobalKey<FormState> formKey;
-  final TextEditingController nameController;
-  final TextEditingController phoneController;
-  final TextEditingController messageController;
-  final bool submitting;
+
+  void _goToCheckout(BuildContext context, WidgetRef ref) {
+    final validation = validateCartForCheckout(items);
+    if (!validation.isValid) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text(_blockReasonText(locale, validation.reason!))),
+      );
+      return;
+    }
+    Navigator.of(
+      context,
+    ).push(MaterialPageRoute(builder: (_) => const CheckoutScreen()));
+  }
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
-    if (items.isEmpty) {
-      return Center(
-        child: Padding(
-          padding: const EdgeInsets.all(AppSpacing.xl),
-          child: Column(
-            mainAxisSize: MainAxisSize.min,
-            children: [
-              Container(
-                width: 64,
-                height: 64,
-                decoration: const BoxDecoration(color: AppColors.surface, shape: BoxShape.circle),
-                alignment: Alignment.center,
-                child: const Icon(Icons.shopping_bag_outlined, size: 28, color: AppColors.textSecondary),
-              ),
-              const SizedBox(height: AppSpacing.md),
-              Text(t(locale, ru: 'Корзина пуста', kz: 'Себет бос'), style: Theme.of(context).textTheme.titleMedium),
-              const SizedBox(height: AppSpacing.xs),
-              Text(
-                t(locale, ru: 'Добавьте услуги из каталога', kz: 'Каталогтан қызметтерді қосыңыз'),
-                textAlign: TextAlign.center,
-                style: Theme.of(context).textTheme.bodyMedium,
-              ),
-            ],
-          ),
-        ),
-      );
-    }
-
-    final submitError = ref.watch(bookingSubmitProvider).maybeWhen(error: (e, _) => e, orElse: () => null);
-
     return ListView(
-      padding: const EdgeInsets.fromLTRB(AppSpacing.lg, AppSpacing.sm, AppSpacing.lg, AppSpacing.xl),
+      padding: const EdgeInsets.fromLTRB(
+        AppSpacing.lg,
+        AppSpacing.sm,
+        AppSpacing.lg,
+        AppSpacing.xl,
+      ),
       children: [
         for (final item in items) ...[
           _CartItemCard(item: item, locale: locale),
@@ -150,63 +146,26 @@ class _CartBody extends ConsumerWidget {
         // list above already reads as a group, so the total just needs a
         // clear line under it, not a second dark container stacked on top.
         DecoratedBox(
-          decoration: const BoxDecoration(border: Border(top: BorderSide(color: AppColors.divider))),
+          decoration: BoxDecoration(
+            border: Border(
+              top: BorderSide(color: context.mereytoiColors.divider),
+            ),
+          ),
           child: Padding(
             padding: const EdgeInsets.only(top: AppSpacing.sm),
-            child: _TotalsRow(label: t(locale, ru: 'Итого', kz: 'Барлығы'), value: formatPrice(total), emphasize: true),
+            child: _TotalsRow(
+              label: t(locale, ru: 'Итого', kz: 'Барлығы'),
+              value: formatPrice(total),
+              emphasize: true,
+            ),
           ),
         ),
         const SizedBox(height: AppSpacing.lg),
-        Text(t(locale, ru: 'Оформление заявки', kz: 'Өтінім рәсімдеу'), style: Theme.of(context).textTheme.titleMedium),
-        const SizedBox(height: AppSpacing.xs),
-        Form(
-          key: formKey,
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              TextFormField(
-                controller: nameController,
-                decoration: InputDecoration(labelText: t(locale, ru: 'Ваше имя', kz: 'Атыңыз')),
-                validator: (v) => (v == null || v.trim().isEmpty) ? t(locale, ru: 'Введите имя', kz: 'Атыңызды енгізіңіз') : null,
-              ),
-              const SizedBox(height: AppSpacing.xs),
-              TextFormField(
-                controller: phoneController,
-                keyboardType: TextInputType.phone,
-                decoration: InputDecoration(labelText: t(locale, ru: 'Телефон', kz: 'Телефон'), hintText: '+7 700 000 00 00'),
-                validator: (v) => (v == null || v.trim().isEmpty) ? t(locale, ru: 'Введите телефон', kz: 'Телефоныңызды енгізіңіз') : null,
-              ),
-              const SizedBox(height: AppSpacing.xs),
-              TextFormField(
-                controller: messageController,
-                maxLines: 3,
-                maxLength: 1000,
-                decoration: InputDecoration(labelText: t(locale, ru: 'Сообщение (необязательно)', kz: 'Хабарлама (міндетті емес)')),
-              ),
-            ],
-          ),
-        ),
-        if (submitError != null) ...[
-          const SizedBox(height: AppSpacing.xxs),
-          Text(apiErrorMessage(locale, submitError), style: const TextStyle(color: AppColors.error, fontSize: 13)),
-        ],
-        const SizedBox(height: AppSpacing.xs),
         SizedBox(
           width: double.infinity,
           child: ElevatedButton.icon(
-            onPressed: submitting
-                ? null
-                : () {
-                    if (!formKey.currentState!.validate()) return;
-                    ref.read(bookingSubmitProvider.notifier).submit(
-                          name: nameController.text.trim(),
-                          phone: phoneController.text.trim(),
-                          message: messageController.text.trim(),
-                        );
-                  },
-            icon: submitting
-                ? const SizedBox(width: 16, height: 16, child: CircularProgressIndicator(strokeWidth: 2.2, color: AppColors.onGold))
-                : const Icon(Icons.arrow_forward_rounded, size: 17),
+            onPressed: () => _goToCheckout(context, ref),
+            icon: const Icon(Icons.arrow_forward_rounded, size: 17),
             label: Text(t(locale, ru: 'Оформить заявку', kz: 'Өтінім жасау')),
           ),
         ),
@@ -216,16 +175,26 @@ class _CartBody extends ConsumerWidget {
           child: OutlinedButton.icon(
             style: OutlinedButton.styleFrom(
               minimumSize: const Size.fromHeight(44),
-              foregroundColor: AppColors.textSecondary,
+              foregroundColor: context.mereytoiColors.textSecondary,
               textStyle: Theme.of(context).textTheme.labelMedium,
             ),
             onPressed: () async {
-              final phone = phoneController.text.trim();
-              final link = buildWhatsAppLink(items: items, total: total, phone: phone, locale: locale);
+              final link = buildWhatsAppLink(
+                items: items,
+                total: total,
+                phone: '',
+                locale: locale,
+              );
               await openWhatsApp(link);
             },
-            icon: const Icon(Icons.chat_bubble_outline_rounded, size: 17, color: AppColors.whatsapp),
-            label: Text(t(locale, ru: 'Написать в WhatsApp', kz: 'WhatsApp-қа жазу')),
+            icon: Icon(
+              Icons.chat_bubble_outline_rounded,
+              size: 17,
+              color: context.mereytoiColors.whatsapp,
+            ),
+            label: Text(
+              t(locale, ru: 'Написать в WhatsApp', kz: 'WhatsApp-қа жазу'),
+            ),
           ),
         ),
       ],
@@ -244,13 +213,17 @@ class _CartItemCard extends ConsumerWidget {
     return AppCard(
       padding: const EdgeInsets.all(AppSpacing.xs),
       child: Row(
+        crossAxisAlignment: CrossAxisAlignment.start,
         children: [
           ClipRRect(
             borderRadius: BorderRadius.circular(AppRadius.sm),
             child: SizedBox(
               width: 44,
               height: 44,
-              child: NetworkImageBox(url: ApiConfig.mediaUrl(item.image), fallbackIcon: Icons.celebration_outlined),
+              child: NetworkImageBox(
+                url: ApiConfig.mediaUrl(item.image),
+                fallbackIcon: Icons.celebration_outlined,
+              ),
             ),
           ),
           const SizedBox(width: AppSpacing.sm),
@@ -265,7 +238,12 @@ class _CartItemCard extends ConsumerWidget {
                   overflow: TextOverflow.ellipsis,
                   style: Theme.of(context).textTheme.titleSmall,
                 ),
-                if (item.guests > 0) ...[
+                if (item.isRestaurantVariant)
+                  ..._RestaurantVariantDetails(
+                    item: item,
+                    locale: locale,
+                  ).lines(context)
+                else if (item.guests > 0) ...[
                   const SizedBox(height: 1),
                   Text(
                     '${item.guests} ${t(locale, ru: "чел.", kz: "адам")} × ${formatPrice(item.unitPrice)}',
@@ -274,8 +252,15 @@ class _CartItemCard extends ConsumerWidget {
                     style: Theme.of(context).textTheme.bodySmall,
                   ),
                 ],
-                const SizedBox(height: 1),
-                Text(formatPrice(item.totalPrice), style: const TextStyle(color: AppColors.goldSoft, fontWeight: FontWeight.w800, fontSize: 14)),
+                const SizedBox(height: 2),
+                Text(
+                  formatPrice(item.totalPrice),
+                  style: TextStyle(
+                    color: context.mereytoiColors.goldSoft,
+                    fontWeight: FontWeight.w800,
+                    fontSize: 14,
+                  ),
+                ),
               ],
             ),
           ),
@@ -283,10 +268,18 @@ class _CartItemCard extends ConsumerWidget {
             // Tap target stays the theme's 44x44 minimum; the *visible* dot
             // is the small icon-on-soft-fill below — "neater", not smaller
             // to tap.
-            onPressed: () => ref.read(cartProvider.notifier).removeItem(item.listingId),
-            icon: const Icon(Icons.close_rounded, size: 15, color: AppColors.textSecondary),
+            onPressed: () =>
+                ref.read(cartProvider.notifier).removeItem(item.key),
+            icon: Icon(
+              Icons.close_rounded,
+              size: 15,
+              color: context.mereytoiColors.textSecondary,
+            ),
             iconSize: 15,
-            style: IconButton.styleFrom(backgroundColor: AppColors.surfaceSoft, padding: const EdgeInsets.all(AppSpacing.xxs)),
+            style: IconButton.styleFrom(
+              backgroundColor: context.mereytoiColors.surfaceSoft,
+              padding: const EdgeInsets.all(AppSpacing.xxs),
+            ),
           ),
         ],
       ),
@@ -294,8 +287,60 @@ class _CartItemCard extends ConsumerWidget {
   }
 }
 
+/// The restaurant-only detail lines under a cart card's title — hall,
+/// guests × price/guest, and a short "+ extra, extra" summary. Every line
+/// is genuinely optional (brief section 7 — "не показывать null/пустые
+/// строки"): a hall-less menu just skips its line, no extras means no
+/// extras line at all.
+class _RestaurantVariantDetails {
+  const _RestaurantVariantDetails({required this.item, required this.locale});
+
+  final CartItem item;
+  final AppLocale locale;
+
+  List<Widget> lines(BuildContext context) {
+    final style = Theme.of(context).textTheme.bodySmall;
+    return [
+      if (item.hallName != null && item.hallName!.isNotEmpty)
+        Padding(
+          padding: const EdgeInsets.only(top: 1),
+          child: Text(
+            '${t(locale, ru: "Зал", kz: "Зал")}: ${item.hallName}',
+            maxLines: 1,
+            overflow: TextOverflow.ellipsis,
+            style: style,
+          ),
+        ),
+      if (item.guests > 0)
+        Padding(
+          padding: const EdgeInsets.only(top: 1),
+          child: Text(
+            '${item.guests} ${t(locale, ru: "гостей", kz: "қонақ")} × ${formatPrice(item.menuPricePerGuest ?? item.unitPrice)}',
+            maxLines: 1,
+            overflow: TextOverflow.ellipsis,
+            style: style,
+          ),
+        ),
+      if (item.selectedExtras.isNotEmpty)
+        Padding(
+          padding: const EdgeInsets.only(top: 1),
+          child: Text(
+            '+ ${item.selectedExtras.map((e) => e.title).join(', ')}',
+            maxLines: 2,
+            overflow: TextOverflow.ellipsis,
+            style: style,
+          ),
+        ),
+    ];
+  }
+}
+
 class _TotalsRow extends StatelessWidget {
-  const _TotalsRow({required this.label, required this.value, this.emphasize = false});
+  const _TotalsRow({
+    required this.label,
+    required this.value,
+    this.emphasize = false,
+  });
 
   final String label;
   final String value;
@@ -310,50 +355,13 @@ class _TotalsRow extends StatelessWidget {
         Text(
           value,
           style: emphasize
-              ? Theme.of(context).textTheme.titleLarge?.copyWith(color: AppColors.goldSoft, fontSize: 22)
+              ? Theme.of(context).textTheme.titleLarge?.copyWith(
+                  color: context.mereytoiColors.goldSoft,
+                  fontSize: 22,
+                )
               : Theme.of(context).textTheme.bodyLarge,
         ),
       ],
-    );
-  }
-}
-
-class _SuccessView extends ConsumerWidget {
-  const _SuccessView({required this.locale});
-
-  final AppLocale locale;
-
-  @override
-  Widget build(BuildContext context, WidgetRef ref) {
-    return Center(
-      child: Padding(
-        padding: const EdgeInsets.all(AppSpacing.xl),
-        child: Column(
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            Container(
-              width: 72,
-              height: 72,
-              decoration: const BoxDecoration(color: AppColors.surfaceSoft, shape: BoxShape.circle),
-              alignment: Alignment.center,
-              child: const Icon(Icons.check_rounded, color: AppColors.goldPrimary, size: 34),
-            ),
-            const SizedBox(height: AppSpacing.lg),
-            Text(t(locale, ru: 'Спасибо!', kz: 'Рахмет!'), style: Theme.of(context).textTheme.displayMedium),
-            const SizedBox(height: AppSpacing.xs),
-            Text(
-              t(locale, ru: 'Мы свяжемся с вами в ближайшее время.', kz: 'Жақын арада сізбен байланысамыз.'),
-              textAlign: TextAlign.center,
-              style: Theme.of(context).textTheme.bodyMedium,
-            ),
-            const SizedBox(height: AppSpacing.xl),
-            OutlinedButton(
-              onPressed: () => ref.read(bookingSubmitProvider.notifier).reset(),
-              child: Text(t(locale, ru: 'Продолжить', kz: 'Жалғастыру')),
-            ),
-          ],
-        ),
-      ),
     );
   }
 }

@@ -11,7 +11,12 @@ import 'network_image_box.dart';
 /// in the redesign that's still "image card", intentionally) but tightened
 /// radius/typography/spacing to match the rest of the new system.
 class CategoryCard extends StatelessWidget {
-  const CategoryCard({super.key, required this.category, required this.locale, required this.onTap});
+  const CategoryCard({
+    super.key,
+    required this.category,
+    required this.locale,
+    required this.onTap,
+  });
 
   final Category category;
   final AppLocale locale;
@@ -20,7 +25,7 @@ class CategoryCard extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return Material(
-      color: AppColors.surface,
+      color: context.mereytoiColors.surface,
       borderRadius: BorderRadius.circular(AppRadius.lg),
       clipBehavior: Clip.antiAlias,
       child: InkWell(
@@ -30,13 +35,20 @@ class CategoryCard extends StatelessWidget {
           child: Stack(
             fit: StackFit.expand,
             children: [
-              NetworkImageBox(url: ApiConfig.mediaUrl(category.imageUrl), borderRadius: 0, fallbackIcon: Icons.auto_awesome),
+              NetworkImageBox(
+                url: ApiConfig.mediaUrl(category.imageUrl),
+                borderRadius: 0,
+                fallbackIcon: Icons.auto_awesome,
+              ),
               DecoratedBox(
                 decoration: BoxDecoration(
                   gradient: LinearGradient(
                     begin: Alignment.topCenter,
                     end: Alignment.bottomCenter,
-                    colors: [Colors.transparent, Colors.black.withValues(alpha: 0.58)],
+                    colors: [
+                      Colors.transparent,
+                      Colors.black.withValues(alpha: 0.58),
+                    ],
                     stops: const [0.58, 1.0],
                   ),
                 ),
@@ -49,7 +61,9 @@ class CategoryCard extends StatelessWidget {
                   category.name(locale),
                   maxLines: 2,
                   overflow: TextOverflow.ellipsis,
-                  style: Theme.of(context).textTheme.titleSmall?.copyWith(fontSize: 12.5),
+                  style: Theme.of(
+                    context,
+                  ).textTheme.titleSmall?.copyWith(fontSize: 12.5),
                 ),
               ),
             ],

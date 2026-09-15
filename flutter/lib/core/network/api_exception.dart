@@ -1,7 +1,17 @@
 /// Broad failure category — kept locale-free here (RU/KZ text lives in
 /// core/utils/app_strings.dart) so a screen can show a bilingual message
 /// instead of a raw Dio/HTTP exception or stack trace.
-enum ApiErrorType { network, timeout, notFound, server, unknown }
+enum ApiErrorType {
+  network,
+  timeout,
+  notFound,
+  unauthorized,
+  forbidden,
+  gone,
+  conflict,
+  server,
+  unknown,
+}
 
 class ApiException implements Exception {
   const ApiException(this.type, {this.statusCode, this.debugMessage});
@@ -11,5 +21,6 @@ class ApiException implements Exception {
   final String? debugMessage;
 
   @override
-  String toString() => 'ApiException(${type.name}, status: $statusCode, $debugMessage)';
+  String toString() =>
+      'ApiException(${type.name}, status: $statusCode, $debugMessage)';
 }

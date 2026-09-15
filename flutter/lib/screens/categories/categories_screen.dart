@@ -35,10 +35,23 @@ class CategoriesScreen extends ConsumerWidget {
       ),
       body: categories.when(
         loading: () => const AppGridSkeleton(itemCount: 6, aspectRatio: 0.92),
-        error: (err, _) => AppErrorView(message: apiErrorMessage(locale, err), locale: locale, onRetry: () => ref.invalidate(categoriesProvider)),
+        error: (err, _) => AppErrorView(
+          message: apiErrorMessage(locale, err),
+          locale: locale,
+          onRetry: () => ref.invalidate(categoriesProvider),
+        ),
         data: (list) {
           if (list.isEmpty) {
-            return Center(child: Text(t(locale, ru: 'Категории скоро появятся', kz: 'Санаттар жақында қосылады'), style: Theme.of(context).textTheme.bodyMedium));
+            return Center(
+              child: Text(
+                t(
+                  locale,
+                  ru: 'Категории скоро появятся',
+                  kz: 'Санаттар жақында қосылады',
+                ),
+                style: Theme.of(context).textTheme.bodyMedium,
+              ),
+            );
           }
           return GridView.builder(
             padding: const EdgeInsets.all(AppSpacing.lg),
@@ -57,7 +70,10 @@ class CategoriesScreen extends ConsumerWidget {
                   category: category,
                   locale: locale,
                   onTap: () => Navigator.of(context).push(
-                    MaterialPageRoute(builder: (_) => ServicesScreen(initialCategorySlug: category.slug)),
+                    MaterialPageRoute(
+                      builder: (_) =>
+                          ServicesScreen(initialCategorySlug: category.slug),
+                    ),
                   ),
                 ),
               );

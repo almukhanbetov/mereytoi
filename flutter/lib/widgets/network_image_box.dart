@@ -25,7 +25,10 @@ class NetworkImageBox extends StatelessWidget {
   Widget build(BuildContext context) {
     final radius = BorderRadius.circular(borderRadius);
     if (url == null || url!.isEmpty) {
-      return ClipRRect(borderRadius: radius, child: _Placeholder(icon: fallbackIcon));
+      return ClipRRect(
+        borderRadius: radius,
+        child: _Placeholder(icon: fallbackIcon),
+      );
     }
     return ClipRRect(
       borderRadius: radius,
@@ -47,16 +50,21 @@ class _Placeholder extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final colors = context.mereytoiColors;
     return Container(
-      decoration: const BoxDecoration(
+      decoration: BoxDecoration(
         gradient: LinearGradient(
           begin: Alignment.topLeft,
           end: Alignment.bottomRight,
-          colors: [AppColors.surface, AppColors.backgroundSecondary],
+          colors: [colors.surface, colors.backgroundSecondary],
         ),
       ),
       alignment: Alignment.center,
-      child: Icon(icon, color: AppColors.goldPrimary.withValues(alpha: 0.5), size: 28),
+      child: Icon(
+        icon,
+        color: colors.goldPrimary.withValues(alpha: 0.5),
+        size: 28,
+      ),
     );
   }
 }

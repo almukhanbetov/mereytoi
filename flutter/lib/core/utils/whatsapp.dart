@@ -10,7 +10,9 @@ import 'format.dart';
 String _toWhatsAppDigits(String phone) {
   final digits = phone.replaceAll(RegExp(r'\D'), '');
   if (digits.isEmpty) return '';
-  if (digits.length == 11 && digits.startsWith('8')) return '7${digits.substring(1)}';
+  if (digits.length == 11 && digits.startsWith('8')) {
+    return '7${digits.substring(1)}';
+  }
   if (digits.length == 10) return '7$digits';
   return digits;
 }
@@ -19,8 +21,17 @@ String _toWhatsAppDigits(String phone) {
 /// cart WhatsApp button sends (frontend/src/lib/whatsapp.js's
 /// buildWhatsAppLink) — opens a chat to the phone number the customer
 /// entered, with the cart contents as the message text.
-String buildWhatsAppLink({required List<CartItem> items, required int total, required String phone, required AppLocale locale}) {
-  final header = t(locale, ru: '✨ MEREYTOI — Коммерческое предложение', kz: '✨ MEREYTOI — Коммерциялық ұсыныс');
+String buildWhatsAppLink({
+  required List<CartItem> items,
+  required int total,
+  required String phone,
+  required AppLocale locale,
+}) {
+  final header = t(
+    locale,
+    ru: '✨ MEREYTOI — Коммерческое предложение',
+    kz: '✨ MEREYTOI — Коммерциялық ұсыныс',
+  );
 
   final lines = <String>[];
   for (var i = 0; i < items.length; i++) {
@@ -31,8 +42,17 @@ String buildWhatsAppLink({required List<CartItem> items, required int total, req
     lines.add('${i + 1}. ${item.name}\n   $detail');
   }
 
-  final totalLine = '${t(locale, ru: "Итого", kz: "Барлығы")}: ${formatPrice(total)}';
-  final text = [header, '', ...lines, '', totalLine, '', 'mereytoi.kz'].join('\n');
+  final totalLine =
+      '${t(locale, ru: "Итого", kz: "Барлығы")}: ${formatPrice(total)}';
+  final text = [
+    header,
+    '',
+    ...lines,
+    '',
+    totalLine,
+    '',
+    'mereytoi.kz',
+  ].join('\n');
 
   final digits = _toWhatsAppDigits(phone);
   final base = digits.isNotEmpty ? 'https://wa.me/$digits' : 'https://wa.me/';

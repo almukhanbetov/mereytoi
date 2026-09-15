@@ -4,15 +4,15 @@ import '../models/cart_item.dart';
 
 /// Wraps POST /api/bookings with the exact payload shape
 /// backend/internal/handlers/booking_handler.go's `bookingInput` expects:
-/// {name, phone, message, items:[{listing_id, name, category, guests,
-/// unit_price, total_price}]}. Public endpoint (OptionalAuth) — no token
-/// is sent, same as an anonymous checkout on the site.
+/// {name, phone, message, items:[...]} (see `CartItem.toBookingItemJson`
+/// for the exact per-item shape). Public endpoint (OptionalAuth) — no
+/// token is sent, same as an anonymous checkout on the site.
 class BookingService {
   BookingService(this._client);
 
   final ApiClient _client;
 
-  Future<Booking> submitBooking({
+  Future<BookingCreateResult> submitBooking({
     required String name,
     required String phone,
     String message = '',
@@ -24,6 +24,6 @@ class BookingService {
       'message': message,
       'items': items.map((i) => i.toBookingItemJson()).toList(),
     });
-    return Booking.fromJson(Map<String, dynamic>.from(json['booking'] as Map));
+    return BookingCreateResult.fromJson(json);
   }
 }

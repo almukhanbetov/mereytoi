@@ -24,7 +24,13 @@ bool _categoryLaneNudgeShown = false;
 /// can), plus a single gentle nudge-and-settle on first appearance so a
 /// first-time visitor never has to guess it scrolls.
 class CategoryFilterBar extends StatefulWidget {
-  const CategoryFilterBar({super.key, required this.categories, required this.activeSlug, required this.locale, required this.onSelect});
+  const CategoryFilterBar({
+    super.key,
+    required this.categories,
+    required this.activeSlug,
+    required this.locale,
+    required this.onSelect,
+  });
 
   final List<Category> categories;
   final String? activeSlug;
@@ -76,13 +82,24 @@ class _CategoryFilterBarState extends State<CategoryFilterBar> {
   /// short trip, no bounce, no repeat.
   Future<void> _maybeNudge() async {
     if (_categoryLaneNudgeShown) return;
-    if (!_scrollController.hasClients || _scrollController.position.maxScrollExtent <= 0) return;
+    if (!_scrollController.hasClients ||
+        _scrollController.position.maxScrollExtent <= 0) {
+      return;
+    }
     _categoryLaneNudgeShown = true;
     await Future.delayed(const Duration(milliseconds: 350));
     if (!mounted || !_scrollController.hasClients) return;
-    await _scrollController.animateTo(26, duration: const Duration(milliseconds: 420), curve: Curves.easeOut);
+    await _scrollController.animateTo(
+      26,
+      duration: const Duration(milliseconds: 420),
+      curve: Curves.easeOut,
+    );
     if (!mounted || !_scrollController.hasClients) return;
-    await _scrollController.animateTo(0, duration: const Duration(milliseconds: 420), curve: Curves.easeInOut);
+    await _scrollController.animateTo(
+      0,
+      duration: const Duration(milliseconds: 420),
+      curve: Curves.easeInOut,
+    );
   }
 
   @override
@@ -98,23 +115,42 @@ class _CategoryFilterBarState extends State<CategoryFilterBar> {
             scrollDirection: Axis.horizontal,
             // Trailing padding widened to clear the (now more visible) right
             // edge hint so it never sits on top of the last chip's tap area.
-            padding: const EdgeInsets.fromLTRB(AppSpacing.lg, 0, AppSpacing.xxl, 0),
+            padding: const EdgeInsets.fromLTRB(
+              AppSpacing.lg,
+              0,
+              AppSpacing.xxl,
+              0,
+            ),
             itemCount: categories.length + 2,
             separatorBuilder: (_, _) => const SizedBox(width: AppSpacing.xs),
             itemBuilder: (context, i) {
               if (i == 0) {
-                return AppChip(label: t(widget.locale, ru: 'Все', kz: 'Барлығы'), selected: widget.activeSlug == null, onTap: () => widget.onSelect(null));
+                return AppChip(
+                  label: t(widget.locale, ru: 'Все', kz: 'Барлығы'),
+                  selected: widget.activeSlug == null,
+                  onTap: () => widget.onSelect(null),
+                );
               }
               if (i == categories.length + 1) {
                 return _AllCategoriesChip(
                   locale: widget.locale,
-                  onTap: () => showCategoryPickerSheet(context, categories: categories, activeSlug: widget.activeSlug, locale: widget.locale, onSelect: widget.onSelect),
+                  onTap: () => showCategoryPickerSheet(
+                    context,
+                    categories: categories,
+                    activeSlug: widget.activeSlug,
+                    locale: widget.locale,
+                    onSelect: widget.onSelect,
+                  ),
                 );
               }
               final category = categories[i - 1];
               return ConstrainedBox(
                 constraints: const BoxConstraints(maxWidth: 150),
-                child: AppChip(label: category.name(widget.locale), selected: widget.activeSlug == category.slug, onTap: () => widget.onSelect(category.slug)),
+                child: AppChip(
+                  label: category.name(widget.locale),
+                  selected: widget.activeSlug == category.slug,
+                  onTap: () => widget.onSelect(category.slug),
+                ),
               );
             },
           ),
@@ -159,27 +195,41 @@ class _EdgeHint extends StatelessWidget {
                 begin: _isLeft ? Alignment.centerLeft : Alignment.centerRight,
                 end: _isLeft ? Alignment.centerRight : Alignment.centerLeft,
                 colors: [
-                  AppColors.backgroundPrimary,
-                  AppColors.backgroundPrimary.withValues(alpha: 0.6),
-                  AppColors.backgroundPrimary.withValues(alpha: 0),
+                  context.mereytoiColors.backgroundPrimary,
+                  context.mereytoiColors.backgroundPrimary.withValues(
+                    alpha: 0.6,
+                  ),
+                  context.mereytoiColors.backgroundPrimary.withValues(alpha: 0),
                 ],
                 stops: const [0, 0.5, 1],
               ),
             ),
             alignment: alignment,
-            padding: EdgeInsets.only(left: _isLeft ? 0 : 6, right: _isLeft ? 6 : 0),
+            padding: EdgeInsets.only(
+              left: _isLeft ? 0 : 6,
+              right: _isLeft ? 6 : 0,
+            ),
             // The chevron itself sits on a small, soft champagne-gold disc —
             // warm and on-brand instead of the previous neutral grey, and
             // visible against the fade without reading as a hard button.
             child: Container(
               width: 24,
               height: 24,
-              decoration: BoxDecoration(shape: BoxShape.circle, color: AppColors.goldPrimary.withValues(alpha: 0.16)),
+              decoration: BoxDecoration(
+                shape: BoxShape.circle,
+                color: context.mereytoiColors.goldPrimary.withValues(
+                  alpha: 0.16,
+                ),
+              ),
               alignment: Alignment.center,
               child: Icon(
-                _isLeft ? Icons.chevron_left_rounded : Icons.chevron_right_rounded,
+                _isLeft
+                    ? Icons.chevron_left_rounded
+                    : Icons.chevron_right_rounded,
                 size: 20,
-                color: AppColors.goldPrimary.withValues(alpha: 0.92),
+                color: context.mereytoiColors.goldPrimary.withValues(
+                  alpha: 0.92,
+                ),
               ),
             ),
           ),
@@ -204,22 +254,34 @@ class _AllCategoriesChip extends StatelessWidget {
   Widget build(BuildContext context) {
     return Material(
       color: Colors.transparent,
-      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(AppRadius.chip), side: const BorderSide(color: AppColors.divider)),
+      shape: RoundedRectangleBorder(
+        borderRadius: BorderRadius.circular(AppRadius.chip),
+        side: BorderSide(color: context.mereytoiColors.divider),
+      ),
       child: InkWell(
         onTap: onTap,
         borderRadius: BorderRadius.circular(AppRadius.chip),
         child: Container(
           constraints: const BoxConstraints(minHeight: 44),
-          padding: const EdgeInsets.symmetric(horizontal: AppSpacing.sm, vertical: AppSpacing.xxs),
+          padding: const EdgeInsets.symmetric(
+            horizontal: AppSpacing.sm,
+            vertical: AppSpacing.xxs,
+          ),
           alignment: Alignment.center,
           child: Row(
             mainAxisSize: MainAxisSize.min,
             children: [
-              const Icon(Icons.apps_rounded, size: 15, color: AppColors.textSecondary),
+              Icon(
+                Icons.apps_rounded,
+                size: 15,
+                color: context.mereytoiColors.textSecondary,
+              ),
               const SizedBox(width: AppSpacing.xxs),
               Text(
                 t(locale, ru: 'Все категории', kz: 'Барлық санаттар'),
-                style: Theme.of(context).textTheme.labelMedium?.copyWith(color: AppColors.textSecondary),
+                style: Theme.of(context).textTheme.labelMedium?.copyWith(
+                  color: context.mereytoiColors.textSecondary,
+                ),
               ),
             ],
           ),

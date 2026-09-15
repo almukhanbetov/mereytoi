@@ -38,7 +38,13 @@ class AppBackButton extends StatelessWidget {
           child: Icon(
             Icons.arrow_back_rounded,
             size: 20,
-            color: onHero ? AppColors.goldSoft : AppColors.textPrimary,
+            // `onHero`'s backdrop is always black regardless of theme, so
+            // that branch keeps the dark-palette gold on purpose; the flat
+            // branch sits directly on the page background and must follow
+            // the active theme or it goes near-invisible on light.
+            color: onHero
+                ? context.mereytoiColors.goldSoft
+                : context.mereytoiColors.textPrimary,
           ),
         ),
       ),

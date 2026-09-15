@@ -6,7 +6,12 @@ import '../core/theme/app_theme.dart';
 /// instead of a spinner marooned in the middle of an empty screen, so the
 /// layout that's about to load is already legible while data is in flight.
 class AppSkeleton extends StatefulWidget {
-  const AppSkeleton({super.key, this.borderRadius = AppRadius.md, this.width, this.height});
+  const AppSkeleton({
+    super.key,
+    this.borderRadius = AppRadius.md,
+    this.width,
+    this.height,
+  });
 
   final double borderRadius;
   final double? width;
@@ -16,13 +21,17 @@ class AppSkeleton extends StatefulWidget {
   State<AppSkeleton> createState() => _AppSkeletonState();
 }
 
-class _AppSkeletonState extends State<AppSkeleton> with SingleTickerProviderStateMixin {
+class _AppSkeletonState extends State<AppSkeleton>
+    with SingleTickerProviderStateMixin {
   late final AnimationController _controller;
 
   @override
   void initState() {
     super.initState();
-    _controller = AnimationController(vsync: this, duration: const Duration(milliseconds: 1100))..repeat(reverse: true);
+    _controller = AnimationController(
+      vsync: this,
+      duration: const Duration(milliseconds: 1100),
+    )..repeat(reverse: true);
   }
 
   @override
@@ -33,6 +42,7 @@ class _AppSkeletonState extends State<AppSkeleton> with SingleTickerProviderStat
 
   @override
   Widget build(BuildContext context) {
+    final colors = context.mereytoiColors;
     return AnimatedBuilder(
       animation: _controller,
       builder: (context, _) {
@@ -41,7 +51,7 @@ class _AppSkeletonState extends State<AppSkeleton> with SingleTickerProviderStat
           width: widget.width,
           height: widget.height,
           decoration: BoxDecoration(
-            color: Color.lerp(AppColors.surface, AppColors.surfaceElevated, t),
+            color: Color.lerp(colors.surface, colors.surfaceElevated, t),
             borderRadius: BorderRadius.circular(widget.borderRadius),
           ),
         );
@@ -61,12 +71,18 @@ class AppCardSkeleton extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return Container(
-      decoration: BoxDecoration(color: AppColors.surface, borderRadius: BorderRadius.circular(AppRadius.lg)),
+      decoration: BoxDecoration(
+        color: context.mereytoiColors.card,
+        borderRadius: BorderRadius.circular(AppRadius.lg),
+      ),
       clipBehavior: Clip.antiAlias,
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          AspectRatio(aspectRatio: aspectRatio, child: const AppSkeleton(borderRadius: 0)),
+          AspectRatio(
+            aspectRatio: aspectRatio,
+            child: const AppSkeleton(borderRadius: 0),
+          ),
           Padding(
             padding: const EdgeInsets.all(AppSpacing.md),
             child: Column(
@@ -76,7 +92,10 @@ class AppCardSkeleton extends StatelessWidget {
                 const SizedBox(height: AppSpacing.sm),
                 const AppSkeleton(height: 14, width: 120),
                 const SizedBox(height: AppSpacing.sm),
-                AppSkeleton(height: 12, width: MediaQuery.sizeOf(context).width * 0.2),
+                AppSkeleton(
+                  height: 12,
+                  width: MediaQuery.sizeOf(context).width * 0.2,
+                ),
               ],
             ),
           ),
@@ -89,7 +108,11 @@ class AppCardSkeleton extends StatelessWidget {
 /// A row of [AppCardSkeleton] tiles filling a 2-column grid — drop-in
 /// replacement for `AppLoader()` on the Services/Categories grids.
 class AppGridSkeleton extends StatelessWidget {
-  const AppGridSkeleton({super.key, this.itemCount = 6, this.aspectRatio = 0.72});
+  const AppGridSkeleton({
+    super.key,
+    this.itemCount = 6,
+    this.aspectRatio = 0.72,
+  });
 
   final int itemCount;
   final double aspectRatio;
