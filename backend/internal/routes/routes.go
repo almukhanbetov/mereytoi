@@ -57,6 +57,7 @@ func Register(r *gin.Engine, database *gorm.DB, cfg config.Config, mailSvc ...*m
 	listingHandler := handlers.NewListingHandler(database)
 	listingHallHandler := handlers.NewListingHallHandler(database)
 	listingMenuHandler := handlers.NewListingMenuHandler(database)
+	listingManagerHandler := handlers.NewListingManagerHandler(database)
 	uploadHandler := handlers.NewUploadHandler()
 	bookingHandler := handlers.NewBookingHandler(database, cfg, delivery)
 	commentHandler := handlers.NewCommentHandler(database)
@@ -108,6 +109,10 @@ func Register(r *gin.Engine, database *gorm.DB, cfg config.Config, mailSvc ...*m
 			users.DELETE("/me/bookings/:id", bookingHandler.DeleteMine)
 			users.POST("/me/telegram/link-token", telegramHandler.MintLinkToken)
 			users.PUT("/me/delivery-preference", authHandler.UpdateDeliveryPreference)
+			// "Мои рестораны" — every listing (restaurant/venue) this caller
+			// may manage: all of them for a global admin, only the ones with
+			// a ListingManager row otherwise. See ListingHandler.MyListings.
+			users.GET("/me/listings", listingHandler.MyListings)
 		}
 
 		categories := api.Group("/categories")
@@ -136,36 +141,54 @@ func Register(r *gin.Engine, database *gorm.DB, cfg config.Config, mailSvc ...*m
 			listings.GET("/:id/halls", listingHandler.Halls)
 			listings.GET("/:id/menus", listingHandler.Menus)
 
-			admin := listings.Group("")
-			admin.Use(middleware.RequireAuth(cfg.JWTSecret), middleware.RequireAdmin())
+			// Global-admin-only: creating/deleting the listing record itself,
+			// and assigning who owns/manages it (Этап 5 — there's no
+			// self-serve "create your own restaurant" flow yet, so this is
+			// the only real assignment path today).
+			adminOnly := listings.Group("")
+			adminOnly.Use(middleware.RequireAuth(cfg.JWTSecret), middleware.RequireAdmin())
 			{
-				admin.POST("", listingHandler.Create)
-				admin.PUT("/:id", listingHandler.Update)
-				admin.DELETE("/:id", listingHandler.Delete)
+				adminOnly.POST("", listingHandler.Create)
+				adminOnly.DELETE("/:id", listingHandler.Delete)
+
+				adminOnly.GET("/:id/managers", listingManagerHandler.List)
+				adminOnly.POST("/:id/managers", listingManagerHandler.Assign)
+				adminOnly.DELETE("/:id/managers/:userId", listingManagerHandler.Remove)
+			}
+
+			// Listing management — global admin OR the owner/manager assigned
+			// to this specific listing via ListingManager (brief Этап 2/3:
+			// "не полагаться на Flutter/UI для безопасности" — this is the
+			// server-side check, RequireListingAccess re-verifies the :id
+			// against the caller's own JWT user id on every request).
+			manage := listings.Group("")
+			manage.Use(middleware.RequireAuth(cfg.JWTSecret), middleware.RequireListingAccess(database))
+			{
+				manage.PUT("/:id", listingHandler.Update)
 
 				// Halls (brief section 10).
-				admin.POST("/:id/halls", listingHallHandler.Create)
-				admin.PUT("/:id/halls/:hallId", listingHallHandler.Update)
-				admin.DELETE("/:id/halls/:hallId", listingHallHandler.Delete)
+				manage.POST("/:id/halls", listingHallHandler.Create)
+				manage.PUT("/:id/halls/:hallId", listingHallHandler.Update)
+				manage.DELETE("/:id/halls/:hallId", listingHallHandler.Delete)
 
 				// Menus + their sections/items/extras — nested under the
 				// owning listing/menu the same way /api/events/:id/candidates/:cid
 				// already nests candidate-scoped actions under their event.
-				admin.POST("/:id/menus", listingMenuHandler.CreateMenu)
-				admin.PUT("/:id/menus/:menuId", listingMenuHandler.UpdateMenu)
-				admin.DELETE("/:id/menus/:menuId", listingMenuHandler.DeleteMenu)
+				manage.POST("/:id/menus", listingMenuHandler.CreateMenu)
+				manage.PUT("/:id/menus/:menuId", listingMenuHandler.UpdateMenu)
+				manage.DELETE("/:id/menus/:menuId", listingMenuHandler.DeleteMenu)
 
-				admin.POST("/:id/menus/:menuId/sections", listingMenuHandler.CreateSection)
-				admin.PUT("/:id/menus/:menuId/sections/:sectionId", listingMenuHandler.UpdateSection)
-				admin.DELETE("/:id/menus/:menuId/sections/:sectionId", listingMenuHandler.DeleteSection)
+				manage.POST("/:id/menus/:menuId/sections", listingMenuHandler.CreateSection)
+				manage.PUT("/:id/menus/:menuId/sections/:sectionId", listingMenuHandler.UpdateSection)
+				manage.DELETE("/:id/menus/:menuId/sections/:sectionId", listingMenuHandler.DeleteSection)
 
-				admin.POST("/:id/menus/:menuId/sections/:sectionId/items", listingMenuHandler.CreateItem)
-				admin.PUT("/:id/menus/:menuId/sections/:sectionId/items/:itemId", listingMenuHandler.UpdateItem)
-				admin.DELETE("/:id/menus/:menuId/sections/:sectionId/items/:itemId", listingMenuHandler.DeleteItem)
+				manage.POST("/:id/menus/:menuId/sections/:sectionId/items", listingMenuHandler.CreateItem)
+				manage.PUT("/:id/menus/:menuId/sections/:sectionId/items/:itemId", listingMenuHandler.UpdateItem)
+				manage.DELETE("/:id/menus/:menuId/sections/:sectionId/items/:itemId", listingMenuHandler.DeleteItem)
 
-				admin.POST("/:id/menus/:menuId/extras", listingMenuHandler.CreateExtra)
-				admin.PUT("/:id/menus/:menuId/extras/:extraId", listingMenuHandler.UpdateExtra)
-				admin.DELETE("/:id/menus/:menuId/extras/:extraId", listingMenuHandler.DeleteExtra)
+				manage.POST("/:id/menus/:menuId/extras", listingMenuHandler.CreateExtra)
+				manage.PUT("/:id/menus/:menuId/extras/:extraId", listingMenuHandler.UpdateExtra)
+				manage.DELETE("/:id/menus/:menuId/extras/:extraId", listingMenuHandler.DeleteExtra)
 			}
 		}
 
