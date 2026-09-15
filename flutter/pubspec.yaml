@@ -41,6 +41,17 @@ dependencies:
   url_launcher: ^6.3.1
   google_fonts: ^6.2.1
   intl: ^0.19.0
+  # Stage 1 — auth session token. Not SharedPreferences: a JWT is a
+  # credential, not a UI preference, so it belongs in the platform keychain
+  # (iOS Keychain / Android EncryptedSharedPreferences), not plain-text prefs.
+  flutter_secure_storage: ^9.2.4
+  shared_preferences: ^2.5.5
+  # Stage 6 — client-side PDF export (frontend/src/lib/pdf.js's functional
+  # equivalent; there is no backend PDF endpoint) and OS-level deep-link
+  # interception for https://mereytoi.kz/claim/:token.
+  pdf: ^3.11.1
+  printing: ^5.13.4
+  app_links: ^6.3.3
 
 dev_dependencies:
   flutter_test:
@@ -57,6 +68,7 @@ dev_dependencies:
   # from assets/icon/* — run via `dart run flutter_launcher_icons`, see the
   # `flutter_launcher_icons:` config block below.
   flutter_launcher_icons: ^0.14.4
+  flutter_secure_storage_platform_interface: ^1.1.2
 
 # For information on the generic Dart part of this file, see the
 # following page: https://dart.dev/tools/pub/pubspec

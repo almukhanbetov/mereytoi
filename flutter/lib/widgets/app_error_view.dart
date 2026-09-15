@@ -2,12 +2,18 @@ import 'package:flutter/material.dart';
 
 import '../core/theme/app_theme.dart';
 import '../state/locale_provider.dart';
+import 'app_icon_badge.dart';
 
 /// The "Не удалось загрузить данные / Повторить" pattern every API screen
 /// uses on failure — a friendly message plus a retry action, never a raw
 /// exception on screen.
 class AppErrorView extends StatelessWidget {
-  const AppErrorView({super.key, required this.message, required this.locale, required this.onRetry});
+  const AppErrorView({
+    super.key,
+    required this.message,
+    required this.locale,
+    required this.onRetry,
+  });
 
   final String message;
   final AppLocale locale;
@@ -21,15 +27,17 @@ class AppErrorView extends StatelessWidget {
         child: Column(
           mainAxisSize: MainAxisSize.min,
           children: [
-            Container(
-              width: 56,
-              height: 56,
-              decoration: const BoxDecoration(color: AppColors.surface, shape: BoxShape.circle),
-              alignment: Alignment.center,
-              child: const Icon(Icons.cloud_off_rounded, color: AppColors.textSecondary, size: 26),
+            const AppIconBadge(
+              icon: Icons.cloud_off_rounded,
+              size: 56,
+              iconSize: 26,
             ),
             const SizedBox(height: AppSpacing.md),
-            Text(message, textAlign: TextAlign.center, style: Theme.of(context).textTheme.bodyLarge),
+            Text(
+              message,
+              textAlign: TextAlign.center,
+              style: Theme.of(context).textTheme.bodyLarge,
+            ),
             const SizedBox(height: AppSpacing.lg),
             OutlinedButton(
               onPressed: onRetry,

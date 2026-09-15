@@ -5,16 +5,17 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../../core/theme/app_theme.dart';
 import '../../core/utils/error_messages.dart';
+import '../../core/utils/listing_navigation.dart';
 import '../../state/categories_provider.dart';
 import '../../state/listings_provider.dart';
 import '../../state/locale_provider.dart';
 import '../../widgets/app_back_button.dart';
 import '../../widgets/app_error_view.dart';
+import '../../widgets/app_icon_badge.dart';
 import '../../widgets/app_skeleton.dart';
 import '../../widgets/category_filter_bar.dart';
 import '../../widgets/fade_slide_in.dart';
 import '../../widgets/service_card.dart';
-import '../service_detail/service_detail_screen.dart';
 
 /// The mobile counterpart of the site's /services catalog
 /// (frontend/src/components/services/ServicesClient.jsx): a category-chip
@@ -84,7 +85,12 @@ class _ServicesScreenState extends ConsumerState<ServicesScreen> {
       body: Column(
         children: [
           Padding(
-            padding: const EdgeInsets.fromLTRB(AppSpacing.lg, AppSpacing.xxs, AppSpacing.lg, AppSpacing.sm),
+            padding: const EdgeInsets.fromLTRB(
+              AppSpacing.lg,
+              AppSpacing.xxs,
+              AppSpacing.lg,
+              AppSpacing.sm,
+            ),
             child: SizedBox(
               height: 44,
               child: TextField(
@@ -94,9 +100,20 @@ class _ServicesScreenState extends ConsumerState<ServicesScreen> {
                 textAlignVertical: TextAlignVertical.center,
                 decoration: InputDecoration(
                   isDense: true,
-                  hintText: t(locale, ru: 'Поиск услуг', kz: 'Қызметтерді іздеу'),
-                  prefixIcon: const Icon(Icons.search_rounded, color: AppColors.textSecondary, size: 18),
-                  contentPadding: const EdgeInsets.symmetric(horizontal: AppSpacing.md, vertical: 0),
+                  hintText: t(
+                    locale,
+                    ru: 'Поиск услуг',
+                    kz: 'Қызметтерді іздеу',
+                  ),
+                  prefixIcon: Icon(
+                    Icons.search_rounded,
+                    color: context.mereytoiColors.textSecondary,
+                    size: 18,
+                  ),
+                  contentPadding: const EdgeInsets.symmetric(
+                    horizontal: AppSpacing.md,
+                    vertical: 0,
+                  ),
                 ),
               ),
             ),
@@ -118,10 +135,17 @@ class _ServicesScreenState extends ConsumerState<ServicesScreen> {
           Expanded(
             child: listings.when(
               loading: () => ListView.separated(
-                padding: const EdgeInsets.fromLTRB(AppSpacing.lg, 0, AppSpacing.lg, AppSpacing.xl),
+                padding: const EdgeInsets.fromLTRB(
+                  AppSpacing.lg,
+                  0,
+                  AppSpacing.lg,
+                  AppSpacing.xl,
+                ),
                 itemCount: 5,
-                separatorBuilder: (_, _) => const SizedBox(height: AppSpacing.md),
-                itemBuilder: (context, i) => const AppSkeleton(height: 128, borderRadius: AppRadius.lg),
+                separatorBuilder: (_, _) =>
+                    const SizedBox(height: AppSpacing.md),
+                itemBuilder: (context, i) =>
+                    const AppSkeleton(height: 128, borderRadius: AppRadius.lg),
               ),
               error: (err, _) => AppErrorView(
                 message: apiErrorMessage(locale, err),
@@ -131,15 +155,32 @@ class _ServicesScreenState extends ConsumerState<ServicesScreen> {
               data: (all) {
                 final filtered = _search.isEmpty
                     ? all
-                    : all.where((l) => l.name(locale).toLowerCase().contains(_search.toLowerCase())).toList();
+                    : all
+                          .where(
+                            (l) => l
+                                .name(locale)
+                                .toLowerCase()
+                                .contains(_search.toLowerCase()),
+                          )
+                          .toList();
                 final filtersActive = _activeSlug != null || _search.isNotEmpty;
                 if (filtered.isEmpty) {
-                  return _EmptyResults(locale: locale, showReset: filtersActive, onReset: _resetFilters);
+                  return _EmptyResults(
+                    locale: locale,
+                    showReset: filtersActive,
+                    onReset: _resetFilters,
+                  );
                 }
                 return ListView.separated(
-                  padding: const EdgeInsets.fromLTRB(AppSpacing.lg, 0, AppSpacing.lg, AppSpacing.xl),
+                  padding: const EdgeInsets.fromLTRB(
+                    AppSpacing.lg,
+                    0,
+                    AppSpacing.lg,
+                    AppSpacing.xl,
+                  ),
                   itemCount: filtered.length,
-                  separatorBuilder: (_, _) => const SizedBox(height: AppSpacing.md),
+                  separatorBuilder: (_, _) =>
+                      const SizedBox(height: AppSpacing.md),
                   itemBuilder: (context, i) {
                     final listing = filtered[i];
                     return FadeSlideIn(
@@ -148,9 +189,7 @@ class _ServicesScreenState extends ConsumerState<ServicesScreen> {
                         listing: listing,
                         locale: locale,
                         categoryLabel: listing.category?.name(locale),
-                        onTap: () => Navigator.of(context).push(
-                          MaterialPageRoute(builder: (_) => ServiceDetailScreen(listingId: listing.id)),
-                        ),
+                        onTap: () => pushListingDetail(context, ref, listing),
                       ),
                     );
                   },
@@ -165,7 +204,11 @@ class _ServicesScreenState extends ConsumerState<ServicesScreen> {
 }
 
 class _EmptyResults extends StatelessWidget {
-  const _EmptyResults({required this.locale, required this.showReset, required this.onReset});
+  const _EmptyResults({
+    required this.locale,
+    required this.showReset,
+    required this.onReset,
+  });
 
   final AppLocale locale;
   final bool showReset;
@@ -179,18 +222,24 @@ class _EmptyResults extends StatelessWidget {
         child: Column(
           mainAxisSize: MainAxisSize.min,
           children: [
-            Container(
-              width: 56,
-              height: 56,
-              decoration: const BoxDecoration(color: AppColors.surface, shape: BoxShape.circle),
-              alignment: Alignment.center,
-              child: const Icon(Icons.search_off_rounded, color: AppColors.textSecondary, size: 26),
+            const AppIconBadge(
+              icon: Icons.search_off_rounded,
+              size: 56,
+              iconSize: 26,
             ),
             const SizedBox(height: AppSpacing.md),
-            Text(t(locale, ru: 'Услуги не найдены', kz: 'Қызметтер табылмады'), style: Theme.of(context).textTheme.titleMedium),
+            Text(
+              t(locale, ru: 'Услуги не найдены', kz: 'Қызметтер табылмады'),
+              style: Theme.of(context).textTheme.titleMedium,
+            ),
             if (showReset) ...[
               const SizedBox(height: AppSpacing.lg),
-              OutlinedButton(onPressed: onReset, child: Text(t(locale, ru: 'Сбросить фильтры', kz: 'Сүзгілерді тазарту'))),
+              OutlinedButton(
+                onPressed: onReset,
+                child: Text(
+                  t(locale, ru: 'Сбросить фильтры', kz: 'Сүзгілерді тазарту'),
+                ),
+              ),
             ],
           ],
         ),

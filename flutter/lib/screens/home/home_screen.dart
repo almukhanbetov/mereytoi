@@ -4,9 +4,12 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../core/theme/app_theme.dart';
 import '../../core/utils/error_messages.dart';
 import '../../core/utils/format.dart';
+import '../../core/utils/listing_navigation.dart';
+import '../../state/auth_provider.dart';
 import '../../state/categories_provider.dart';
 import '../../state/listings_provider.dart';
 import '../../state/locale_provider.dart';
+import '../../state/notification_providers.dart';
 import '../../state/statistics_provider.dart';
 import '../../widgets/app_card.dart';
 import '../../widgets/app_error_view.dart';
@@ -15,9 +18,11 @@ import '../../widgets/category_card.dart';
 import '../../widgets/fade_slide_in.dart';
 import '../../widgets/section_header.dart';
 import '../../widgets/service_card.dart';
+import '../auth/login_screen.dart';
 import '../categories/categories_screen.dart';
+import '../notifications/notifications_screen.dart';
+import '../profile/profile_screen.dart';
 import '../root_shell.dart';
-import '../service_detail/service_detail_screen.dart';
 import '../services/services_screen.dart';
 
 /// The mobile counterpart of frontend/src/app/page.js — Hero, Statistics
@@ -32,8 +37,8 @@ class HomeScreen extends ConsumerWidget {
 
     return Scaffold(
       body: RefreshIndicator(
-        color: AppColors.goldPrimary,
-        backgroundColor: AppColors.surfaceElevated,
+        color: context.mereytoiColors.goldPrimary,
+        backgroundColor: context.mereytoiColors.surfaceElevated,
         onRefresh: () async {
           ref.invalidate(statisticsProvider);
           ref.invalidate(categoriesProvider);
@@ -43,17 +48,40 @@ class HomeScreen extends ConsumerWidget {
           slivers: [
             SliverAppBar(
               floating: true,
-              backgroundColor: AppColors.backgroundPrimary,
+              backgroundColor: context.mereytoiColors.backgroundPrimary,
               titleSpacing: AppSpacing.lg,
               title: const _BrandMark(),
               actions: [
+                const _NotificationsButton(),
+                const SizedBox(width: AppSpacing.xs),
+                const _AccountButton(),
+                const SizedBox(width: AppSpacing.xs),
                 _LocaleToggle(locale: locale),
                 const SizedBox(width: AppSpacing.md),
               ],
             ),
             SliverToBoxAdapter(child: _Hero(locale: locale)),
             SliverToBoxAdapter(child: _CategoriesSection(locale: locale)),
-            SliverToBoxAdapter(child: _FeaturedSection(locale: locale)),
+            SliverToBoxAdapter(
+              child: _ListingCarouselSection(
+                locale: locale,
+                categorySlug: null,
+                eyebrow: t(locale, ru: 'Рекомендуем', kz: 'Ұсынамыз'),
+                title: t(
+                  locale,
+                  ru: 'Популярные услуги',
+                  kz: 'Танымал қызметтер',
+                ),
+              ),
+            ),
+            SliverToBoxAdapter(
+              child: _ListingCarouselSection(
+                locale: locale,
+                categorySlug: 'venues',
+                eyebrow: t(locale, ru: 'Для торжества', kz: 'Той үшін'),
+                title: t(locale, ru: 'Рестораны', kz: 'Мейрамханалар'),
+              ),
+            ),
             const SliverToBoxAdapter(child: SizedBox(height: AppSpacing.xxl)),
           ],
         ),
@@ -68,12 +96,111 @@ class _BrandMark extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return RichText(
-      text: const TextSpan(
-        style: TextStyle(fontFamily: 'PlayfairDisplay', fontWeight: FontWeight.w800, fontSize: 18),
+      text: TextSpan(
+        style: TextStyle(
+          fontFamily: 'PlayfairDisplay',
+          fontWeight: FontWeight.w800,
+          fontSize: 18,
+        ),
         children: [
-          TextSpan(text: 'MEREY', style: TextStyle(color: AppColors.textPrimary)),
-          TextSpan(text: 'TOI', style: TextStyle(color: AppColors.goldPrimary)),
+          TextSpan(
+            text: 'MEREY',
+            style: TextStyle(color: context.mereytoiColors.textPrimary),
+          ),
+          TextSpan(
+            text: 'TOI',
+            style: TextStyle(color: context.mereytoiColors.goldPrimary),
+          ),
         ],
+      ),
+    );
+  }
+}
+
+/// The one entry point into auth/account. Guest → pushes [LoginScreen];
+/// authenticated → pushes the full [ProfileScreen] (Stage 5) — logout
+/// itself now lives there, not in a dialog off this icon.
+class _AccountButton extends ConsumerWidget {
+  const _AccountButton();
+
+  @override
+  Widget build(BuildContext context, WidgetRef ref) {
+    final authState = ref.watch(authProvider);
+    final authenticated = authState is AuthAuthenticated;
+
+    return SizedBox(
+      width: 44,
+      height: 44,
+      child: Material(
+        color: context.mereytoiColors.surface,
+        shape: const CircleBorder(),
+        child: InkWell(
+          customBorder: const CircleBorder(),
+          onTap: () {
+            Navigator.of(context).push(
+              MaterialPageRoute(
+                builder: (_) =>
+                    authenticated ? const ProfileScreen() : const LoginScreen(),
+              ),
+            );
+          },
+          child: Icon(
+            authenticated ? Icons.person_rounded : Icons.person_outline_rounded,
+            size: 19,
+            color: authenticated
+                ? context.mereytoiColors.goldPrimary
+                : context.mereytoiColors.textSecondary,
+          ),
+        ),
+      ),
+    );
+  }
+}
+
+/// Notifications entry point (brief section 2) — a bell + real unread
+/// badge (`GET /api/notifications/unread-count`), not a 5th bottom-nav tab
+/// (brief section 8 explicitly allows relocating this rather than
+/// overloading `AppBottomNav`, which already carries
+/// Главная/Услуги/Мой той/Корзина). Hidden entirely for a guest — same
+/// "never call an endpoint that's a guaranteed 401" rule the rest of this
+/// stage follows; `NotificationsScreen` itself still shows its own login
+/// prompt for anyone who reaches it some other way.
+class _NotificationsButton extends ConsumerWidget {
+  const _NotificationsButton();
+
+  @override
+  Widget build(BuildContext context, WidgetRef ref) {
+    final authenticated = ref.watch(authProvider) is AuthAuthenticated;
+    final unread = authenticated
+        ? ref.watch(unreadNotificationCountProvider).valueOrNull ?? 0
+        : 0;
+
+    return SizedBox(
+      width: 44,
+      height: 44,
+      child: Material(
+        color: context.mereytoiColors.surface,
+        shape: const CircleBorder(),
+        child: InkWell(
+          customBorder: const CircleBorder(),
+          onTap: () => Navigator.of(context).push(
+            MaterialPageRoute(builder: (_) => const NotificationsScreen()),
+          ),
+          child: Badge(
+            label: Text('$unread'),
+            isLabelVisible: unread > 0,
+            backgroundColor: context.mereytoiColors.error,
+            textStyle: const TextStyle(
+              fontSize: 10,
+              fontWeight: FontWeight.w700,
+            ),
+            child: Icon(
+              Icons.notifications_outlined,
+              size: 19,
+              color: context.mereytoiColors.textSecondary,
+            ),
+          ),
+        ),
       ),
     );
   }
@@ -89,17 +216,22 @@ class _LocaleToggle extends ConsumerWidget {
     return SizedBox(
       height: 44,
       child: Material(
-        color: AppColors.surface,
+        color: context.mereytoiColors.surface,
         borderRadius: BorderRadius.circular(AppRadius.chip),
         child: InkWell(
           borderRadius: BorderRadius.circular(AppRadius.chip),
-          onTap: () => ref.read(localeProvider.notifier).state = locale == AppLocale.ru ? AppLocale.kz : AppLocale.ru,
+          onTap: () => ref.read(localeProvider.notifier).state =
+              locale == AppLocale.ru ? AppLocale.kz : AppLocale.ru,
           child: Padding(
-            padding: const EdgeInsets.symmetric(horizontal: 16),
+            padding: const EdgeInsets.symmetric(horizontal: AppSpacing.md),
             child: Center(
               child: Text(
                 locale == AppLocale.ru ? 'ҚАЗ' : 'РУС',
-                style: const TextStyle(color: AppColors.goldSoft, fontWeight: FontWeight.w700, fontSize: 12),
+                style: TextStyle(
+                  color: context.mereytoiColors.goldSoft,
+                  fontWeight: FontWeight.w700,
+                  fontSize: 12,
+                ),
               ),
             ),
           ),
@@ -118,22 +250,42 @@ class _Hero extends ConsumerWidget {
   Widget build(BuildContext context, WidgetRef ref) {
     return Container(
       width: double.infinity,
-      padding: const EdgeInsets.fromLTRB(AppSpacing.lg, AppSpacing.xs, AppSpacing.lg, AppSpacing.md),
-      decoration: const BoxDecoration(
-        gradient: RadialGradient(center: Alignment(0, -0.9), radius: 1.2, colors: [AppColors.heroGlow, AppColors.backgroundPrimary]),
+      padding: const EdgeInsets.fromLTRB(
+        AppSpacing.lg,
+        AppSpacing.xs,
+        AppSpacing.lg,
+        AppSpacing.md,
+      ),
+      decoration: BoxDecoration(
+        gradient: RadialGradient(
+          center: Alignment(0, -0.9),
+          radius: 1.2,
+          colors: [
+            context.mereytoiColors.heroGlow,
+            context.mereytoiColors.backgroundPrimary,
+          ],
+        ),
       ),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.center,
         children: [
           Container(
-            padding: const EdgeInsets.symmetric(horizontal: AppSpacing.sm, vertical: 5),
+            padding: const EdgeInsets.symmetric(
+              horizontal: AppSpacing.sm,
+              vertical: 5,
+            ),
             decoration: BoxDecoration(
-              color: AppColors.goldPrimary.withValues(alpha: 0.1),
+              color: context.mereytoiColors.goldPrimary.withValues(alpha: 0.1),
               borderRadius: BorderRadius.circular(AppRadius.chip),
             ),
             child: Text(
               t(locale, ru: 'АГЕНТСТВО ТОРЖЕСТВ', kz: 'ТОЙ АГЕНТТІГІ'),
-              style: const TextStyle(color: AppColors.goldPrimary, fontSize: 10.5, fontWeight: FontWeight.w700, letterSpacing: 1.6),
+              style: TextStyle(
+                color: context.mereytoiColors.goldPrimary,
+                fontSize: 10.5,
+                fontWeight: FontWeight.w700,
+                letterSpacing: 1.6,
+              ),
               textAlign: TextAlign.center,
             ),
           ),
@@ -141,11 +293,17 @@ class _Hero extends ConsumerWidget {
           Text(
             t(locale, ru: 'Той вашей мечты', kz: 'Армандаған тойыңыз'),
             textAlign: TextAlign.center,
-            style: Theme.of(context).textTheme.displayLarge?.copyWith(fontSize: 25),
+            style: Theme.of(
+              context,
+            ).textTheme.displayLarge?.copyWith(fontSize: 25),
           ),
           const SizedBox(height: AppSpacing.xxs),
           Text(
-            t(locale, ru: 'Традиции встречаются с современным стилем', kz: 'Дәстүр мен заманауи сән ұштасады'),
+            t(
+              locale,
+              ru: 'Традиции встречаются с современным стилем',
+              kz: 'Дәстүр мен заманауи сән ұштасады',
+            ),
             textAlign: TextAlign.center,
             style: Theme.of(context).textTheme.bodyMedium,
           ),
@@ -154,10 +312,15 @@ class _Hero extends ConsumerWidget {
             onPressed: () => ref.read(selectedTabProvider.notifier).state = 1,
             style: ElevatedButton.styleFrom(
               minimumSize: const Size(0, 44),
-              padding: const EdgeInsets.symmetric(horizontal: AppSpacing.lg, vertical: AppSpacing.xs),
+              padding: const EdgeInsets.symmetric(
+                horizontal: AppSpacing.lg,
+                vertical: AppSpacing.xs,
+              ),
             ),
             icon: const Icon(Icons.arrow_forward_rounded, size: 16),
-            label: Text(t(locale, ru: 'Смотреть услуги', kz: 'Қызметтерді қарау')),
+            label: Text(
+              t(locale, ru: 'Смотреть услуги', kz: 'Қызметтерді қарау'),
+            ),
           ),
           const SizedBox(height: AppSpacing.sm),
           _StatisticsCard(locale: locale),
@@ -178,16 +341,26 @@ class _StatisticsCard extends ConsumerWidget {
 
     return stats.when(
       loading: () => const AppSkeleton(height: 88, borderRadius: AppRadius.lg),
-      error: (err, _) => const SizedBox.shrink(), // stats are decorative — a failure here shouldn't block the rest of Home
+      error: (err, _) =>
+          const SizedBox.shrink(), // stats are decorative — a failure here shouldn't block the rest of Home
       data: (s) {
         final tiles = [
           (formatStatValue(s.eventsCount), t(locale, ru: 'Тоев', kz: 'Той')),
-          (formatStatValue(s.happyGuestsCount), t(locale, ru: 'Гостей', kz: 'Қонақ')),
+          (
+            formatStatValue(s.happyGuestsCount),
+            t(locale, ru: 'Гостей', kz: 'Қонақ'),
+          ),
           (formatStatValue(s.yearsExperience), t(locale, ru: 'Лет', kz: 'Жыл')),
-          (formatStatValue(s.citiesCount), t(locale, ru: 'Городов', kz: 'Қала')),
+          (
+            formatStatValue(s.citiesCount),
+            t(locale, ru: 'Городов', kz: 'Қала'),
+          ),
         ];
         return AppCard(
-          padding: const EdgeInsets.symmetric(vertical: AppSpacing.sm, horizontal: AppSpacing.xs),
+          padding: const EdgeInsets.symmetric(
+            vertical: AppSpacing.sm,
+            horizontal: AppSpacing.xs,
+          ),
           child: Row(
             crossAxisAlignment: CrossAxisAlignment.center,
             children: [
@@ -202,7 +375,11 @@ class _StatisticsCard extends ConsumerWidget {
                         child: Text(
                           tiles[i].$1,
                           maxLines: 1,
-                          style: Theme.of(context).textTheme.titleMedium?.copyWith(color: AppColors.goldSoft, fontSize: 14),
+                          style: Theme.of(context).textTheme.titleMedium
+                              ?.copyWith(
+                                color: context.mereytoiColors.goldSoft,
+                                fontSize: 14,
+                              ),
                         ),
                       ),
                       const SizedBox(height: 1),
@@ -230,7 +407,11 @@ class _StatDivider extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return Container(width: 1, height: 18, color: AppColors.divider);
+    return Container(
+      width: 1,
+      height: 18,
+      color: context.mereytoiColors.divider,
+    );
   }
 }
 
@@ -244,7 +425,12 @@ class _CategoriesSection extends ConsumerWidget {
     final categories = ref.watch(categoriesProvider);
 
     return Padding(
-      padding: const EdgeInsets.fromLTRB(AppSpacing.lg, AppSpacing.xl, AppSpacing.lg, 0),
+      padding: const EdgeInsets.fromLTRB(
+        AppSpacing.lg,
+        AppSpacing.xl,
+        AppSpacing.lg,
+        0,
+      ),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
@@ -253,19 +439,26 @@ class _CategoriesSection extends ConsumerWidget {
             children: [
               Expanded(
                 child: SectionHeader(
-                  eyebrow: t(locale, ru: 'Что мы предлагаем', kz: 'Не ұсынамыз'),
+                  eyebrow: t(
+                    locale,
+                    ru: 'Что мы предлагаем',
+                    kz: 'Не ұсынамыз',
+                  ),
                   title: t(locale, ru: 'Услуги', kz: 'Қызметтер'),
                 ),
               ),
               TextButton(
-                onPressed: () => Navigator.of(context).push(MaterialPageRoute(builder: (_) => const CategoriesScreen())),
+                onPressed: () => Navigator.of(context).push(
+                  MaterialPageRoute(builder: (_) => const CategoriesScreen()),
+                ),
                 child: Text(t(locale, ru: 'Все', kz: 'Барлығы')),
               ),
             ],
           ),
           const SizedBox(height: AppSpacing.sm),
           categories.when(
-            loading: () => const AppGridSkeleton(itemCount: 4, aspectRatio: 0.92),
+            loading: () =>
+                const AppGridSkeleton(itemCount: 4, aspectRatio: 0.92),
             error: (err, _) => AppErrorView(
               message: apiErrorMessage(locale, err),
               locale: locale,
@@ -275,7 +468,14 @@ class _CategoriesSection extends ConsumerWidget {
               if (list.isEmpty) {
                 return Padding(
                   padding: const EdgeInsets.symmetric(vertical: AppSpacing.lg),
-                  child: Text(t(locale, ru: 'Категории скоро появятся', kz: 'Санаттар жақында қосылады'), style: Theme.of(context).textTheme.bodyMedium),
+                  child: Text(
+                    t(
+                      locale,
+                      ru: 'Категории скоро появятся',
+                      kz: 'Санаттар жақында қосылады',
+                    ),
+                    style: Theme.of(context).textTheme.bodyMedium,
+                  ),
                 );
               }
               return GridView.builder(
@@ -296,7 +496,11 @@ class _CategoriesSection extends ConsumerWidget {
                       category: category,
                       locale: locale,
                       onTap: () => Navigator.of(context).push(
-                        MaterialPageRoute(builder: (_) => ServicesScreen(initialCategorySlug: category.slug)),
+                        MaterialPageRoute(
+                          builder: (_) => ServicesScreen(
+                            initialCategorySlug: category.slug,
+                          ),
+                        ),
                       ),
                     ),
                   );
@@ -310,14 +514,36 @@ class _CategoriesSection extends ConsumerWidget {
   }
 }
 
-class _FeaturedSection extends ConsumerWidget {
-  const _FeaturedSection({required this.locale});
+/// A horizontally-scrolling listing rail with its own section header —
+/// shared by "Популярные услуги" (`categorySlug: null`) and "Рестораны"
+/// (`categorySlug: 'venues'`, the same real category slug
+/// `RestaurantDetailScreen` already keys off of) so the loading/error/
+/// empty handling for a card carousel is written once, not duplicated per
+/// rail (Stage 8 — "унифицировать", "не плодить inline styles").
+class _ListingCarouselSection extends ConsumerWidget {
+  const _ListingCarouselSection({
+    required this.locale,
+    required this.categorySlug,
+    required this.eyebrow,
+    required this.title,
+  });
 
   final AppLocale locale;
+  final String? categorySlug;
+  final String eyebrow;
+  final String title;
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
-    final listings = ref.watch(listingsProvider(null));
+    final listings = ref.watch(listingsProvider(categorySlug));
+
+    // A genuinely empty rail (no venues yet, say) hides *itself* — header
+    // included — rather than leaving a title sitting over blank space.
+    // Loading/error still show the header, exactly as before: that's
+    // useful feedback, unlike an empty result which has nothing to say.
+    if (listings case AsyncData(:final value) when value.isEmpty) {
+      return const SizedBox.shrink();
+    }
 
     return Padding(
       padding: const EdgeInsets.only(top: AppSpacing.xl),
@@ -326,10 +552,7 @@ class _FeaturedSection extends ConsumerWidget {
         children: [
           Padding(
             padding: const EdgeInsets.symmetric(horizontal: AppSpacing.lg),
-            child: SectionHeader(
-              eyebrow: t(locale, ru: 'Рекомендуем', kz: 'Ұсынамыз'),
-              title: t(locale, ru: 'Популярные услуги', kz: 'Танымал қызметтер'),
-            ),
+            child: SectionHeader(eyebrow: eyebrow, title: title),
           ),
           const SizedBox(height: AppSpacing.sm),
           listings.when(
@@ -339,24 +562,37 @@ class _FeaturedSection extends ConsumerWidget {
                 scrollDirection: Axis.horizontal,
                 padding: const EdgeInsets.symmetric(horizontal: AppSpacing.lg),
                 itemCount: 3,
-                separatorBuilder: (_, _) => const SizedBox(width: AppSpacing.md),
-                itemBuilder: (context, i) => const SizedBox(width: 168, child: AppCardSkeleton(aspectRatio: 1.15)),
+                separatorBuilder: (_, _) =>
+                    const SizedBox(width: AppSpacing.md),
+                itemBuilder: (context, i) => const SizedBox(
+                  width: 168,
+                  child: AppCardSkeleton(aspectRatio: 1.15),
+                ),
               ),
             ),
             error: (err, _) => Padding(
               padding: const EdgeInsets.symmetric(horizontal: AppSpacing.lg),
-              child: AppErrorView(message: apiErrorMessage(locale, err), locale: locale, onRetry: () => ref.invalidate(listingsProvider(null))),
+              child: AppErrorView(
+                message: apiErrorMessage(locale, err),
+                locale: locale,
+                onRetry: () => ref.invalidate(listingsProvider(categorySlug)),
+              ),
             ),
             data: (list) {
-              if (list.isEmpty) return const SizedBox.shrink();
+              // The empty case is already handled above (hides the whole
+              // section, header included) before this `when` is even
+              // reached — this branch only ever runs with a real list.
               final featured = list.take(6).toList();
               return SizedBox(
                 height: 284,
                 child: ListView.separated(
                   scrollDirection: Axis.horizontal,
-                  padding: const EdgeInsets.symmetric(horizontal: AppSpacing.lg),
+                  padding: const EdgeInsets.symmetric(
+                    horizontal: AppSpacing.lg,
+                  ),
                   itemCount: featured.length,
-                  separatorBuilder: (_, _) => const SizedBox(width: AppSpacing.md),
+                  separatorBuilder: (_, _) =>
+                      const SizedBox(width: AppSpacing.md),
                   itemBuilder: (context, i) {
                     final listing = featured[i];
                     return FadeSlideIn(
@@ -367,9 +603,7 @@ class _FeaturedSection extends ConsumerWidget {
                           listing: listing,
                           locale: locale,
                           categoryLabel: listing.category?.name(locale),
-                          onTap: () => Navigator.of(context).push(
-                            MaterialPageRoute(builder: (_) => ServiceDetailScreen(listingId: listing.id)),
-                          ),
+                          onTap: () => pushListingDetail(context, ref, listing),
                         ),
                       ),
                     );

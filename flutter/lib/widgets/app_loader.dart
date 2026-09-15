@@ -12,15 +12,18 @@ class AppLoader extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    const indicator = SizedBox(
+    final indicator = SizedBox(
       width: 26,
       height: 26,
-      child: CircularProgressIndicator(strokeWidth: 2.4, color: AppColors.goldPrimary),
+      child: CircularProgressIndicator(
+        strokeWidth: 2.4,
+        color: context.mereytoiColors.goldPrimary,
+      ),
     );
-    if (compact) return const Center(child: indicator);
-    return const Center(
+    if (compact) return Center(child: indicator);
+    return Center(
       child: Padding(
-        padding: EdgeInsets.all(AppSpacing.xxl),
+        padding: const EdgeInsets.all(AppSpacing.xxl),
         child: indicator,
       ),
     );

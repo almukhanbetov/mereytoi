@@ -33,7 +33,12 @@ Future<void> showCategoryPickerSheet(
 }
 
 class _CategoryPickerSheet extends StatefulWidget {
-  const _CategoryPickerSheet({required this.categories, required this.activeSlug, required this.locale, required this.onSelect});
+  const _CategoryPickerSheet({
+    required this.categories,
+    required this.activeSlug,
+    required this.locale,
+    required this.onSelect,
+  });
 
   final List<Category> categories;
   final String? activeSlug;
@@ -62,7 +67,11 @@ class _CategoryPickerSheetState extends State<_CategoryPickerSheet> {
   @override
   Widget build(BuildContext context) {
     final query = _query.trim().toLowerCase();
-    final filtered = query.isEmpty ? widget.categories : widget.categories.where((c) => c.name(widget.locale).toLowerCase().contains(query)).toList();
+    final filtered = query.isEmpty
+        ? widget.categories
+        : widget.categories
+              .where((c) => c.name(widget.locale).toLowerCase().contains(query))
+              .toList();
     final showAllTile = query.isEmpty;
 
     // 65–85% of the screen, draggable within that band only — big enough to
@@ -74,27 +83,54 @@ class _CategoryPickerSheetState extends State<_CategoryPickerSheet> {
       expand: false,
       builder: (context, scrollController) {
         return DecoratedBox(
-          decoration: const BoxDecoration(
-            color: AppColors.surfaceElevated,
-            borderRadius: BorderRadius.vertical(top: Radius.circular(AppRadius.lg)),
+          decoration: BoxDecoration(
+            color: context.mereytoiColors.surfaceElevated,
+            borderRadius: BorderRadius.vertical(
+              top: Radius.circular(AppRadius.lg),
+            ),
           ),
           child: SafeArea(
             top: false,
             child: Column(
               children: [
                 const SizedBox(height: AppSpacing.xs),
-                Container(width: 36, height: 4, decoration: BoxDecoration(color: AppColors.divider, borderRadius: BorderRadius.circular(AppRadius.chip))),
+                Container(
+                  width: 36,
+                  height: 4,
+                  decoration: BoxDecoration(
+                    color: context.mereytoiColors.divider,
+                    borderRadius: BorderRadius.circular(AppRadius.chip),
+                  ),
+                ),
                 Padding(
-                  padding: const EdgeInsets.fromLTRB(AppSpacing.lg, AppSpacing.md, AppSpacing.sm, AppSpacing.sm),
+                  padding: const EdgeInsets.fromLTRB(
+                    AppSpacing.lg,
+                    AppSpacing.md,
+                    AppSpacing.sm,
+                    AppSpacing.sm,
+                  ),
                   child: Row(
                     children: [
-                      Expanded(child: Text(t(widget.locale, ru: 'Категории', kz: 'Санаттар'), style: Theme.of(context).textTheme.titleLarge)),
-                      IconButton(onPressed: () => Navigator.of(context).pop(), icon: const Icon(Icons.close_rounded)),
+                      Expanded(
+                        child: Text(
+                          t(widget.locale, ru: 'Категории', kz: 'Санаттар'),
+                          style: Theme.of(context).textTheme.titleLarge,
+                        ),
+                      ),
+                      IconButton(
+                        onPressed: () => Navigator.of(context).pop(),
+                        icon: const Icon(Icons.close_rounded),
+                      ),
                     ],
                   ),
                 ),
                 Padding(
-                  padding: const EdgeInsets.fromLTRB(AppSpacing.lg, 0, AppSpacing.lg, AppSpacing.sm),
+                  padding: const EdgeInsets.fromLTRB(
+                    AppSpacing.lg,
+                    0,
+                    AppSpacing.lg,
+                    AppSpacing.sm,
+                  ),
                   child: SizedBox(
                     height: 44,
                     child: TextField(
@@ -104,9 +140,20 @@ class _CategoryPickerSheetState extends State<_CategoryPickerSheet> {
                       textAlignVertical: TextAlignVertical.center,
                       decoration: InputDecoration(
                         isDense: true,
-                        hintText: t(widget.locale, ru: 'Поиск категории', kz: 'Санатты іздеу'),
-                        prefixIcon: const Icon(Icons.search_rounded, color: AppColors.textSecondary, size: 18),
-                        contentPadding: const EdgeInsets.symmetric(horizontal: AppSpacing.md, vertical: 0),
+                        hintText: t(
+                          widget.locale,
+                          ru: 'Поиск категории',
+                          kz: 'Санатты іздеу',
+                        ),
+                        prefixIcon: Icon(
+                          Icons.search_rounded,
+                          color: context.mereytoiColors.textSecondary,
+                          size: 18,
+                        ),
+                        contentPadding: const EdgeInsets.symmetric(
+                          horizontal: AppSpacing.md,
+                          vertical: 0,
+                        ),
                       ),
                     ),
                   ),
@@ -115,34 +162,53 @@ class _CategoryPickerSheetState extends State<_CategoryPickerSheet> {
                   child: filtered.isEmpty && !showAllTile
                       ? Center(
                           child: Text(
-                            t(widget.locale, ru: 'Ничего не найдено', kz: 'Ештеңе табылмады'),
+                            t(
+                              widget.locale,
+                              ru: 'Ничего не найдено',
+                              kz: 'Ештеңе табылмады',
+                            ),
                             style: Theme.of(context).textTheme.bodyMedium,
                           ),
                         )
                       : GridView.builder(
                           controller: scrollController,
-                          padding: const EdgeInsets.fromLTRB(AppSpacing.lg, 0, AppSpacing.lg, AppSpacing.xl),
-                          itemCount: filtered.length + (showAllTile ? 1 : 0),
-                          gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
-                            crossAxisCount: 2,
-                            mainAxisSpacing: AppSpacing.sm,
-                            crossAxisSpacing: AppSpacing.sm,
-                            mainAxisExtent: 132,
+                          padding: const EdgeInsets.fromLTRB(
+                            AppSpacing.lg,
+                            0,
+                            AppSpacing.lg,
+                            AppSpacing.xl,
                           ),
+                          itemCount: filtered.length + (showAllTile ? 1 : 0),
+                          gridDelegate:
+                              const SliverGridDelegateWithFixedCrossAxisCount(
+                                crossAxisCount: 2,
+                                mainAxisSpacing: AppSpacing.sm,
+                                crossAxisSpacing: AppSpacing.sm,
+                                mainAxisExtent: 132,
+                              ),
                           itemBuilder: (context, i) {
                             if (showAllTile && i == 0) {
                               return _CategoryGridTile(
-                                label: t(widget.locale, ru: 'Все услуги', kz: 'Барлық қызметтер'),
+                                label: t(
+                                  widget.locale,
+                                  ru: 'Все услуги',
+                                  kz: 'Барлық қызметтер',
+                                ),
                                 selected: widget.activeSlug == null,
                                 image: const _AllIcon(),
                                 onTap: () => _pick(null),
                               );
                             }
-                            final category = filtered[i - (showAllTile ? 1 : 0)];
+                            final category =
+                                filtered[i - (showAllTile ? 1 : 0)];
                             return _CategoryGridTile(
                               label: category.name(widget.locale),
                               selected: widget.activeSlug == category.slug,
-                              image: NetworkImageBox(url: ApiConfig.mediaUrl(category.imageUrl), borderRadius: 0, fallbackIcon: Icons.celebration_outlined),
+                              image: NetworkImageBox(
+                                url: ApiConfig.mediaUrl(category.imageUrl),
+                                borderRadius: 0,
+                                fallbackIcon: Icons.celebration_outlined,
+                              ),
                               onTap: () => _pick(category.slug),
                             );
                           },
@@ -163,11 +229,22 @@ class _AllIcon extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return Container(
-      decoration: const BoxDecoration(
-        gradient: LinearGradient(begin: Alignment.topLeft, end: Alignment.bottomRight, colors: [AppColors.surface, AppColors.backgroundSecondary]),
+      decoration: BoxDecoration(
+        gradient: LinearGradient(
+          begin: Alignment.topLeft,
+          end: Alignment.bottomRight,
+          colors: [
+            context.mereytoiColors.surface,
+            context.mereytoiColors.backgroundSecondary,
+          ],
+        ),
       ),
       alignment: Alignment.center,
-      child: const Icon(Icons.apps_rounded, color: AppColors.goldPrimary, size: 22),
+      child: Icon(
+        Icons.apps_rounded,
+        color: context.mereytoiColors.goldPrimary,
+        size: 22,
+      ),
     );
   }
 }
@@ -178,7 +255,12 @@ class _AllIcon extends StatelessWidget {
 /// selected gets a restrained gold tint + hairline border + a small check
 /// badge on the image, never a heavy glow.
 class _CategoryGridTile extends StatelessWidget {
-  const _CategoryGridTile({required this.label, required this.selected, required this.image, required this.onTap});
+  const _CategoryGridTile({
+    required this.label,
+    required this.selected,
+    required this.image,
+    required this.onTap,
+  });
 
   final String label;
   final bool selected;
@@ -188,7 +270,9 @@ class _CategoryGridTile extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return Material(
-      color: selected ? AppColors.goldPrimary.withValues(alpha: 0.08) : AppColors.surface,
+      color: selected
+          ? context.mereytoiColors.goldPrimary.withValues(alpha: 0.08)
+          : context.mereytoiColors.surface,
       borderRadius: BorderRadius.circular(AppRadius.md),
       child: InkWell(
         onTap: onTap,
@@ -197,7 +281,12 @@ class _CategoryGridTile extends StatelessWidget {
           padding: const EdgeInsets.all(AppSpacing.sm),
           decoration: BoxDecoration(
             borderRadius: BorderRadius.circular(AppRadius.md),
-            border: Border.all(color: selected ? AppColors.goldPrimary : Colors.transparent, width: 1.3),
+            border: Border.all(
+              color: selected
+                  ? context.mereytoiColors.goldPrimary
+                  : Colors.transparent,
+              width: 1.3,
+            ),
           ),
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
@@ -219,8 +308,15 @@ class _CategoryGridTile extends StatelessWidget {
                           child: Container(
                             width: 20,
                             height: 20,
-                            decoration: const BoxDecoration(color: AppColors.goldPrimary, shape: BoxShape.circle),
-                            child: const Icon(Icons.check_rounded, size: 13, color: AppColors.onGold),
+                            decoration: BoxDecoration(
+                              color: context.mereytoiColors.goldPrimary,
+                              shape: BoxShape.circle,
+                            ),
+                            child: Icon(
+                              Icons.check_rounded,
+                              size: 13,
+                              color: context.mereytoiColors.onGold,
+                            ),
                           ),
                         ),
                     ],
@@ -232,7 +328,11 @@ class _CategoryGridTile extends StatelessWidget {
                 label,
                 maxLines: 2,
                 overflow: TextOverflow.ellipsis,
-                style: Theme.of(context).textTheme.titleSmall?.copyWith(color: selected ? AppColors.goldSoft : AppColors.textPrimary),
+                style: Theme.of(context).textTheme.titleSmall?.copyWith(
+                  color: selected
+                      ? context.mereytoiColors.goldSoft
+                      : context.mereytoiColors.textPrimary,
+                ),
               ),
             ],
           ),

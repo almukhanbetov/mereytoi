@@ -12,13 +12,19 @@ class AppCard extends StatelessWidget {
     super.key,
     required this.child,
     this.padding = const EdgeInsets.all(AppSpacing.md),
-    this.color = AppColors.surface,
+    this.color,
     this.radius = AppRadius.lg,
   });
 
   final Widget child;
   final EdgeInsetsGeometry padding;
-  final Color color;
+
+  /// Defaults to the theme's own [MereytoiColors.card] — `null` rather than
+  /// a hardcoded `context.mereytoiColors.surface` default so an ordinary `AppCard()`
+  /// call automatically looks right in both themes; a caller that wants a
+  /// specific surface (e.g. the elevated tone for a "highlighted" card)
+  /// still passes one explicitly.
+  final Color? color;
   final double radius;
 
   @override
@@ -26,7 +32,7 @@ class AppCard extends StatelessWidget {
     return Container(
       padding: padding,
       decoration: BoxDecoration(
-        color: color,
+        color: color ?? context.mereytoiColors.card,
         borderRadius: BorderRadius.circular(radius),
         boxShadow: AppShadows.card,
       ),

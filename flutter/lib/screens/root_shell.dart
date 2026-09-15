@@ -5,6 +5,7 @@ import '../state/cart_provider.dart';
 import '../state/locale_provider.dart';
 import '../widgets/app_bottom_nav.dart';
 import 'cart/cart_screen.dart';
+import 'events/events_screen.dart';
 import 'home/home_screen.dart';
 import 'services/services_screen.dart';
 
@@ -14,8 +15,13 @@ import 'services/services_screen.dart';
 final selectedTabProvider = StateProvider<int>((ref) => 0);
 
 /// The persistent app shell: bottom navigation for Главная / Услуги /
-/// Корзина, per the task's explicit nav spec — no Profile tab since auth
-/// isn't part of this first version.
+/// Мой той / Корзина. "Мой той" (Stage 4) rides as its own tab rather than
+/// tucked under Profile — there's no Profile tab yet at all (auth isn't
+/// part of the original nav spec), and a dedicated tab is the most
+/// discoverable option consistent with how Корзина already works. No
+/// badge on it: unlike Корзина's real local item count, there's no
+/// equally real "pending" number to show here yet (Notifications are a
+/// later stage) — never inventing one just to fill the slot.
 class RootShell extends ConsumerWidget {
   const RootShell({super.key});
 
@@ -33,6 +39,7 @@ class RootShell extends ConsumerWidget {
           children: const [
             HomeScreen(),
             ServicesScreen(),
+            EventsScreen(),
             CartScreen(),
           ],
         ),
@@ -50,6 +57,11 @@ class RootShell extends ConsumerWidget {
             icon: Icons.grid_view_outlined,
             activeIcon: Icons.grid_view_rounded,
             label: t(locale, ru: 'Услуги', kz: 'Қызметтер'),
+          ),
+          AppBottomNavItem(
+            icon: Icons.celebration_outlined,
+            activeIcon: Icons.celebration_rounded,
+            label: t(locale, ru: 'Мой той', kz: 'Менің тойым'),
           ),
           AppBottomNavItem(
             icon: Icons.shopping_bag_outlined,

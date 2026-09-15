@@ -15,7 +15,13 @@ import 'network_image_box.dart';
 /// `FittedBox`, so it cannot overflow regardless of name length, locale,
 /// or the device's font-scale setting.
 class ServiceCard extends StatelessWidget {
-  const ServiceCard({super.key, required this.listing, required this.locale, required this.categoryLabel, required this.onTap});
+  const ServiceCard({
+    super.key,
+    required this.listing,
+    required this.locale,
+    required this.categoryLabel,
+    required this.onTap,
+  });
 
   final Listing listing;
   final AppLocale locale;
@@ -25,7 +31,7 @@ class ServiceCard extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return Material(
-      color: AppColors.surface,
+      color: context.mereytoiColors.surface,
       borderRadius: BorderRadius.circular(AppRadius.lg),
       clipBehavior: Clip.antiAlias,
       child: InkWell(
@@ -39,7 +45,11 @@ class ServiceCard extends StatelessWidget {
               child: Stack(
                 fit: StackFit.expand,
                 children: [
-                  NetworkImageBox(url: ApiConfig.mediaUrl(listing.coverImage), borderRadius: 0, fallbackIcon: Icons.celebration_outlined),
+                  NetworkImageBox(
+                    url: ApiConfig.mediaUrl(listing.coverImage),
+                    borderRadius: 0,
+                    fallbackIcon: Icons.celebration_outlined,
+                  ),
                   if (listing.rating > 0)
                     Positioned(
                       top: AppSpacing.xs,
@@ -60,7 +70,9 @@ class ServiceCard extends StatelessWidget {
                       categoryLabel!,
                       maxLines: 1,
                       overflow: TextOverflow.ellipsis,
-                      style: Theme.of(context).textTheme.labelSmall?.copyWith(color: AppColors.goldMuted),
+                      style: Theme.of(context).textTheme.labelSmall?.copyWith(
+                        color: context.mereytoiColors.goldMuted,
+                      ),
                     ),
                   const SizedBox(height: 3),
                   Text(
@@ -84,7 +96,11 @@ class ServiceCard extends StatelessWidget {
                     child: Text(
                       formatPrice(listing.price),
                       maxLines: 1,
-                      style: const TextStyle(color: AppColors.goldSoft, fontWeight: FontWeight.w700, fontSize: 14.5),
+                      style: TextStyle(
+                        color: context.mereytoiColors.goldSoft,
+                        fontWeight: FontWeight.w700,
+                        fontSize: 14.5,
+                      ),
                     ),
                   ),
                 ],
@@ -103,7 +119,13 @@ class ServiceCard extends StatelessWidget {
 /// breathe without any risk of the squeeze that caused overflow in a
 /// narrow grid tile.
 class ServiceListTile extends StatelessWidget {
-  const ServiceListTile({super.key, required this.listing, required this.locale, required this.categoryLabel, required this.onTap});
+  const ServiceListTile({
+    super.key,
+    required this.listing,
+    required this.locale,
+    required this.categoryLabel,
+    required this.onTap,
+  });
 
   final Listing listing;
   final AppLocale locale;
@@ -115,7 +137,7 @@ class ServiceListTile extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return Material(
-      color: AppColors.surface,
+      color: context.mereytoiColors.surface,
       borderRadius: BorderRadius.circular(AppRadius.lg),
       clipBehavior: Clip.antiAlias,
       child: InkWell(
@@ -126,7 +148,10 @@ class ServiceListTile extends StatelessWidget {
             builder: (context, constraints) {
               // ~32% of the card's own width, per the "30–35%" spec — clamped
               // so it stays sane on both a 360px phone and a tablet-ish width.
-              final imageSize = (constraints.maxWidth * 0.32).clamp(84.0, 128.0);
+              final imageSize = (constraints.maxWidth * 0.32).clamp(
+                84.0,
+                128.0,
+              );
               return Row(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
@@ -138,12 +163,20 @@ class ServiceListTile extends StatelessWidget {
                       child: Stack(
                         fit: StackFit.expand,
                         children: [
-                          NetworkImageBox(url: ApiConfig.mediaUrl(listing.coverImage), borderRadius: 0, fallbackIcon: Icons.celebration_outlined),
+                          NetworkImageBox(
+                            url: ApiConfig.mediaUrl(listing.coverImage),
+                            borderRadius: 0,
+                            fallbackIcon: Icons.celebration_outlined,
+                          ),
                           // Rating moves onto the photo (a top-app marketplace
                           // convention) instead of competing with the price
                           // for space in the text column below.
                           if (listing.rating > 0)
-                            Positioned(top: AppSpacing.xxs, left: AppSpacing.xxs, child: _RatingBadge(rating: listing.rating)),
+                            Positioned(
+                              top: AppSpacing.xxs,
+                              left: AppSpacing.xxs,
+                              child: _RatingBadge(rating: listing.rating),
+                            ),
                         ],
                       ),
                     ),
@@ -160,12 +193,16 @@ class ServiceListTile extends StatelessWidget {
                             crossAxisAlignment: CrossAxisAlignment.start,
                             mainAxisSize: MainAxisSize.min,
                             children: [
-                              if (categoryLabel != null && categoryLabel!.isNotEmpty)
+                              if (categoryLabel != null &&
+                                  categoryLabel!.isNotEmpty)
                                 Text(
                                   categoryLabel!,
                                   maxLines: 1,
                                   overflow: TextOverflow.ellipsis,
-                                  style: Theme.of(context).textTheme.labelSmall?.copyWith(color: AppColors.goldMuted),
+                                  style: Theme.of(context).textTheme.labelSmall
+                                      ?.copyWith(
+                                        color: context.mereytoiColors.goldMuted,
+                                      ),
                                 ),
                               const SizedBox(height: 3),
                               Text(
@@ -184,10 +221,21 @@ class ServiceListTile extends StatelessWidget {
                                   child: Row(
                                     mainAxisSize: MainAxisSize.min,
                                     children: [
-                                      const Icon(Icons.place_outlined, size: 13, color: AppColors.textMuted),
+                                      Icon(
+                                        Icons.place_outlined,
+                                        size: 13,
+                                        color: context.mereytoiColors.textMuted,
+                                      ),
                                       const SizedBox(width: 3),
                                       Flexible(
-                                        child: Text(listing.city, maxLines: 1, overflow: TextOverflow.ellipsis, style: Theme.of(context).textTheme.bodySmall),
+                                        child: Text(
+                                          listing.city,
+                                          maxLines: 1,
+                                          overflow: TextOverflow.ellipsis,
+                                          style: Theme.of(
+                                            context,
+                                          ).textTheme.bodySmall,
+                                        ),
                                       ),
                                     ],
                                   ),
@@ -206,7 +254,11 @@ class ServiceListTile extends StatelessWidget {
                                   child: Text(
                                     formatPrice(listing.price),
                                     maxLines: 1,
-                                    style: const TextStyle(color: AppColors.goldSoft, fontWeight: FontWeight.w700, fontSize: 14.5),
+                                    style: TextStyle(
+                                      color: context.mereytoiColors.goldSoft,
+                                      fontWeight: FontWeight.w700,
+                                      fontSize: 14.5,
+                                    ),
                                   ),
                                 ),
                               ),
@@ -242,9 +294,20 @@ class _RatingBadge extends StatelessWidget {
       child: Row(
         mainAxisSize: MainAxisSize.min,
         children: [
-          const Icon(Icons.star_rounded, size: 12, color: AppColors.goldPrimary),
+          Icon(
+            Icons.star_rounded,
+            size: 12,
+            color: context.mereytoiColors.goldPrimary,
+          ),
           const SizedBox(width: 2),
-          Text(rating.toStringAsFixed(1), style: const TextStyle(color: Colors.white, fontSize: 11, fontWeight: FontWeight.w700)),
+          Text(
+            rating.toStringAsFixed(1),
+            style: const TextStyle(
+              color: Colors.white,
+              fontSize: 11,
+              fontWeight: FontWeight.w700,
+            ),
+          ),
         ],
       ),
     );
