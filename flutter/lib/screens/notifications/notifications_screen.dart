@@ -3,6 +3,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../../core/theme/app_theme.dart';
 import '../../core/utils/error_messages.dart';
+import '../../domain/manager_chat/manager_chat_context.dart';
 import '../../domain/notification/notification_type.dart';
 import '../../models/app_notification.dart';
 import '../../state/auth_provider.dart';
@@ -14,6 +15,8 @@ import '../../widgets/app_loader.dart';
 import '../../widgets/app_skeleton.dart';
 import '../auth/login_screen.dart';
 import '../events/event_workspace_screen.dart';
+import '../manager_chat/manager_chat_screen.dart';
+import '../provider_chat/provider_chat_screen.dart';
 
 /// Брифа section 2 — the in-app notification center. Renders localized
 /// copy from `type` at read time (never a stored title/text — same
@@ -178,6 +181,13 @@ class _NotificationTile extends ConsumerWidget {
       entityType: notification.entityType,
       eventId: notification.eventId,
     );
+    final chatTarget = resolveChatNotificationTarget(
+      type: notification.type,
+      entityType: notification.entityType,
+      entityId: notification.entityId,
+      payload: notification.payload,
+      fallbackPeerName: notification.actor?.name,
+    );
 
     return Material(
       color: notification.isRead
@@ -192,7 +202,11 @@ class _NotificationTile extends ConsumerWidget {
                 .read(notificationActionsProvider)
                 .markRead(notification.id);
           }
-          if (target != null && context.mounted) {
+          if (chatTarget != null && context.mounted) {
+            Navigator.of(context).push(
+              MaterialPageRoute(builder: (_) => _chatScreenFor(chatTarget)),
+            );
+          } else if (target != null && context.mounted) {
             Navigator.of(context).push(
               MaterialPageRoute(
                 builder: (_) => EventWorkspaceScreen(
@@ -245,6 +259,40 @@ class _NotificationTile extends ConsumerWidget {
       ),
     );
   }
+}
+
+/// Этап 12B — the exact conversation a chat notification points at, opened
+/// by id so it's the same thread regardless of which side the viewer is on.
+Widget _chatScreenFor(ChatNotificationTarget target) {
+  return switch (target) {
+    ManagerChatNotificationTarget() => ManagerChatScreen(
+      conversationId: target.conversationId,
+      chatContext: ManagerChatContext(
+        eventId: target.eventId,
+        listingId: target.listingId,
+      ),
+    ),
+    ProviderChatNotificationTarget() => ProviderChatScreen(
+      providerId: target.providerId,
+      peerName: target.peerName,
+      listingId: target.listingId,
+      conversationId: target.conversationId,
+    ),
+  };
+}
+
+/// A one-line preview of a chat message for the notification row — long
+/// messages are clipped here rather than relying on the row to ellipsize,
+/// since the row's text wraps.
+String _messagePreview(AppNotification n) {
+  final body = (n.payload['body'] as String? ?? '').trim().replaceAll(
+    RegExp(r'\s+'),
+    ' ',
+  );
+  if (body.isEmpty) return '';
+  // Grapheme-safe clip, so an emoji at the cut point never gets split.
+  final chars = body.characters;
+  return chars.length > 80 ? ': «${chars.take(80)}…»' : ': «$body»';
 }
 
 /// Renders the same kind of localized line
@@ -371,6 +419,39 @@ String _notificationText(AppLocale locale, AppNotification n) {
         kz: '«Менің тойым» кеңістігіңіз дайын',
         en: 'Your "My Event" space is ready',
       );
+    case notifManagerMessageReceived:
+      return t(
+            locale,
+            ru: 'Новое сообщение от менеджера',
+            kz: 'Менеджерден жаңа хабарлама',
+            en: 'New message from the manager',
+          ) +
+          _messagePreview(n);
+    case notifManagerChatUserMessage:
+      return t(
+            locale,
+            ru: 'Новое сообщение клиента менеджеру',
+            kz: 'Клиенттен менеджерге жаңа хабарлама',
+            en: 'New customer message to the managers',
+          ) +
+          _messagePreview(n);
+    case notifProviderMessageReceived:
+      final sender =
+          (n.payload['sender_name'] as String?) ?? n.actor?.name ?? '';
+      return (sender.isEmpty
+              ? t(
+                  locale,
+                  ru: 'Новое сообщение',
+                  kz: 'Жаңа хабарлама',
+                  en: 'New message',
+                )
+              : t(
+                  locale,
+                  ru: 'Новое сообщение от $sender',
+                  kz: '$sender жаңа хабарлама жіберді',
+                  en: 'New message from $sender',
+                )) +
+          _messagePreview(n);
     default:
       return n.type;
   }

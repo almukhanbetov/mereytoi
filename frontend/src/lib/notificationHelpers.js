@@ -28,6 +28,11 @@ const TITLES = {
   request_approved: { ru: 'Заявка подтверждена', kz: 'Өтінім расталды', en: 'Request approved' },
   request_rejected: { ru: 'Заявка отклонена', kz: 'Өтінім қабылданбады', en: 'Request rejected' },
   request_cancelled: { ru: 'Заявка отменена', kz: 'Өтінім бас тартылды', en: 'Request cancelled' },
+
+  // Этап 11G/12A — chat messages, addressed by conversation (never event-scoped).
+  manager_message_received: { ru: 'Сообщение от менеджера', kz: 'Менеджерден хабарлама', en: 'Message from the manager' },
+  manager_chat_user_message: { ru: 'Новое сообщение клиента', kz: 'Клиенттен жаңа хабарлама', en: 'New customer message' },
+  provider_message_received: { ru: 'Новое сообщение', kz: 'Жаңа хабарлама', en: 'New message' },
 };
 
 // Notification types the UI should visually flag as needing the
@@ -58,6 +63,8 @@ export function notificationMessage(notification, lang) {
   const actor = notification.actor?.name || (lang === 'kz' ? 'Жүйе' : lang === 'en' ? 'System' : 'Система');
   const price = (v) => formatPrice(v || 0);
   const vote = VOTE_LABEL[p.value]?.[lang] || VOTE_LABEL[p.value]?.ru || '';
+  const body = String(p.body || '').replace(/\s+/g, ' ').trim();
+  const preview = body.length > 120 ? `«${body.slice(0, 120)}…»` : `«${body}»`;
 
   const templates = {
     invitation_accepted: {
@@ -154,6 +161,18 @@ export function notificationMessage(notification, lang) {
       kz: `${actor} өтінімнен бас тартты`,
       en: `${actor} cancelled the request`,
     },
+
+    manager_message_received: { ru: preview, kz: preview, en: preview },
+    manager_chat_user_message: {
+      ru: `${actor}: ${preview}`,
+      kz: `${actor}: ${preview}`,
+      en: `${actor}: ${preview}`,
+    },
+    provider_message_received: {
+      ru: `${p.sender_name || actor}: ${preview}`,
+      kz: `${p.sender_name || actor}: ${preview}`,
+      en: `${p.sender_name || actor}: ${preview}`,
+    },
   };
 
   const forType = templates[notification.type];
@@ -184,6 +203,9 @@ const TYPE_ICONS = {
   request_approved: '✅',
   request_rejected: '⛔',
   request_cancelled: '🚫',
+  manager_message_received: '💬',
+  manager_chat_user_message: '💬',
+  provider_message_received: '💬',
 };
 
 export function notificationTypeIcon(type) {
@@ -285,7 +307,17 @@ export function notificationClickTargets(item, opts) {
   const unreadIds = item.kind === 'group'
     ? item.items.filter((n) => !n.is_read).map((n) => n.id)
     : (latest.is_read ? [] : [latest.id]);
-  return { unreadIds, route: notificationRoute(latest, opts) };
+  return { unreadIds, route: notificationRoute(latest, opts), managerChat: notificationManagerChatContext(latest) };
+}
+
+// Этап 12B — a manager's reply has no page of its own on the customer
+// side: its thread lives in the floating manager widget, so the caller
+// opens that (useManagerChat().openChat) with the conversation's own
+// event/listing context instead of navigating. null for every other type.
+export function notificationManagerChatContext(notification) {
+  if (notification.type !== 'manager_message_received') return null;
+  const p = notification.payload || {};
+  return { conversationId: notification.entity_id ?? null, eventId: p.event_id ?? null, listingId: p.listing_id ?? null };
 }
 
 // Maps a notification's structured refs (type/event_id/entity_type/
@@ -335,6 +367,10 @@ export function notificationRoute(notification, { isAdmin = false } = {}) {
     case 'request_approved':
     case 'request_rejected':
       return base ? `${base}/request` : '/profile/notifications';
+
+    // Этап 12A — admins open the exact thread in the manager inbox.
+    case 'manager_chat_user_message':
+      return notification.entity_id ? `/admin/manager-chat/${notification.entity_id}` : '/admin/manager-chat';
 
     default:
       return base || '/profile/notifications';

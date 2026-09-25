@@ -115,6 +115,7 @@ func (h *ManagerChatHandler) Start(c *gin.Context) {
 		return
 	}
 	h.DB.Model(&conv).Update("updated_at", time.Now())
+	h.notifyNewMessage(conv, userID, false, body)
 
 	h.respondDetail(c, conv.ID, userID, false)
 }
@@ -178,8 +179,31 @@ func (h *ManagerChatHandler) AddMessage(c *gin.Context) {
 		return
 	}
 	h.DB.Model(&conv).Update("updated_at", time.Now())
+	h.notifyNewMessage(conv, userID, asAdmin, body)
 
 	h.respondDetail(c, conv.ID, userID, asAdmin)
+}
+
+// notifyNewMessage (Этап 12A) tells whichever side didn't just send the
+// message, through the one existing Notification mechanism: a manager's
+// reply notifies the conversation's customer, a customer's message
+// notifies every admin (adminUserIDs — there is no per-conversation
+// "assigned manager"). event_id/listing_id travel in the payload rather
+// than Notification.EventID, so the row stays out of event-scoped
+// notification feeds — the conversation id is the real deep-link target.
+func (h *ManagerChatHandler) notifyNewMessage(conv models.ManagerConversation, senderUserID uint, fromManager bool, body string) {
+	payload := map[string]any{"body": body}
+	if conv.EventID != nil {
+		payload["event_id"] = *conv.EventID
+	}
+	if conv.ListingID != nil {
+		payload["listing_id"] = *conv.ListingID
+	}
+	if fromManager {
+		createNotification(h.DB, conv.UserID, senderUserID, 0, models.NotifManagerMessageReceived, "manager_conversation", conv.ID, payload)
+		return
+	}
+	notifyMany(h.DB, adminUserIDs(h.DB), senderUserID, 0, models.NotifManagerChatUserMessage, "manager_conversation", conv.ID, payload)
 }
 
 // respondDetail loads one conversation (with its event/service context)

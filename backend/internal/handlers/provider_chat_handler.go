@@ -156,7 +156,7 @@ func (h *ProviderChatHandler) Start(c *gin.Context) {
 	}
 	h.DB.Model(&conv).Update("updated_at", time.Now())
 
-	createNotification(h.DB, provider.UserID, userID, 0, models.NotifProviderMessageReceived, "provider_conversation", conv.ID, map[string]any{"body": body})
+	createNotification(h.DB, provider.UserID, userID, 0, models.NotifProviderMessageReceived, "provider_conversation", conv.ID, h.messagePayload(conv, "customer", body))
 
 	h.respondDetail(c, conv.ID, userID)
 }
@@ -270,9 +270,34 @@ func (h *ProviderChatHandler) AddMessage(c *gin.Context) {
 	if role == "customer" && conv.Provider != nil {
 		recipientUserID = conv.Provider.UserID
 	}
-	createNotification(h.DB, recipientUserID, userID, 0, models.NotifProviderMessageReceived, "provider_conversation", conv.ID, map[string]any{"body": body})
+	createNotification(h.DB, recipientUserID, userID, 0, models.NotifProviderMessageReceived, "provider_conversation", conv.ID, h.messagePayload(conv, role, body))
 
 	h.respondDetail(c, conv.ID, userID)
+}
+
+// messagePayload (Этап 12B) is everything a notification needs to reopen
+// the exact conversation from the recipient's side without a lookup:
+// provider_id/listing_id (ProviderChatScreen's own context) and
+// sender_name — the name the recipient knows the sender by. A provider
+// replying is shown under their public Provider.DisplayName (what the
+// customer saw on the profile), a customer under their User.Name.
+func (h *ProviderChatHandler) messagePayload(conv models.ProviderConversation, senderRole, body string) map[string]any {
+	payload := map[string]any{"body": body, "provider_id": conv.ProviderID}
+	if conv.ListingID != nil {
+		payload["listing_id"] = *conv.ListingID
+	}
+	if senderRole == "provider" {
+		var provider models.Provider
+		if h.DB.First(&provider, conv.ProviderID).Error == nil {
+			payload["sender_name"] = provider.DisplayName
+		}
+	} else {
+		var customer models.User
+		if h.DB.First(&customer, conv.CustomerUserID).Error == nil {
+			payload["sender_name"] = customer.Name
+		}
+	}
+	return payload
 }
 
 // respondDetail loads one conversation plus its full message list, and — as

@@ -189,7 +189,9 @@ const ManagerChatContext = createContext(null);
 function ManagerChatProvider({ children }) {
   const [isOpen, setIsOpen] = useState(false);
   // chatContext shape: { listingId, listingName, listingPrice, categoryName,
-  // eventId } — every field optional; null means "no context, plain chat".
+  // eventId, conversationId } — every field optional; null means "no
+  // context, plain chat". conversationId (Этап 12B) is set only when a
+  // notification opens one exact thread.
   const [chatContext, setChatContext] = useState(null);
 
   const openChat = useCallback((context = null) => {

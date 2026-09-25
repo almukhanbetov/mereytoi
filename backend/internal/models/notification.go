@@ -107,3 +107,14 @@ const (
 const (
 	NotifProviderMessageReceived = "provider_message_received"
 )
+
+// Manager chat (Этап 12A) — two types rather than one, since the two
+// directions reach different audiences with different destinations: a
+// manager's reply goes to the conversation's customer (opens their own
+// thread via /api/manager-chat/:id), a customer's message fans out to
+// every admin (opens /admin/manager-chat/:id). Both use EntityType
+// "manager_conversation" + EntityID = conversation id as the deep link.
+const (
+	NotifManagerMessageReceived = "manager_message_received"
+	NotifManagerChatUserMessage = "manager_chat_user_message"
+)

@@ -3,7 +3,7 @@
 import { useCallback, useEffect, useState } from 'react';
 import { useRouter } from 'next/navigation';
 import { useAuth } from '@/context/AuthContext';
-import { T, useLang } from '@/context/AppProviders';
+import { T, useLang, useManagerChat } from '@/context/AppProviders';
 import { notificationsApi } from '@/lib/notificationsApi';
 import { groupNotifications, notificationClickTargets } from '@/lib/notificationHelpers';
 import NotificationRow from '@/components/NotificationRow';
@@ -15,6 +15,7 @@ export default function NotificationsPage() {
   const isAdmin = user?.role === 'admin';
   const { lang } = useLang();
   const router = useRouter();
+  const { openChat } = useManagerChat();
 
   const [tab, setTab] = useState('all'); // 'all' | 'unread'
   const [page, setPage] = useState(1);
@@ -51,11 +52,16 @@ export default function NotificationsPage() {
   }
 
   async function handleClick(item) {
-    const { unreadIds, route } = notificationClickTargets(item, { isAdmin });
+    const { unreadIds, route, managerChat } = notificationClickTargets(item, { isAdmin });
     if (unreadIds.length > 0) {
       const idSet = new Set(unreadIds);
       setNotifications((prev) => prev.map((x) => (idSet.has(x.id) ? { ...x, is_read: true } : x)));
       Promise.all(unreadIds.map((id) => notificationsApi.markRead(id))).catch(() => {});
+    }
+    // A manager reply's thread lives in the floating widget, not a page.
+    if (managerChat) {
+      openChat(managerChat);
+      return;
     }
     router.push(route);
   }

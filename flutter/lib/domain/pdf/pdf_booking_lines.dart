@@ -1,4 +1,5 @@
 import '../../models/booking.dart';
+import '../../state/locale_provider.dart';
 
 /// One printable row of the PDF export — plain data, no `pw.Widget`
 /// anywhere in this file, so the mapping from a [Booking]'s items to what
@@ -81,3 +82,55 @@ PdfBookingData pdfDataFromBooking(Booking booking) {
     total: booking.total,
   );
 }
+
+/// Этап 12C — every fixed string the PDF prints, in the viewer's current
+/// app language (the PDF used to be Russian-only). Kept here as plain data,
+/// like the lines themselves, so the RU/KZ/EN copy is unit-testable without
+/// rendering a page. Line titles/hall/menu/extras stay exactly as the
+/// booking stored them — they're the server's own names, not UI copy.
+class PdfLabels {
+  const PdfLabels(this.locale);
+
+  final AppLocale locale;
+
+  String get requestNumber =>
+      t(locale, ru: 'Номер заявки', kz: 'Өтінім нөмірі', en: 'Request number');
+  String get total => t(locale, ru: 'Итого', kz: 'Барлығы', en: 'Total');
+  String get hall => t(locale, ru: 'Зал', kz: 'Зал', en: 'Hall');
+  String get menu => t(locale, ru: 'Меню', kz: 'Мәзір', en: 'Menu');
+
+  /// "120 чел. × 15 000 ₸" — the per-guest breakdown under a line.
+  String guestsTimesPrice(int guests, String price) => t(
+    locale,
+    ru: '$guests чел. × $price',
+    kz: '$guests адам × $price',
+    en: '$guests guests × $price',
+  );
+
+  String date(DateTime date) {
+    final months = switch (locale) {
+      AppLocale.ru => _ruGenitiveMonths,
+      AppLocale.kz => _kzMonths,
+      AppLocale.en => _enMonths,
+    };
+    final month = months[date.month - 1];
+    return switch (locale) {
+      AppLocale.ru => '${date.day} $month ${date.year}',
+      AppLocale.kz => '${date.day} $month ${date.year} ж.',
+      AppLocale.en => '$month ${date.day}, ${date.year}',
+    };
+  }
+}
+
+const _ruGenitiveMonths = [
+  'января', 'февраля', 'марта', 'апреля', 'мая', 'июня', //
+  'июля', 'августа', 'сентября', 'октября', 'ноября', 'декабря',
+];
+const _kzMonths = [
+  'қаңтар', 'ақпан', 'наурыз', 'сәуір', 'мамыр', 'маусым', //
+  'шілде', 'тамыз', 'қыркүйек', 'қазан', 'қараша', 'желтоқсан',
+];
+const _enMonths = [
+  'January', 'February', 'March', 'April', 'May', 'June', //
+  'July', 'August', 'September', 'October', 'November', 'December',
+];

@@ -88,6 +88,10 @@ flutter:
   #   - images/a_dot_ham.jpeg
   assets:
     - assets/icon/
+    # Этап 12C — bundled (not fetched from Google Fonts at runtime) so the
+    # booking PDF renders offline and always has Cyrillic + Kazakh glyphs
+    # (Ә Ғ Қ Ң Ө Ұ Ү Һ І) and ₸. Noto Sans, SIL Open Font License 1.1.
+    - assets/fonts/pdf/
 
   # An image asset can refer to one or more resolution-specific "variants", see
   # https://flutter.dev/to/resolution-aware-images
