@@ -20,6 +20,13 @@ final listingDetailProvider = FutureProvider.family<Listing, int>((ref, id) {
   return ref.watch(listingServiceProvider).fetchById(id);
 });
 
+/// "Мои рестораны" (brief Этап 6) — every listing the current user may
+/// manage: all of them for a global admin, only the ones they're an
+/// owner/manager of otherwise. See [ListingService.fetchMyListings].
+final myListingsProvider = FutureProvider<List<Listing>>((ref) {
+  return ref.watch(listingServiceProvider).fetchMyListings();
+});
+
 /// Stage 2 (restaurant halls/menus UI) scaffolding — not consumed by any
 /// screen yet. `listingDetailProvider` above already returns halls/menus
 /// nested (GET /api/listings/:id), so a restaurant detail screen may not

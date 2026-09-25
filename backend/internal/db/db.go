@@ -54,6 +54,13 @@ func Connect(cfg config.Config) *gorm.DB {
 		// user to a listing they may manage (role owner|manager); a global
 		// admin needs no row here.
 		&models.ListingManager{},
+		// Provider marketplace — see models/provider.go. A user's optional
+		// "услугодатель" profile; ownership of their actual listings still
+		// goes through ListingManager above, not a new FK here.
+		&models.Provider{},
+		// Direct customer<->provider chat — see models/provider_chat.go,
+		// deliberately separate from ManagerConversation/ManagerMessage above.
+		&models.ProviderConversation{}, &models.ProviderMessage{},
 	); err != nil {
 		log.Fatalf("failed to run migrations: %v", err)
 	}

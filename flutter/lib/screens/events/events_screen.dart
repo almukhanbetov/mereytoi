@@ -33,7 +33,9 @@ class EventsScreen extends ConsumerWidget {
 
     return Scaffold(
       appBar: AppBar(
-        title: Text(t(locale, ru: 'Мой той', kz: 'Менің тойым')),
+        title: Text(
+          t(locale, ru: 'Мой той', kz: 'Менің тойым', en: 'My Event'),
+        ),
       ),
       body: switch (authState) {
         AuthInitial() || AuthLoading() => const AppLoader(),
@@ -64,6 +66,7 @@ class _LoginPrompt extends StatelessWidget {
                 locale,
                 ru: 'Войдите, чтобы планировать той',
                 kz: 'Тойды жоспарлау үшін кіріңіз',
+                en: 'Sign in to plan your event',
               ),
               textAlign: TextAlign.center,
               style: Theme.of(context).textTheme.titleMedium,
@@ -73,7 +76,7 @@ class _LoginPrompt extends StatelessWidget {
               onPressed: () => Navigator.of(
                 context,
               ).push(MaterialPageRoute(builder: (_) => const LoginScreen())),
-              child: Text(t(locale, ru: 'Войти', kz: 'Кіру')),
+              child: Text(t(locale, ru: 'Войти', kz: 'Кіру', en: 'Sign in')),
             ),
           ],
         ),
@@ -168,6 +171,7 @@ class _EmptyEvents extends StatelessWidget {
                 locale,
                 ru: 'У вас пока нет мероприятий',
                 kz: 'Сізде әлі іс-шара жоқ',
+                en: 'You don\'t have any events yet',
               ),
               style: Theme.of(context).textTheme.titleMedium,
             ),
@@ -175,7 +179,12 @@ class _EmptyEvents extends StatelessWidget {
             ElevatedButton(
               onPressed: () => openCreateEventSheet(context),
               child: Text(
-                t(locale, ru: 'Создать мероприятие', kz: 'Іс-шара құру'),
+                t(
+                  locale,
+                  ru: 'Создать мероприятие',
+                  kz: 'Іс-шара құру',
+                  en: 'Create event',
+                ),
               ),
             ),
           ],
@@ -233,15 +242,25 @@ class _EventCard extends StatelessWidget {
                       _MetaBit(
                         icon: Icons.flag_outlined,
                         text: event.status == eventStatusSubmitted
-                            ? t(locale, ru: 'Отправлено', kz: 'Жіберілді')
-                            : t(locale, ru: 'Планирование', kz: 'Жоспарлау'),
+                            ? t(
+                                locale,
+                                ru: 'Отправлено',
+                                kz: 'Жіберілді',
+                                en: 'Sent',
+                              )
+                            : t(
+                                locale,
+                                ru: 'Планирование',
+                                kz: 'Жоспарлау',
+                                en: 'Planning',
+                              ),
                       ),
                     ],
                   ),
                   if (event.budgetTotal > 0) ...[
                     const SizedBox(height: 6),
                     Text(
-                      '${t(locale, ru: "Бюджет", kz: "Бюджет")}: ${formatPrice(event.budgetTotal)}',
+                      '${t(locale, ru: "Бюджет", kz: "Бюджет", en: "Budget")}: ${formatPrice(event.budgetTotal)}',
                       style: TextStyle(
                         color: context.mereytoiColors.goldSoft,
                         fontWeight: FontWeight.w700,

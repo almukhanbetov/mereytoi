@@ -48,33 +48,59 @@ class _MenuContentAccordionState extends State<MenuContentAccordion> {
   Widget build(BuildContext context) {
     if (_sorted.isEmpty) return const SizedBox.shrink();
 
+    // Этап 10Б-1А fix: title and the two toggle actions used to share one
+    // Row with no Expanded/Wrap — on a narrow screen (or at a larger
+    // system text scale) the row's unconstrained children genuinely don't
+    // fit and RenderFlex overflows horizontally. The title now owns its
+    // own row; the actions sit below in a Wrap, which reflows to a second
+    // line instead of overflowing if it ever still doesn't fit — never
+    // clipped, never shrunk to an unreadable size.
+    final compactButtonStyle = TextButton.styleFrom(
+      minimumSize: const Size(0, 32),
+      padding: const EdgeInsets.symmetric(horizontal: AppSpacing.xs),
+      visualDensity: VisualDensity.compact,
+      textStyle: Theme.of(context).textTheme.labelMedium,
+    );
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        Row(
-          mainAxisAlignment: MainAxisAlignment.spaceBetween,
+        Text(
+          t(
+            widget.locale,
+            ru: 'Состав меню',
+            kz: 'Мәзір құрамы',
+            en: 'Menu contents',
+          ),
+          style: Theme.of(context).textTheme.titleMedium,
+        ),
+        const SizedBox(height: AppSpacing.xxs),
+        Wrap(
+          spacing: AppSpacing.xs,
           children: [
-            Text(
-              t(widget.locale, ru: 'Состав меню', kz: 'Мәзір құрамы'),
-              style: Theme.of(context).textTheme.titleMedium,
+            TextButton(
+              style: compactButtonStyle,
+              onPressed: () =>
+                  setState(() => _openIds = _sorted.map((s) => s.id).toSet()),
+              child: Text(
+                t(
+                  widget.locale,
+                  ru: 'Развернуть всё',
+                  kz: 'Барлығын жаю',
+                  en: 'Expand all',
+                ),
+              ),
             ),
-            Row(
-              children: [
-                TextButton(
-                  onPressed: () => setState(
-                    () => _openIds = _sorted.map((s) => s.id).toSet(),
-                  ),
-                  child: Text(
-                    t(widget.locale, ru: 'Развернуть всё', kz: 'Барлығын жаю'),
-                  ),
+            TextButton(
+              style: compactButtonStyle,
+              onPressed: () => setState(() => _openIds = {}),
+              child: Text(
+                t(
+                  widget.locale,
+                  ru: 'Свернуть всё',
+                  kz: 'Барлығын жию',
+                  en: 'Collapse all',
                 ),
-                TextButton(
-                  onPressed: () => setState(() => _openIds = {}),
-                  child: Text(
-                    t(widget.locale, ru: 'Свернуть всё', kz: 'Барлығын жию'),
-                  ),
-                ),
-              ],
+              ),
             ),
           ],
         ),
@@ -174,6 +200,7 @@ class _SectionTile extends StatelessWidget {
                           locale,
                           ru: 'Позиции пока не добавлены',
                           kz: 'Позициялар әлі қосылмаған',
+                          en: 'No items added yet',
                         ),
                         style: Theme.of(context).textTheme.bodySmall,
                       ),

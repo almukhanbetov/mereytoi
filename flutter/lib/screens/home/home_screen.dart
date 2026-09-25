@@ -11,13 +11,16 @@ import '../../state/listings_provider.dart';
 import '../../state/locale_provider.dart';
 import '../../state/notification_providers.dart';
 import '../../state/statistics_provider.dart';
+import '../../state/theme_provider.dart';
 import '../../widgets/app_card.dart';
 import '../../widgets/app_error_view.dart';
 import '../../widgets/app_skeleton.dart';
 import '../../widgets/category_card.dart';
 import '../../widgets/fade_slide_in.dart';
+import '../../widgets/locale_sheet.dart';
 import '../../widgets/section_header.dart';
 import '../../widgets/service_card.dart';
+import '../../widgets/theme_mode_sheet.dart';
 import '../auth/login_screen.dart';
 import '../categories/categories_screen.dart';
 import '../notifications/notifications_screen.dart';
@@ -56,6 +59,8 @@ class HomeScreen extends ConsumerWidget {
                 const SizedBox(width: AppSpacing.xs),
                 const _AccountButton(),
                 const SizedBox(width: AppSpacing.xs),
+                const _ThemeToggleButton(),
+                const SizedBox(width: AppSpacing.xs),
                 _LocaleToggle(locale: locale),
                 const SizedBox(width: AppSpacing.md),
               ],
@@ -66,11 +71,17 @@ class HomeScreen extends ConsumerWidget {
               child: _ListingCarouselSection(
                 locale: locale,
                 categorySlug: null,
-                eyebrow: t(locale, ru: 'Рекомендуем', kz: 'Ұсынамыз'),
+                eyebrow: t(
+                  locale,
+                  ru: 'Рекомендуем',
+                  kz: 'Ұсынамыз',
+                  en: 'Recommended',
+                ),
                 title: t(
                   locale,
                   ru: 'Популярные услуги',
                   kz: 'Танымал қызметтер',
+                  en: 'Popular services',
                 ),
               ),
             ),
@@ -78,8 +89,18 @@ class HomeScreen extends ConsumerWidget {
               child: _ListingCarouselSection(
                 locale: locale,
                 categorySlug: 'venues',
-                eyebrow: t(locale, ru: 'Для торжества', kz: 'Той үшін'),
-                title: t(locale, ru: 'Рестораны', kz: 'Мейрамханалар'),
+                eyebrow: t(
+                  locale,
+                  ru: 'Для торжества',
+                  kz: 'Той үшін',
+                  en: 'For your celebration',
+                ),
+                title: t(
+                  locale,
+                  ru: 'Рестораны',
+                  kz: 'Мейрамханалар',
+                  en: 'Restaurants',
+                ),
               ),
             ),
             const SliverToBoxAdapter(child: SizedBox(height: AppSpacing.xxl)),
@@ -206,6 +227,56 @@ class _NotificationsButton extends ConsumerWidget {
   }
 }
 
+/// Этап 10Б-А2 — the theme picker, reachable without logging in (the bug
+/// report: it used to live only inside `ProfileScreen`, which a guest
+/// never reaches — they get `LoginScreen` instead). Styled exactly like
+/// `_AccountButton`/`_NotificationsButton` (44×44 circle on
+/// `colors.surface`) rather than `_LocaleToggle`'s pill, since this shows
+/// one glyph, not two-letter text; opens the exact same [ThemeModeSheet]
+/// `ProfileScreen`'s own "Оформление" row does — one sheet, one
+/// [themeModeProvider], never a second theme-picker UI to keep in sync.
+class _ThemeToggleButton extends ConsumerWidget {
+  const _ThemeToggleButton();
+
+  @override
+  Widget build(BuildContext context, WidgetRef ref) {
+    final mode = ref.watch(themeModeProvider);
+    return SizedBox(
+      width: 44,
+      height: 44,
+      child: Material(
+        color: context.mereytoiColors.surface,
+        shape: const CircleBorder(),
+        child: InkWell(
+          customBorder: const CircleBorder(),
+          onTap: () => showModalBottomSheet<void>(
+            context: context,
+            isScrollControlled: true,
+            backgroundColor: Colors.transparent,
+            builder: (_) => const ThemeModeSheet(),
+          ),
+          child: Icon(
+            themeModeIcon(mode),
+            size: 19,
+            color: context.mereytoiColors.textSecondary,
+          ),
+        ),
+      ),
+    );
+  }
+}
+
+/// Этап 10Б-А3 fix: this used to show the current language as short text
+/// ("РУС"/"ҚАЗ"/"ENG") — on the real device that reportedly rendered as
+/// garbled/CJK-looking glyphs (Kazakh's extended Cyrillic, e.g. "Қ", can
+/// trigger a font-fallback substitution on some Android builds that
+/// doesn't happen for a fixed icon glyph) and, per the same report, didn't
+/// visually update after switching. A constant `Icons.language_rounded`
+/// glyph sidesteps both: nothing here depends on font-fallback behavior
+/// for any script, and there's no per-language label to go stale — the
+/// *icon* deliberately never changes (only [LocaleSheet]'s own checkmark
+/// does); a screen reader still hears the current language via this
+/// button's own [Semantics.label], which does update.
 class _LocaleToggle extends ConsumerWidget {
   const _LocaleToggle({required this.locale});
 
@@ -214,25 +285,31 @@ class _LocaleToggle extends ConsumerWidget {
   @override
   Widget build(BuildContext context, WidgetRef ref) {
     return SizedBox(
+      width: 44,
       height: 44,
-      child: Material(
-        color: context.mereytoiColors.surface,
-        borderRadius: BorderRadius.circular(AppRadius.chip),
-        child: InkWell(
-          borderRadius: BorderRadius.circular(AppRadius.chip),
-          onTap: () => ref.read(localeProvider.notifier).state =
-              locale == AppLocale.ru ? AppLocale.kz : AppLocale.ru,
-          child: Padding(
-            padding: const EdgeInsets.symmetric(horizontal: AppSpacing.md),
-            child: Center(
-              child: Text(
-                locale == AppLocale.ru ? 'ҚАЗ' : 'РУС',
-                style: TextStyle(
-                  color: context.mereytoiColors.goldSoft,
-                  fontWeight: FontWeight.w700,
-                  fontSize: 12,
-                ),
-              ),
+      child: Semantics(
+        button: true,
+        label: t(
+          locale,
+          ru: 'Язык интерфейса: ${localeNativeName(locale)}',
+          kz: 'Интерфейс тілі: ${localeNativeName(locale)}',
+          en: 'Interface language: ${localeNativeName(locale)}',
+        ),
+        child: Material(
+          color: context.mereytoiColors.surface,
+          shape: const CircleBorder(),
+          child: InkWell(
+            customBorder: const CircleBorder(),
+            onTap: () => showModalBottomSheet<void>(
+              context: context,
+              isScrollControlled: true,
+              backgroundColor: Colors.transparent,
+              builder: (_) => const LocaleSheet(),
+            ),
+            child: Icon(
+              Icons.language_rounded,
+              size: 19,
+              color: context.mereytoiColors.textSecondary,
             ),
           ),
         ),
@@ -279,7 +356,12 @@ class _Hero extends ConsumerWidget {
               borderRadius: BorderRadius.circular(AppRadius.chip),
             ),
             child: Text(
-              t(locale, ru: 'АГЕНТСТВО ТОРЖЕСТВ', kz: 'ТОЙ АГЕНТТІГІ'),
+              t(
+                locale,
+                ru: 'АГЕНТСТВО ТОРЖЕСТВ',
+                kz: 'ТОЙ АГЕНТТІГІ',
+                en: 'EVENT AGENCY',
+              ),
               style: TextStyle(
                 color: context.mereytoiColors.goldPrimary,
                 fontSize: 10.5,
@@ -291,7 +373,12 @@ class _Hero extends ConsumerWidget {
           ),
           const SizedBox(height: AppSpacing.xs),
           Text(
-            t(locale, ru: 'Той вашей мечты', kz: 'Армандаған тойыңыз'),
+            t(
+              locale,
+              ru: 'Той вашей мечты',
+              kz: 'Армандаған тойыңыз',
+              en: 'The event of your dreams',
+            ),
             textAlign: TextAlign.center,
             style: Theme.of(
               context,
@@ -303,6 +390,7 @@ class _Hero extends ConsumerWidget {
               locale,
               ru: 'Традиции встречаются с современным стилем',
               kz: 'Дәстүр мен заманауи сән ұштасады',
+              en: 'Where tradition meets modern style',
             ),
             textAlign: TextAlign.center,
             style: Theme.of(context).textTheme.bodyMedium,
@@ -319,7 +407,12 @@ class _Hero extends ConsumerWidget {
             ),
             icon: const Icon(Icons.arrow_forward_rounded, size: 16),
             label: Text(
-              t(locale, ru: 'Смотреть услуги', kz: 'Қызметтерді қарау'),
+              t(
+                locale,
+                ru: 'Смотреть услуги',
+                kz: 'Қызметтерді қарау',
+                en: 'View services',
+              ),
             ),
           ),
           const SizedBox(height: AppSpacing.sm),
@@ -345,15 +438,21 @@ class _StatisticsCard extends ConsumerWidget {
           const SizedBox.shrink(), // stats are decorative — a failure here shouldn't block the rest of Home
       data: (s) {
         final tiles = [
-          (formatStatValue(s.eventsCount), t(locale, ru: 'Тоев', kz: 'Той')),
+          (
+            formatStatValue(s.eventsCount),
+            t(locale, ru: 'Тоев', kz: 'Той', en: 'Events'),
+          ),
           (
             formatStatValue(s.happyGuestsCount),
-            t(locale, ru: 'Гостей', kz: 'Қонақ'),
+            t(locale, ru: 'Гостей', kz: 'Қонақ', en: 'Guests'),
           ),
-          (formatStatValue(s.yearsExperience), t(locale, ru: 'Лет', kz: 'Жыл')),
+          (
+            formatStatValue(s.yearsExperience),
+            t(locale, ru: 'Лет', kz: 'Жыл', en: 'Years'),
+          ),
           (
             formatStatValue(s.citiesCount),
-            t(locale, ru: 'Городов', kz: 'Қала'),
+            t(locale, ru: 'Городов', kz: 'Қала', en: 'Cities'),
           ),
         ];
         return AppCard(
@@ -443,15 +542,21 @@ class _CategoriesSection extends ConsumerWidget {
                     locale,
                     ru: 'Что мы предлагаем',
                     kz: 'Не ұсынамыз',
+                    en: 'What we offer',
                   ),
-                  title: t(locale, ru: 'Услуги', kz: 'Қызметтер'),
+                  title: t(
+                    locale,
+                    ru: 'Услуги',
+                    kz: 'Қызметтер',
+                    en: 'Services',
+                  ),
                 ),
               ),
               TextButton(
                 onPressed: () => Navigator.of(context).push(
                   MaterialPageRoute(builder: (_) => const CategoriesScreen()),
                 ),
-                child: Text(t(locale, ru: 'Все', kz: 'Барлығы')),
+                child: Text(t(locale, ru: 'Все', kz: 'Барлығы', en: 'All')),
               ),
             ],
           ),
@@ -473,6 +578,7 @@ class _CategoriesSection extends ConsumerWidget {
                       locale,
                       ru: 'Категории скоро появятся',
                       kz: 'Санаттар жақында қосылады',
+                      en: 'Categories are coming soon',
                     ),
                     style: Theme.of(context).textTheme.bodyMedium,
                   ),
@@ -564,10 +670,8 @@ class _ListingCarouselSection extends ConsumerWidget {
                 itemCount: 3,
                 separatorBuilder: (_, _) =>
                     const SizedBox(width: AppSpacing.md),
-                itemBuilder: (context, i) => const SizedBox(
-                  width: 168,
-                  child: AppCardSkeleton(aspectRatio: 1.15),
-                ),
+                itemBuilder: (context, i) =>
+                    const SizedBox(width: 168, child: AppCardSkeleton()),
               ),
             ),
             error: (err, _) => Padding(

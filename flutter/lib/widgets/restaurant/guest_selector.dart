@@ -3,10 +3,15 @@ import 'package:flutter/material.dart';
 import '../../core/theme/app_theme.dart';
 import '../../domain/restaurant/restaurant_guest_bounds.dart';
 import '../../state/locale_provider.dart';
+import '../numeric_stepper_field.dart';
 
-/// Brief section 5 — a `[-] N гостей [+]` stepper, bounds coming from
-/// [GuestBounds] (already resolved: menu's own min/max, falling back to the
-/// listing's, with no invented cap when genuinely absent).
+/// Brief section 5 — guest count editor, bounds coming from [GuestBounds]
+/// (already resolved: menu's own min/max, falling back to the listing's,
+/// with no invented cap when genuinely absent). Этап 10Б-1: type the
+/// number directly, tap a quick value, or nudge by one — see
+/// [NumericStepperField], the one shared implementation of this
+/// interaction (this screen and the ordinary per-person service both used
+/// to hand-roll their own "+/− only" version).
 class GuestSelector extends StatelessWidget {
   const GuestSelector({
     super.key,
@@ -23,71 +28,33 @@ class GuestSelector extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final max = bounds.max;
-    return Row(
-      mainAxisAlignment: MainAxisAlignment.spaceBetween,
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
       children: [
         Text(
-          t(locale, ru: 'Количество гостей', kz: 'Қонақтар саны'),
+          t(
+            locale,
+            ru: 'Количество гостей',
+            kz: 'Қонақтар саны',
+            en: 'Number of guests',
+          ),
           style: Theme.of(context).textTheme.bodyLarge,
         ),
-        Row(
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            _StepButton(
-              icon: Icons.remove_rounded,
-              onTap: guests > bounds.min ? () => onChanged(guests - 1) : null,
-            ),
-            SizedBox(
-              width: 64,
-              child: Text(
-                '$guests ${t(locale, ru: "чел.", kz: "адам")}',
-                textAlign: TextAlign.center,
-                style: Theme.of(context).textTheme.titleMedium,
-              ),
-            ),
-            _StepButton(
-              icon: Icons.add_rounded,
-              onTap: (max == null || guests < max)
-                  ? () => onChanged(guests + 1)
-                  : null,
-            ),
-          ],
+        const SizedBox(height: AppSpacing.xs),
+        NumericStepperField(
+          value: guests,
+          min: bounds.min,
+          max: bounds.max,
+          suffixLabel: t(locale, ru: 'чел.', kz: 'адам', en: 'guests'),
+          quickPickLabel: t(
+            locale,
+            ru: 'Быстрый выбор гостей',
+            kz: 'Қонақтарды жылдам таңдау',
+            en: 'Quick guest picks',
+          ),
+          onChanged: onChanged,
         ),
       ],
-    );
-  }
-}
-
-class _StepButton extends StatelessWidget {
-  const _StepButton({required this.icon, required this.onTap});
-
-  final IconData icon;
-  final VoidCallback? onTap;
-
-  @override
-  Widget build(BuildContext context) {
-    final enabled = onTap != null;
-    return Material(
-      color: enabled
-          ? context.mereytoiColors.surfaceSoft
-          : context.mereytoiColors.surface,
-      shape: const CircleBorder(),
-      child: InkWell(
-        onTap: onTap,
-        customBorder: const CircleBorder(),
-        child: SizedBox(
-          width: 44,
-          height: 44,
-          child: Icon(
-            icon,
-            size: 17,
-            color: enabled
-                ? context.mereytoiColors.goldPrimary
-                : context.mereytoiColors.textMuted,
-          ),
-        ),
-      ),
     );
   }
 }

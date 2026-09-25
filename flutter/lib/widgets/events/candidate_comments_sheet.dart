@@ -48,7 +48,12 @@ class CandidateCommentsSheet extends ConsumerWidget {
             Padding(
               padding: const EdgeInsets.symmetric(vertical: AppSpacing.sm),
               child: Text(
-                t(locale, ru: 'Обсуждение услуги', kz: 'Қызметті талқылау'),
+                t(
+                  locale,
+                  ru: 'Обсуждение услуги',
+                  kz: 'Қызметті талқылау',
+                  en: 'Service discussion',
+                ),
                 style: Theme.of(context).textTheme.titleMedium,
               ),
             ),

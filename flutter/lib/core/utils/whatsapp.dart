@@ -7,7 +7,7 @@ import 'format.dart';
 /// Same normalization the site uses (frontend/src/lib/whatsapp.js's
 /// toWhatsAppDigits): a local "8..." number becomes "7...", a bare 10-digit
 /// number gets a leading 7, anything else is passed through as digits only.
-String _toWhatsAppDigits(String phone) {
+String toWhatsAppDigits(String phone) {
   final digits = phone.replaceAll(RegExp(r'\D'), '');
   if (digits.isEmpty) return '';
   if (digits.length == 11 && digits.startsWith('8')) {
@@ -31,19 +31,20 @@ String buildWhatsAppLink({
     locale,
     ru: '✨ MEREYTOI — Коммерческое предложение',
     kz: '✨ MEREYTOI — Коммерциялық ұсыныс',
+    en: '✨ MEREYTOI — Commercial Offer',
   );
 
   final lines = <String>[];
   for (var i = 0; i < items.length; i++) {
     final item = items[i];
     final detail = item.guests > 0
-        ? '${item.guests} ${t(locale, ru: "чел.", kz: "адам")} × ${formatPrice(item.unitPrice)} = ${formatPrice(item.totalPrice)}'
+        ? '${item.guests} ${t(locale, ru: "чел.", kz: "адам", en: "guests")} × ${formatPrice(item.unitPrice)} = ${formatPrice(item.totalPrice)}'
         : formatPrice(item.totalPrice);
     lines.add('${i + 1}. ${item.name}\n   $detail');
   }
 
   final totalLine =
-      '${t(locale, ru: "Итого", kz: "Барлығы")}: ${formatPrice(total)}';
+      '${t(locale, ru: "Итого", kz: "Барлығы", en: "Total")}: ${formatPrice(total)}';
   final text = [
     header,
     '',
@@ -54,7 +55,7 @@ String buildWhatsAppLink({
     'mereytoi.kz',
   ].join('\n');
 
-  final digits = _toWhatsAppDigits(phone);
+  final digits = toWhatsAppDigits(phone);
   final base = digits.isNotEmpty ? 'https://wa.me/$digits' : 'https://wa.me/';
   return '$base?text=${Uri.encodeComponent(text)}';
 }

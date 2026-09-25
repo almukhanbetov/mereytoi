@@ -21,10 +21,27 @@ class AskManagerButton extends StatelessWidget {
     super.key,
     required this.listing,
     required this.locale,
+    this.hallName,
+    this.menuName,
+    this.menuPricePerGuest,
+    this.guestCount,
+    this.estimatedTotal,
   });
 
   final Listing listing;
   final AppLocale locale;
+
+  /// Этап 10Б-53 — once a restaurant's hall/menu/guest count are actually
+  /// chosen, `RestaurantDetailScreen` passes them through here (via
+  /// `listingHeroSlivers`'s own matching optional params) so the manager
+  /// sees the same calculator snapshot the customer is looking at, not
+  /// just "which listing" — `ServiceDetailScreen` (every non-restaurant
+  /// category) never has these, so they default to null there.
+  final String? hallName;
+  final String? menuName;
+  final int? menuPricePerGuest;
+  final int? guestCount;
+  final int? estimatedTotal;
 
   @override
   Widget build(BuildContext context) {
@@ -36,6 +53,11 @@ class AskManagerButton extends StatelessWidget {
               listingId: listing.id,
               listingName: listing.name(locale),
               listingPrice: listing.price,
+              hallName: hallName,
+              menuName: menuName,
+              menuPricePerGuest: menuPricePerGuest,
+              guestCount: guestCount,
+              estimatedTotal: estimatedTotal,
             ),
           ),
         ),
@@ -45,7 +67,14 @@ class AskManagerButton extends StatelessWidget {
         padding: const EdgeInsets.symmetric(horizontal: AppSpacing.sm),
       ),
       icon: const Icon(Icons.support_agent_rounded, size: 16),
-      label: Text(t(locale, ru: 'Спросить менеджера', kz: 'Менеджерден сұрау')),
+      label: Text(
+        t(
+          locale,
+          ru: 'Спросить менеджера',
+          kz: 'Менеджерден сұрау',
+          en: 'Ask the manager',
+        ),
+      ),
     );
   }
 }

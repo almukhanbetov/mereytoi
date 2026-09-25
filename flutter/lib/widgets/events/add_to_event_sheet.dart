@@ -153,6 +153,7 @@ class _LoginPrompt extends StatelessWidget {
             locale,
             ru: 'Войдите, чтобы добавить в мой той',
             kz: 'Тойыма қосу үшін кіріңіз',
+            en: 'Sign in to add to My Event',
           ),
           textAlign: TextAlign.center,
           style: Theme.of(context).textTheme.titleMedium,
@@ -165,7 +166,7 @@ class _LoginPrompt extends StatelessWidget {
               context,
             ).push(MaterialPageRoute(builder: (_) => const LoginScreen()));
           },
-          child: Text(t(locale, ru: 'Войти', kz: 'Кіру')),
+          child: Text(t(locale, ru: 'Войти', kz: 'Кіру', en: 'Sign in')),
         ),
       ],
     );
@@ -223,11 +224,13 @@ class _EventPickerState extends ConsumerState<_EventPicker> {
                     widget.locale,
                     ru: 'Уже в этом мероприятии',
                     kz: 'Бұл іс-шарада бар',
+                    en: 'Already in this event',
                   )
                 : t(
                     widget.locale,
                     ru: 'Добавлено в мой той',
                     kz: 'Тойыма қосылды',
+                    en: 'Added to My Event',
                   ),
           ),
         ),
@@ -271,6 +274,7 @@ class _EventPickerState extends ConsumerState<_EventPicker> {
                   locale,
                   ru: 'У вас пока нет мероприятий',
                   kz: 'Сізде әлі іс-шара жоқ',
+                  en: 'You don\'t have any events yet',
                 ),
                 textAlign: TextAlign.center,
                 style: Theme.of(context).textTheme.titleMedium,
@@ -282,7 +286,12 @@ class _EventPickerState extends ConsumerState<_EventPicker> {
                   openCreateEventSheet(context);
                 },
                 child: Text(
-                  t(locale, ru: 'Создать мероприятие', kz: 'Іс-шара құру'),
+                  t(
+                    locale,
+                    ru: 'Создать мероприятие',
+                    kz: 'Іс-шара құру',
+                    en: 'Create event',
+                  ),
                 ),
               ),
             ],
@@ -294,7 +303,12 @@ class _EventPickerState extends ConsumerState<_EventPicker> {
           crossAxisAlignment: CrossAxisAlignment.stretch,
           children: [
             Text(
-              t(locale, ru: 'Добавить в мой той', kz: 'Тойыма қосу'),
+              t(
+                locale,
+                ru: 'Добавить в мой той',
+                kz: 'Тойыма қосу',
+                en: 'Add to My Event',
+              ),
               style: Theme.of(context).textTheme.titleLarge,
             ),
             const SizedBox(height: AppSpacing.sm),
@@ -331,7 +345,12 @@ class _EventPickerState extends ConsumerState<_EventPicker> {
                 openCreateEventSheet(context);
               },
               child: Text(
-                t(locale, ru: '+ Новое мероприятие', kz: '+ Жаңа іс-шара'),
+                t(
+                  locale,
+                  ru: '+ Новое мероприятие',
+                  kz: '+ Жаңа іс-шара',
+                  en: '+ New event',
+                ),
               ),
             ),
           ],

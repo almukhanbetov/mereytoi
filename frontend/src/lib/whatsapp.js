@@ -5,7 +5,7 @@ export function trackWhatsAppClick() {
   window.dataLayer.push({ event: 'whatsapp_click' });
 }
 
-function toWhatsAppDigits(phone) {
+export function toWhatsAppDigits(phone) {
   const digits = (phone || '').replace(/\D/g, '');
   if (!digits) return '';
   if (digits.length === 11 && digits.startsWith('8')) return `7${digits.slice(1)}`;

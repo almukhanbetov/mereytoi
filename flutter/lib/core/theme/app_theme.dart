@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'package:google_fonts/google_fonts.dart';
 
 /// MEREYTOI's design system — a real token set, not scattered hex values.
@@ -608,4 +609,57 @@ class AppTheme {
   static ThemeData get dark => _build(Brightness.dark, MereytoiColors.dark);
 
   static ThemeData get light => _build(Brightness.light, MereytoiColors.light);
+}
+
+/// Этап 10Б-А — status bar + Android navigation bar styling, one style per
+/// theme (never auto-inverted, matching how [MereytoiColors.light]/[.dark]
+/// are themselves two independent palettes). Applied globally via a single
+/// `AnnotatedRegion` in `app.dart`'s `MaterialApp.builder`, computed from
+/// the *actually resolved* `Theme.of(context).brightness` — this already
+/// tracks `ThemeMode.system` correctly (Flutter resolves that against the
+/// OS brightness before `Theme.of` sees it), so switching in either
+/// direction, or the OS itself switching under "Как в системе", both just
+/// work with no separate listener. `AppBarTheme.systemOverlayStyle` is
+/// deliberately left unset (see its own doc comment in `_build` above) so
+/// no individual screen's AppBar can silently shadow this with Flutter's
+/// own default heuristic.
+class AppSystemUiOverlay {
+  AppSystemUiOverlay._();
+
+  /// Dark icons/text on a transparent status bar (the app's own light,
+  /// airy background shows through) — the nav bar matches
+  /// [MereytoiColors.light]'s own `navigationBackground`, the same tone
+  /// [AppBottomNav] already sits on, so the OS nav bar reads as a
+  /// continuation of the app, not a seam.
+  // `static final`, not `const` — Dart's const evaluator won't chain a
+  // field read (`MereytoiColors.light.navigationBackground`) through two
+  // const objects at compile time, and duplicating the literal hex here
+  // would be exactly the kind of copy that silently drifts from the real
+  // token. A one-time computed value keeps this reading the single source
+  // of truth instead.
+  static final light = SystemUiOverlayStyle(
+    statusBarColor: Colors.transparent,
+    statusBarIconBrightness: Brightness.dark,
+    statusBarBrightness: Brightness.light,
+    systemNavigationBarColor: MereytoiColors.light.navigationBackground,
+    systemNavigationBarIconBrightness: Brightness.dark,
+    systemNavigationBarDividerColor: Colors.transparent,
+  );
+
+  /// Light icons/text on a transparent status bar over the app's deep
+  /// graphite background; nav bar matches [MereytoiColors.dark]'s own
+  /// `navigationBackground` — this app's *original* look, unchanged.
+  static final dark = SystemUiOverlayStyle(
+    statusBarColor: Colors.transparent,
+    statusBarIconBrightness: Brightness.light,
+    statusBarBrightness: Brightness.dark,
+    systemNavigationBarColor: MereytoiColors.dark.navigationBackground,
+    systemNavigationBarIconBrightness: Brightness.light,
+    systemNavigationBarDividerColor: Colors.transparent,
+  );
+
+  /// Picks [light]/[dark] from an already-resolved brightness — the one
+  /// call site (`app.dart`) never has to duplicate this if/else.
+  static SystemUiOverlayStyle forBrightness(Brightness brightness) =>
+      brightness == Brightness.dark ? dark : light;
 }

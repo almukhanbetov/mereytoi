@@ -16,6 +16,8 @@ import '../../models/restaurant_selection.dart';
 import '../../state/cart_provider.dart';
 import '../../state/listings_provider.dart';
 import '../../state/locale_provider.dart';
+import '../../widgets/animated_price_text.dart';
+import '../../widgets/app_card.dart';
 import '../../widgets/app_error_view.dart';
 import '../../widgets/app_loader.dart';
 import '../../widgets/events/add_to_event_sheet.dart';
@@ -27,6 +29,7 @@ import '../../widgets/restaurant/menu_content_accordion.dart';
 import '../../widgets/restaurant/menu_selector.dart';
 import '../../widgets/restaurant/price_summary_card.dart';
 import '../../widgets/restaurant/restaurant_location_card.dart';
+import '../../widgets/restaurant/selection_progress_bar.dart';
 
 /// A plain null-safe "find by id" — used instead of `package:collection`'s
 /// `firstOrNull` (only a transitive dependency here, not declared directly
@@ -118,12 +121,6 @@ class _RestaurantDetailScreenState
     final listingAsync = ref.watch(listingDetailProvider(widget.listingId));
     final hallsAsync = ref.watch(listingHallsProvider(widget.listingId));
     final menusAsync = ref.watch(listingMenusProvider(widget.listingId));
-    debugPrint(
-      '[QA] RestaurantDetailScreen(${widget.listingId}): '
-      'halls.length=${hallsAsync.valueOrNull?.length} '
-      'menus.length=${menusAsync.valueOrNull?.length} '
-      'selectedHall=$_selectedHallId selectedMenu=$_selectedMenuId guests=$_guests',
-    );
 
     return Scaffold(
       appBar: listingAsync.maybeWhen(data: (_) => null, orElse: () => AppBar()),
@@ -183,10 +180,6 @@ class _RestaurantDetailScreenState
             guests: guests,
             selectedExtras: selectedExtras,
           );
-          debugPrint(
-            '[QA] sticky CTA: menu=${menu.id} guests=$guests '
-            'estimatedTotal=${breakdown.estimatedTotal}',
-          );
           final halls = hallsAsync.valueOrNull;
           final hall = halls == null
               ? null
@@ -198,6 +191,7 @@ class _RestaurantDetailScreenState
             menu: menu,
             guests: guests,
             breakdown: breakdown,
+            selectedExtrasCount: selectedExtras.length,
             locale: locale,
           );
         },
@@ -246,6 +240,49 @@ class _RestaurantBody extends ConsumerWidget {
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
+    // Cheap, read-only lookups (never the source of truth for the actual
+    // selection logic further down, which stays untouched) purely to
+    // drive the progress strip's "done/pending" state and labels.
+    final allHallsForProgress = hallsAsync.valueOrNull;
+    final activeHallsForProgress = allHallsForProgress == null
+        ? null
+        : activeHalls(allHallsForProgress);
+    final selectedHallForProgress = activeHallsForProgress == null
+        ? null
+        : _findById(activeHallsForProgress, selectedHallId, (h) => h.id);
+    final allMenusForProgress = menusAsync.valueOrNull;
+    final menusInScopeForProgress = allMenusForProgress == null
+        ? null
+        : menusForHall(sortedActiveMenus(allMenusForProgress), selectedHallId);
+    final resolvedMenuForProgress = menusInScopeForProgress == null
+        ? null
+        : (_findById(menusInScopeForProgress, selectedMenuId, (m) => m.id) ??
+              (menusInScopeForProgress.length == 1
+                  ? menusInScopeForProgress.first
+                  : null));
+    final guestsForProgress = resolvedMenuForProgress == null
+        ? null
+        : (guestsOverride ??
+              resolveGuestBounds(
+                menu: resolvedMenuForProgress,
+                listing: listing,
+              ).min);
+    // Same "is there a real number at all" gate the sticky CTA uses —
+    // a menu priced "по запросу" (pricePerGuest == 0) never gets an
+    // estimated total to hand the manager either.
+    final estimatedTotalForChat =
+        resolvedMenuForProgress != null &&
+            resolvedMenuForProgress.pricePerGuest > 0 &&
+            guestsForProgress != null
+        ? RestaurantPriceCalculator.calculate(
+            pricePerGuest: resolvedMenuForProgress.pricePerGuest,
+            guests: guestsForProgress,
+            selectedExtras: resolvedMenuForProgress.extras
+                .where((e) => selectedExtraIds.contains(e.id))
+                .toList(),
+          ).estimatedTotal
+        : null;
+
     return CustomScrollView(
       slivers: [
         ...listingHeroSlivers(
@@ -256,6 +293,11 @@ class _RestaurantBody extends ConsumerWidget {
           activeImage: activeImage,
           onPageChanged: onPageChanged,
           onThumbnailTap: onThumbnailTap,
+          chatHallName: selectedHallForProgress?.name(locale),
+          chatMenuName: resolvedMenuForProgress?.name(locale),
+          chatMenuPricePerGuest: resolvedMenuForProgress?.pricePerGuest,
+          chatGuestCount: guestsForProgress,
+          chatEstimatedTotal: estimatedTotalForChat,
         ),
         SliverToBoxAdapter(
           child: Padding(
@@ -263,7 +305,22 @@ class _RestaurantBody extends ConsumerWidget {
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                _SectionTitle(t(locale, ru: 'Залы', kz: 'Залдар')),
+                Padding(
+                  padding: const EdgeInsets.only(bottom: AppSpacing.sm),
+                  child: SelectionProgressBar(
+                    locale: locale,
+                    hasHalls: activeHallsForProgress?.isNotEmpty ?? false,
+                    selectedHall: selectedHallForProgress,
+                    selectedMenu: resolvedMenuForProgress,
+                    guests: guestsForProgress,
+                    extrasCount: selectedExtraIds.length,
+                    hasPrice: (resolvedMenuForProgress?.pricePerGuest ?? 0) > 0,
+                  ),
+                ),
+                _SectionTitle(
+                  t(locale, ru: 'Залы', kz: 'Залдар', en: 'Halls'),
+                  icon: Icons.meeting_room_outlined,
+                ),
                 hallsAsync.when(
                   loading: () => const _HorizontalSkeleton(),
                   error: (err, _) => Padding(
@@ -285,6 +342,7 @@ class _RestaurantBody extends ConsumerWidget {
                           locale,
                           ru: 'Залы пока не добавлены',
                           kz: 'Залдар әлі қосылмаған',
+                          en: 'No halls added yet',
                         ),
                       );
                     }
@@ -294,16 +352,46 @@ class _RestaurantBody extends ConsumerWidget {
                         (_) => onSelectHall(halls.first),
                       );
                     }
-                    return HallSelector(
-                      halls: halls,
-                      selectedHallId: selectedHallId,
-                      locale: locale,
-                      onSelect: onSelectHall,
+                    final selectedHall = _findById(
+                      halls,
+                      selectedHallId,
+                      (h) => h.id,
+                    );
+                    return Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        HallSelector(
+                          halls: halls,
+                          selectedHallId: selectedHallId,
+                          locale: locale,
+                          onSelect: onSelectHall,
+                        ),
+                        if (selectedHall != null)
+                          Padding(
+                            padding: const EdgeInsets.fromLTRB(
+                              AppSpacing.lg,
+                              AppSpacing.sm,
+                              AppSpacing.lg,
+                              0,
+                            ),
+                            child: _SelectedLine(
+                              text: t(
+                                locale,
+                                ru: 'Выбран зал: ${selectedHall.name(locale)}',
+                                kz: 'Таңдалды: ${selectedHall.name(locale)}',
+                                en: 'Selected hall: ${selectedHall.name(locale)}',
+                              ),
+                            ),
+                          ),
+                      ],
                     );
                   },
                 ),
-                const SizedBox(height: AppSpacing.lg),
-                _SectionTitle(t(locale, ru: 'Меню', kz: 'Мәзір')),
+                const SizedBox(height: AppSpacing.xl),
+                _SectionTitle(
+                  t(locale, ru: 'Меню', kz: 'Мәзір', en: 'Menu'),
+                  icon: Icons.restaurant_menu_outlined,
+                ),
                 menusAsync.when(
                   loading: () => const _HorizontalSkeleton(),
                   error: (err, _) => Padding(
@@ -328,6 +416,7 @@ class _RestaurantBody extends ConsumerWidget {
                           locale,
                           ru: 'Меню пока не добавлены',
                           kz: 'Мәзірлер әлі қосылмаған',
+                          en: 'No menus added yet',
                         ),
                       );
                     }
@@ -368,7 +457,7 @@ class _RestaurantBody extends ConsumerWidget {
                     );
                   },
                 ),
-                const SizedBox(height: AppSpacing.lg),
+                const SizedBox(height: AppSpacing.xl),
                 Padding(
                   padding: const EdgeInsets.symmetric(
                     horizontal: AppSpacing.lg,
@@ -425,22 +514,41 @@ class _MenuDetail extends StatelessWidget {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        MenuContentAccordion(sections: menu.sections, locale: locale),
-        if (menu.sections.isNotEmpty) const SizedBox(height: AppSpacing.lg),
-        GuestSelector(
-          guests: guests,
-          bounds: bounds,
-          locale: locale,
-          onChanged: onGuestsChanged,
+        // Этап 10Б-1А, requirement 4 — "выбранное меню" as its own
+        // visible line, distinct from the picker cards above (which stop
+        // showing the gold selected-border once the user scrolls past
+        // them).
+        _SelectedLine(
+          text: t(
+            locale,
+            ru: 'Выбрано: ${menu.name(locale)}',
+            kz: 'Таңдалды: ${menu.name(locale)}',
+            en: 'Selected: ${menu.name(locale)}',
+          ),
         ),
         const SizedBox(height: AppSpacing.md),
-        ExtrasList(
-          extras: menu.extras,
-          selectedIds: selectedExtraIds,
-          locale: locale,
-          onToggle: onToggleExtra,
+        MenuContentAccordion(sections: menu.sections, locale: locale),
+        if (menu.sections.isNotEmpty) const SizedBox(height: AppSpacing.lg),
+        AppCard(
+          child: GuestSelector(
+            guests: guests,
+            bounds: bounds,
+            locale: locale,
+            onChanged: onGuestsChanged,
+          ),
         ),
-        if (menu.extras.isNotEmpty) const SizedBox(height: AppSpacing.md),
+        if (menu.extras.isNotEmpty) ...[
+          const SizedBox(height: AppSpacing.md),
+          AppCard(
+            child: ExtrasList(
+              extras: menu.extras,
+              selectedIds: selectedExtraIds,
+              locale: locale,
+              onToggle: onToggleExtra,
+            ),
+          ),
+        ],
+        const SizedBox(height: AppSpacing.md),
         PriceSummaryCard(
           pricePerGuest: menu.pricePerGuest,
           guests: guests,
@@ -459,6 +567,7 @@ class _StickyRestaurantCta extends ConsumerWidget {
     required this.menu,
     required this.guests,
     required this.breakdown,
+    required this.selectedExtrasCount,
     required this.locale,
   });
 
@@ -467,11 +576,29 @@ class _StickyRestaurantCta extends ConsumerWidget {
   final ListingMenu menu;
   final int guests;
   final RestaurantPriceBreakdown breakdown;
+
+  /// How many extras are currently selected — folded into the summary
+  /// line below so "what's already chosen" (Этап 10Б-1, requirement 4) is
+  /// visible from the one part of the screen that never scrolls away,
+  /// without repeating each extra's full title here.
+  final int selectedExtrasCount;
   final AppLocale locale;
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
     final hasRealPrice = menu.pricePerGuest > 0;
+    final summary = [
+      if (hall != null) hall!.name(locale),
+      menu.name(locale),
+      '$guests ${t(locale, ru: "чел.", kz: "адам", en: "guests")}',
+      if (selectedExtrasCount > 0)
+        t(
+          locale,
+          ru: '+$selectedExtrasCount доп.',
+          kz: '+$selectedExtrasCount қосымша',
+          en: '+$selectedExtrasCount extra',
+        ),
+    ].join(' · ');
 
     return DecoratedBox(
       decoration: BoxDecoration(
@@ -487,119 +614,136 @@ class _StickyRestaurantCta extends ConsumerWidget {
             AppSpacing.lg,
             AppSpacing.sm,
           ),
-          child: Row(
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            crossAxisAlignment: CrossAxisAlignment.start,
             children: [
-              Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                mainAxisSize: MainAxisSize.min,
+              Text(
+                summary,
+                maxLines: 1,
+                overflow: TextOverflow.ellipsis,
+                style: Theme.of(context).textTheme.bodySmall,
+              ),
+              const SizedBox(height: AppSpacing.xxs),
+              Row(
                 children: [
-                  Text(
-                    t(locale, ru: 'Итого', kz: 'Барлығы'),
-                    style: Theme.of(context).textTheme.bodySmall,
+                  Expanded(
+                    child: AnimatedPriceText(
+                      text: hasRealPrice
+                          ? formatPrice(breakdown.estimatedTotal)
+                          : t(
+                              locale,
+                              ru: 'По запросу',
+                              kz: 'Сұрау бойынша',
+                              en: 'On request',
+                            ),
+                      style: TextStyle(
+                        color: context.mereytoiColors.goldSoft,
+                        fontWeight: FontWeight.w700,
+                        fontSize: 18,
+                      ),
+                    ),
                   ),
-                  Text(
-                    hasRealPrice
-                        ? formatPrice(breakdown.estimatedTotal)
-                        : t(locale, ru: 'По запросу', kz: 'Сұрау бойынша'),
-                    style: TextStyle(
-                      color: context.mereytoiColors.goldSoft,
-                      fontWeight: FontWeight.w700,
-                      fontSize: 18,
+                  const SizedBox(width: AppSpacing.xs),
+                  // Brief section 10 — restaurant variant: full snapshot
+                  // (hall/menu/guests/estimatedTotal) goes straight into the
+                  // candidate, same identity the event workspace's own
+                  // dedup — (listing_id, hall_id, menu_id) — expects.
+                  Material(
+                    color: context.mereytoiColors.surfaceSoft,
+                    borderRadius: BorderRadius.circular(AppRadius.md),
+                    child: InkWell(
+                      borderRadius: BorderRadius.circular(AppRadius.md),
+                      onTap: () => openAddToEventSheet(
+                        context,
+                        listingId: listing.id,
+                        hallId: hall?.id ?? menu.hallId,
+                        menuId: menu.id,
+                        guests: guests,
+                        estimatedTotal: hasRealPrice
+                            ? breakdown.estimatedTotal
+                            : null,
+                      ),
+                      child: SizedBox(
+                        width: 48,
+                        height: 48,
+                        child: Icon(
+                          Icons.celebration_outlined,
+                          size: 19,
+                          color: context.mereytoiColors.goldPrimary,
+                        ),
+                      ),
+                    ),
+                  ),
+                  const SizedBox(width: AppSpacing.xs),
+                  Expanded(
+                    child: ElevatedButton.icon(
+                      style: ElevatedButton.styleFrom(
+                        minimumSize: const Size(0, 48),
+                        padding: const EdgeInsets.symmetric(
+                          horizontal: AppSpacing.md,
+                        ),
+                      ),
+                      onPressed: () {
+                        final selection = RestaurantSelection.fromBreakdown(
+                          listingId: listing.id,
+                          hallId: hall?.id ?? menu.hallId,
+                          hallName: hall?.name(locale),
+                          menuId: menu.id,
+                          menuName: menu.name(locale),
+                          menuPricePerGuest: menu.pricePerGuest,
+                          guests: guests,
+                          breakdown: breakdown,
+                          locale: locale,
+                        );
+                        final item = CartItem.fromRestaurantSelection(
+                          selection,
+                          listingName: listing.name(locale),
+                          categoryLabel: listing.category?.name(locale) ?? '',
+                          image: listing.coverImage,
+                        );
+                        // Decide the toast text *before* writing — addItem
+                        // itself doesn't report whether this was a fresh add or
+                        // an update to an existing variant.
+                        final alreadyInCart = ref
+                            .read(cartProvider.notifier)
+                            .containsKey(item.key);
+                        ref.read(cartProvider.notifier).addItem(item);
+                        ScaffoldMessenger.of(context).showSnackBar(
+                          SnackBar(
+                            content: Text(
+                              alreadyInCart
+                                  ? t(
+                                      locale,
+                                      ru: 'Корзина обновлена',
+                                      kz: 'Себет жаңартылды',
+                                      en: 'Cart updated',
+                                    )
+                                  : t(
+                                      locale,
+                                      ru: 'Добавлено в корзину',
+                                      kz: 'Себетке қосылды',
+                                      en: 'Added to cart',
+                                    ),
+                            ),
+                          ),
+                        );
+                      },
+                      icon: const Icon(Icons.shopping_bag_outlined, size: 17),
+                      label: FittedBox(
+                        fit: BoxFit.scaleDown,
+                        child: Text(
+                          t(
+                            locale,
+                            ru: 'Добавить в корзину',
+                            kz: 'Себетке қосу',
+                            en: 'Add to cart',
+                          ),
+                        ),
+                      ),
                     ),
                   ),
                 ],
-              ),
-              const SizedBox(width: AppSpacing.xs),
-              // Brief section 10 — restaurant variant: full snapshot
-              // (hall/menu/guests/estimatedTotal) goes straight into the
-              // candidate, same identity the event workspace's own
-              // dedup — (listing_id, hall_id, menu_id) — expects.
-              Material(
-                color: context.mereytoiColors.surfaceSoft,
-                borderRadius: BorderRadius.circular(AppRadius.md),
-                child: InkWell(
-                  borderRadius: BorderRadius.circular(AppRadius.md),
-                  onTap: () => openAddToEventSheet(
-                    context,
-                    listingId: listing.id,
-                    hallId: hall?.id ?? menu.hallId,
-                    menuId: menu.id,
-                    guests: guests,
-                    estimatedTotal: hasRealPrice
-                        ? breakdown.estimatedTotal
-                        : null,
-                  ),
-                  child: SizedBox(
-                    width: 48,
-                    height: 48,
-                    child: Icon(
-                      Icons.celebration_outlined,
-                      size: 19,
-                      color: context.mereytoiColors.goldPrimary,
-                    ),
-                  ),
-                ),
-              ),
-              const SizedBox(width: AppSpacing.xs),
-              Expanded(
-                child: ElevatedButton.icon(
-                  style: ElevatedButton.styleFrom(
-                    minimumSize: const Size(0, 48),
-                    padding: const EdgeInsets.symmetric(
-                      horizontal: AppSpacing.md,
-                    ),
-                  ),
-                  onPressed: () {
-                    final selection = RestaurantSelection.fromBreakdown(
-                      listingId: listing.id,
-                      hallId: hall?.id ?? menu.hallId,
-                      hallName: hall?.name(locale),
-                      menuId: menu.id,
-                      menuName: menu.name(locale),
-                      menuPricePerGuest: menu.pricePerGuest,
-                      guests: guests,
-                      breakdown: breakdown,
-                      locale: locale,
-                    );
-                    final item = CartItem.fromRestaurantSelection(
-                      selection,
-                      listingName: listing.name(locale),
-                      categoryLabel: listing.category?.name(locale) ?? '',
-                      image: listing.coverImage,
-                    );
-                    // Decide the toast text *before* writing — addItem
-                    // itself doesn't report whether this was a fresh add or
-                    // an update to an existing variant.
-                    final alreadyInCart = ref
-                        .read(cartProvider.notifier)
-                        .containsKey(item.key);
-                    ref.read(cartProvider.notifier).addItem(item);
-                    ScaffoldMessenger.of(context).showSnackBar(
-                      SnackBar(
-                        content: Text(
-                          alreadyInCart
-                              ? t(
-                                  locale,
-                                  ru: 'Корзина обновлена',
-                                  kz: 'Себет жаңартылды',
-                                )
-                              : t(
-                                  locale,
-                                  ru: 'Добавлено в корзину',
-                                  kz: 'Себетке қосылды',
-                                ),
-                        ),
-                      ),
-                    );
-                  },
-                  icon: const Icon(Icons.shopping_bag_outlined, size: 17),
-                  label: FittedBox(
-                    fit: BoxFit.scaleDown,
-                    child: Text(
-                      t(locale, ru: 'Добавить в корзину', kz: 'Себетке қосу'),
-                    ),
-                  ),
-                ),
               ),
             ],
           ),
@@ -609,10 +753,50 @@ class _StickyRestaurantCta extends ConsumerWidget {
   }
 }
 
-class _SectionTitle extends StatelessWidget {
-  const _SectionTitle(this.text);
+/// A single "here's what you picked" confirmation line — a gold check +
+/// one line of ellipsized text. Shared by the hall and menu sections
+/// (Этап 10Б-Б2 extracted this out of `_MenuDetail`, which had it inline,
+/// when the hall section needed the exact same shape) so a user scanning
+/// past either picker sees the same, already-familiar confirmation
+/// pattern rather than two subtly different ones.
+class _SelectedLine extends StatelessWidget {
+  const _SelectedLine({required this.text});
 
   final String text;
+
+  @override
+  Widget build(BuildContext context) {
+    return Row(
+      children: [
+        Icon(
+          Icons.check_circle_rounded,
+          size: 16,
+          color: context.mereytoiColors.goldPrimary,
+        ),
+        const SizedBox(width: AppSpacing.xxs),
+        Expanded(
+          child: Text(
+            text,
+            maxLines: 1,
+            overflow: TextOverflow.ellipsis,
+            style: Theme.of(context).textTheme.bodyMedium,
+          ),
+        ),
+      ],
+    );
+  }
+}
+
+class _SectionTitle extends StatelessWidget {
+  const _SectionTitle(this.text, {this.icon});
+
+  final String text;
+
+  /// Этап 10Б-1: a small leading glyph per section (matching the icon
+  /// already used inside `HallSelector`/`MenuSelector`'s own cards) — a
+  /// cheap, consistent visual anchor that makes each block easier to scan
+  /// past at a glance, without literal "Шаг 1/2/3" labeling.
+  final IconData? icon;
 
   @override
   Widget build(BuildContext context) {
@@ -623,7 +807,15 @@ class _SectionTitle extends StatelessWidget {
         AppSpacing.lg,
         AppSpacing.sm,
       ),
-      child: Text(text, style: Theme.of(context).textTheme.titleMedium),
+      child: Row(
+        children: [
+          if (icon != null) ...[
+            Icon(icon, size: 16, color: context.mereytoiColors.goldPrimary),
+            const SizedBox(width: AppSpacing.xxs),
+          ],
+          Text(text, style: Theme.of(context).textTheme.titleMedium),
+        ],
+      ),
     );
   }
 }

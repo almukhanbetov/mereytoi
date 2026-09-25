@@ -57,6 +57,7 @@ class _BookingSuccessScreenState extends ConsumerState<BookingSuccessScreen> {
               locale,
               ru: 'Не удалось создать PDF',
               kz: 'PDF жасау сәтсіз аяқталды',
+              en: 'Couldn\'t create PDF',
             ),
           ),
         ),
@@ -116,7 +117,12 @@ class _BookingSuccessScreenState extends ConsumerState<BookingSuccessScreen> {
         appBar: AppBar(
           automaticallyImplyLeading: false,
           title: Text(
-            t(locale, ru: 'Заявка отправлена', kz: 'Өтінім жіберілді'),
+            t(
+              locale,
+              ru: 'Заявка отправлена',
+              kz: 'Өтінім жіберілді',
+              en: 'Request sent',
+            ),
           ),
         ),
         // Matches the same bottom-safe-area convention every other
@@ -140,7 +146,7 @@ class _BookingSuccessScreenState extends ConsumerState<BookingSuccessScreen> {
               const SizedBox(height: AppSpacing.md),
               Center(
                 child: Text(
-                  t(locale, ru: 'Спасибо!', kz: 'Рахмет!'),
+                  t(locale, ru: 'Спасибо!', kz: 'Рахмет!', en: 'Thank you!'),
                   style: Theme.of(context).textTheme.displayMedium,
                 ),
               ),
@@ -160,6 +166,7 @@ class _BookingSuccessScreenState extends ConsumerState<BookingSuccessScreen> {
                     locale,
                     ru: 'Мы свяжемся с вами в ближайшее время.',
                     kz: 'Жақын арада сізбен байланысамыз.',
+                    en: 'We\'ll contact you shortly.',
                   ),
                   textAlign: TextAlign.center,
                   style: Theme.of(context).textTheme.bodyMedium,
@@ -194,7 +201,7 @@ class _BookingSuccessScreenState extends ConsumerState<BookingSuccessScreen> {
                 mainAxisAlignment: MainAxisAlignment.spaceBetween,
                 children: [
                   Text(
-                    t(locale, ru: 'Итого', kz: 'Барлығы'),
+                    t(locale, ru: 'Итого', kz: 'Барлығы', en: 'Total'),
                     style: Theme.of(context).textTheme.titleMedium,
                   ),
                   Text(
@@ -220,7 +227,9 @@ class _BookingSuccessScreenState extends ConsumerState<BookingSuccessScreen> {
               OutlinedButton.icon(
                 onPressed: _openMyEvent,
                 icon: const Icon(Icons.celebration_outlined, size: 18),
-                label: Text(t(locale, ru: 'Мой той', kz: 'Менің тойым')),
+                label: Text(
+                  t(locale, ru: 'Мой той', kz: 'Менің тойым', en: 'My Event'),
+                ),
               ),
               const SizedBox(height: AppSpacing.xs),
               OutlinedButton.icon(
@@ -231,6 +240,7 @@ class _BookingSuccessScreenState extends ConsumerState<BookingSuccessScreen> {
                     locale,
                     ru: 'Связаться с менеджером',
                     kz: 'Менеджермен байланысу',
+                    en: 'Contact the manager',
                   ),
                 ),
               ),
@@ -243,7 +253,14 @@ class _BookingSuccessScreenState extends ConsumerState<BookingSuccessScreen> {
                           ? null
                           : () => _withPdf(_pdfService.open),
                       icon: const Icon(Icons.picture_as_pdf_outlined, size: 18),
-                      label: Text(t(locale, ru: 'Открыть PDF', kz: 'PDF ашу')),
+                      label: Text(
+                        t(
+                          locale,
+                          ru: 'Открыть PDF',
+                          kz: 'PDF ашу',
+                          en: 'Open PDF',
+                        ),
+                      ),
                     ),
                   ),
                   const SizedBox(width: AppSpacing.xs),
@@ -253,7 +270,9 @@ class _BookingSuccessScreenState extends ConsumerState<BookingSuccessScreen> {
                           ? null
                           : () => _withPdf(_pdfService.share),
                       icon: const Icon(Icons.ios_share_rounded, size: 18),
-                      label: Text(t(locale, ru: 'Поделиться', kz: 'Бөлісу')),
+                      label: Text(
+                        t(locale, ru: 'Поделиться', kz: 'Бөлісу', en: 'Share'),
+                      ),
                     ),
                   ),
                 ],
@@ -263,7 +282,14 @@ class _BookingSuccessScreenState extends ConsumerState<BookingSuccessScreen> {
                 width: double.infinity,
                 child: ElevatedButton(
                   onPressed: _finish,
-                  child: Text(t(locale, ru: 'Продолжить', kz: 'Жалғастыру')),
+                  child: Text(
+                    t(
+                      locale,
+                      ru: 'Продолжить',
+                      kz: 'Жалғастыру',
+                      en: 'Continue',
+                    ),
+                  ),
                 ),
               ),
             ],
@@ -304,6 +330,7 @@ class _OnboardingBlock extends StatelessWidget {
                 locale,
                 ru: 'Заявка добавлена в ваш кабинет MEREYTOI.',
                 kz: 'Өтінім сіздің MEREYTOI кабинетіңізге қосылды.',
+                en: 'Your request has been added to your MEREYTOI account.',
               ),
               style: Theme.of(context).textTheme.bodyMedium,
             ),
@@ -313,7 +340,12 @@ class _OnboardingBlock extends StatelessWidget {
                 context,
               ).push(MaterialPageRoute(builder: (_) => const LoginScreen())),
               child: Text(
-                t(locale, ru: 'Открыть кабинет', kz: 'Кабинетті ашу'),
+                t(
+                  locale,
+                  ru: 'Открыть кабинет',
+                  kz: 'Кабинетті ашу',
+                  en: 'Open account',
+                ),
               ),
             ),
           ],
@@ -329,11 +361,13 @@ class _OnboardingBlock extends StatelessWidget {
               locale,
               ru: 'Для вас создано пространство «Мой той».',
               kz: '«Менің тойым» кеңістігі сіз үшін жасалды.',
+              en: 'A "My Event" space has been created for you.',
             )
           : t(
               locale,
               ru: 'Для вас уже подготовлено пространство «Мой той».',
               kz: '«Менің тойым» кеңістігі сіз үшін дайын.',
+              en: 'A "My Event" space is already prepared for you.',
             );
 
       return AppCardLike(
@@ -348,6 +382,7 @@ class _OnboardingBlock extends StatelessWidget {
                 locale,
                 ru: 'В нём можно вместе с близкими выбирать услуги, обсуждать варианты, сравнивать цены и контролировать бюджет.',
                 kz: 'Онда жақындарыңызбен бірге қызметтерді таңдап, нұсқаларды талқылап, бағаларды салыстырып, бюджетті бақылай аласыз.',
+                en: 'There, you and your loved ones can choose services together, discuss options, compare prices, and track your budget.',
               ),
               style: Theme.of(context).textTheme.bodySmall,
             ),
@@ -359,6 +394,7 @@ class _OnboardingBlock extends StatelessWidget {
                   locale,
                   ru: 'Ссылка на «Мой той» отправлена в WhatsApp.',
                   kz: '«Менің тойым» сілтемесі WhatsApp-қа жіберілді.',
+                  en: 'The link to "My Event" has been sent via WhatsApp.',
                 ),
                 style: TextStyle(
                   color: context.mereytoiColors.textSecondary,
@@ -374,6 +410,7 @@ class _OnboardingBlock extends StatelessWidget {
                   locale,
                   ru: 'Ссылка на «Мой той» отправлена в Telegram.',
                   kz: '«Менің тойым» сілтемесі Telegram-ға жіберілді.',
+                  en: 'The link to "My Event" has been sent via Telegram.',
                 ),
                 style: TextStyle(
                   color: context.mereytoiColors.textSecondary,
@@ -389,7 +426,12 @@ class _OnboardingBlock extends StatelessWidget {
                 ),
               ),
               child: Text(
-                t(locale, ru: 'Открыть мой той', kz: 'Менің тойымды ашу'),
+                t(
+                  locale,
+                  ru: 'Открыть мой той',
+                  kz: 'Менің тойымды ашу',
+                  en: 'Open My Event',
+                ),
               ),
             ),
             if (onboarding.deliveryStatus == 'failed' ||
@@ -401,6 +443,7 @@ class _OnboardingBlock extends StatelessWidget {
                     locale,
                     ru: 'Если ссылка не пришла в течение пары минут, свяжитесь с нами.',
                     kz: 'Сілтеме бірнеше минут ішінде келмесе, бізбен байланысыңыз.',
+                    en: 'If the link doesn\'t arrive within a couple of minutes, contact us.',
                   ),
                   style: TextStyle(
                     color: context.mereytoiColors.textSecondary,
@@ -417,6 +460,7 @@ class _OnboardingBlock extends StatelessWidget {
                       locale,
                       ru: 'Отправить ссылку ещё раз',
                       kz: 'Сілтемені қайта жіберу',
+                      en: 'Resend the link',
                     ),
                   ),
                 ),

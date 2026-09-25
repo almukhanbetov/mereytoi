@@ -77,15 +77,20 @@ bool requestIsCancellable(String status) =>
 String eventTypeLabel(AppLocale locale, String type) {
   switch (type) {
     case eventTypeWedding:
-      return t(locale, ru: 'Свадьба', kz: 'Үйлену тойы');
+      return t(locale, ru: 'Свадьба', kz: 'Үйлену тойы', en: 'Wedding');
     case eventTypeToi:
-      return t(locale, ru: 'Той', kz: 'Той');
+      return t(locale, ru: 'Той', kz: 'Той', en: 'Toi');
     case eventTypeAnniversary:
-      return t(locale, ru: 'Юбилей', kz: 'Мерейтой');
+      return t(locale, ru: 'Юбилей', kz: 'Мерейтой', en: 'Anniversary');
     case eventTypeCorporate:
-      return t(locale, ru: 'Корпоратив', kz: 'Корпоратив');
+      return t(
+        locale,
+        ru: 'Корпоратив',
+        kz: 'Корпоратив',
+        en: 'Corporate event',
+      );
     default:
-      return t(locale, ru: 'Другое', kz: 'Басқа');
+      return t(locale, ru: 'Другое', kz: 'Басқа', en: 'Other');
   }
 }
 
@@ -105,16 +110,15 @@ String eventTypeEmoji(String type) {
   }
 }
 
-/// Mirrors eventHelpers.js's `roleLabel` (ru/kz branches — `en` is unused
-/// here, this app's locale toggle only ever produces ru/kz).
+/// Mirrors eventHelpers.js's `roleLabel`.
 String eventRoleLabel(AppLocale locale, String role) {
   switch (role) {
     case eventRoleOwner:
-      return t(locale, ru: 'Организатор', kz: 'Ұйымдастырушы');
+      return t(locale, ru: 'Организатор', kz: 'Ұйымдастырушы', en: 'Organizer');
     case eventRoleEditor:
-      return t(locale, ru: 'Участник', kz: 'Қатысушы');
+      return t(locale, ru: 'Участник', kz: 'Қатысушы', en: 'Member');
     case eventRoleViewer:
-      return t(locale, ru: 'Наблюдатель', kz: 'Бақылаушы');
+      return t(locale, ru: 'Наблюдатель', kz: 'Бақылаушы', en: 'Observer');
     default:
       return role;
   }
@@ -124,11 +128,16 @@ String eventRoleLabel(AppLocale locale, String role) {
 String candidateStatusLabel(AppLocale locale, String status) {
   switch (status) {
     case candidateShortlisted:
-      return t(locale, ru: 'Обсуждается', kz: 'Талқылануда');
+      return t(
+        locale,
+        ru: 'Обсуждается',
+        kz: 'Талқылануда',
+        en: 'In discussion',
+      );
     case candidateSelected:
-      return t(locale, ru: 'Выбран', kz: 'Таңдалды');
+      return t(locale, ru: 'Выбран', kz: 'Таңдалды', en: 'Selected');
     case candidateRejected:
-      return t(locale, ru: 'Отклонён', kz: 'Қабылданбады');
+      return t(locale, ru: 'Отклонён', kz: 'Қабылданбады', en: 'Declined');
     default:
       return status;
   }
@@ -140,11 +149,11 @@ String candidateStatusLabel(AppLocale locale, String status) {
 String taskStatusLabel(AppLocale locale, String status) {
   switch (status) {
     case taskTodo:
-      return t(locale, ru: 'К выполнению', kz: 'Орындау керек');
+      return t(locale, ru: 'К выполнению', kz: 'Орындау керек', en: 'To do');
     case taskDoing:
-      return t(locale, ru: 'В процессе', kz: 'Орындалуда');
+      return t(locale, ru: 'В процессе', kz: 'Орындалуда', en: 'In progress');
     case taskDone:
-      return t(locale, ru: 'Готово', kz: 'Дайын');
+      return t(locale, ru: 'Готово', kz: 'Дайын', en: 'Done');
     default:
       return status;
   }
@@ -154,19 +163,29 @@ String taskStatusLabel(AppLocale locale, String status) {
 String requestStatusLabel(AppLocale locale, String status) {
   switch (status) {
     case requestDraft:
-      return t(locale, ru: 'Черновик', kz: 'Жоба');
+      return t(locale, ru: 'Черновик', kz: 'Жоба', en: 'Draft');
     case requestSubmitted:
-      return t(locale, ru: 'Отправлена', kz: 'Жіберілді');
+      return t(locale, ru: 'Отправлена', kz: 'Жіберілді', en: 'Sent');
     case requestInReview:
-      return t(locale, ru: 'На рассмотрении', kz: 'Қаралуда');
+      return t(
+        locale,
+        ru: 'На рассмотрении',
+        kz: 'Қаралуда',
+        en: 'Under review',
+      );
     case requestChangesRequested:
-      return t(locale, ru: 'Нужны правки', kz: 'Түзету қажет');
+      return t(
+        locale,
+        ru: 'Нужны правки',
+        kz: 'Түзету қажет',
+        en: 'Changes needed',
+      );
     case requestApproved:
-      return t(locale, ru: 'Подтверждена', kz: 'Расталды');
+      return t(locale, ru: 'Подтверждена', kz: 'Расталды', en: 'Confirmed');
     case requestRejected:
-      return t(locale, ru: 'Отклонена', kz: 'Қабылданбады');
+      return t(locale, ru: 'Отклонена', kz: 'Қабылданбады', en: 'Rejected');
     case requestCancelled:
-      return t(locale, ru: 'Отменена', kz: 'Болдырылмады');
+      return t(locale, ru: 'Отменена', kz: 'Болдырылмады', en: 'Cancelled');
     default:
       return status;
   }

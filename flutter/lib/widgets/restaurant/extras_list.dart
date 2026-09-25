@@ -36,7 +36,7 @@ class ExtrasList extends StatelessWidget {
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
         Text(
-          t(locale, ru: 'Дополнительно', kz: 'Қосымша'),
+          t(locale, ru: 'Дополнительно', kz: 'Қосымша', en: 'Additional'),
           style: Theme.of(context).textTheme.titleMedium,
         ),
         const SizedBox(height: AppSpacing.xxs),
@@ -72,7 +72,7 @@ class _ExtraRow extends StatelessWidget {
     }
     final base = formatPrice(extra.price);
     return RestaurantPriceCalculator.isPerGuestUnit(extra.unit)
-        ? '$base / ${t(locale, ru: "чел.", kz: "адам")}'
+        ? '$base / ${t(locale, ru: "чел.", kz: "адам", en: "guests")}'
         : base;
   }
 

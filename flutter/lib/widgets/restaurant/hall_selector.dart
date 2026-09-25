@@ -31,7 +31,7 @@ class HallSelector extends StatelessWidget {
     if (halls.isEmpty) return const SizedBox.shrink();
 
     return SizedBox(
-      height: 176,
+      height: 196,
       child: ListView.separated(
         scrollDirection: Axis.horizontal,
         padding: const EdgeInsets.symmetric(horizontal: AppSpacing.lg),
@@ -73,7 +73,7 @@ class _HallCard extends StatelessWidget {
       child: AnimatedContainer(
         duration: const Duration(milliseconds: 180),
         curve: Curves.easeOut,
-        width: 148,
+        width: 164,
         decoration: BoxDecoration(
           color: context.mereytoiColors.surface,
           borderRadius: BorderRadius.circular(AppRadius.lg),
@@ -91,12 +91,43 @@ class _HallCard extends StatelessWidget {
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
               SizedBox(
-                height: 88,
+                height: 116,
                 width: double.infinity,
-                child: NetworkImageBox(
-                  url: ApiConfig.mediaUrl(hall.coverImage),
-                  borderRadius: 0,
-                  fallbackIcon: Icons.meeting_room_outlined,
+                child: Stack(
+                  fit: StackFit.expand,
+                  children: [
+                    NetworkImageBox(
+                      url: ApiConfig.mediaUrl(hall.coverImage),
+                      borderRadius: 0,
+                      fallbackIcon: Icons.meeting_room_outlined,
+                    ),
+                    // Этап 10Б-Б2 — visible without re-opening the card:
+                    // the gold border already marks the selected hall, but
+                    // it reads faintly once several cards share the same
+                    // scroll lane and the eye is scanning photos, not
+                    // borders. A filled check badge on the photo itself
+                    // reads at a glance, the same convention the rating
+                    // badge already uses on service cards.
+                    if (selected)
+                      Positioned(
+                        top: AppSpacing.xxs,
+                        right: AppSpacing.xxs,
+                        child: DecoratedBox(
+                          decoration: BoxDecoration(
+                            color: context.mereytoiColors.goldPrimary,
+                            shape: BoxShape.circle,
+                          ),
+                          child: Padding(
+                            padding: const EdgeInsets.all(3),
+                            child: Icon(
+                              Icons.check_rounded,
+                              size: 14,
+                              color: context.mereytoiColors.onGold,
+                            ),
+                          ),
+                        ),
+                      ),
+                  ],
                 ),
               ),
               Padding(

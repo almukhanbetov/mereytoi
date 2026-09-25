@@ -9,10 +9,12 @@ import '../../models/listing.dart';
 import '../../state/cart_provider.dart';
 import '../../state/listings_provider.dart';
 import '../../state/locale_provider.dart';
+import '../../widgets/animated_price_text.dart';
 import '../../widgets/app_error_view.dart';
 import '../../widgets/app_loader.dart';
 import '../../widgets/events/add_to_event_sheet.dart';
 import '../../widgets/listing_hero_header.dart';
+import '../../widgets/numeric_stepper_field.dart';
 
 /// The mobile counterpart of frontend/src/components/services/ServiceDetail.jsx —
 /// GET /api/listings/:id (the "detail endpoint" from the audit). Shows every
@@ -184,13 +186,14 @@ class _StickyCta extends ConsumerWidget {
                   mainAxisAlignment: MainAxisAlignment.spaceBetween,
                   children: [
                     Text(
-                      t(locale, ru: 'Гостей', kz: 'Қонақтар'),
+                      t(locale, ru: 'Гостей', kz: 'Қонақтар', en: 'Guests'),
                       style: Theme.of(context).textTheme.bodyMedium,
                     ),
-                    _GuestStepper(
+                    _GuestCountChip(
                       guests: guests,
                       min: listing.minGuests == 0 ? 1 : listing.minGuests,
-                      max: listing.maxGuests,
+                      max: listing.maxGuests == 0 ? null : listing.maxGuests,
+                      locale: locale,
                       onChanged: onGuestsChanged,
                     ),
                   ],
@@ -208,12 +211,17 @@ class _StickyCta extends ConsumerWidget {
                     children: [
                       Text(
                         isPerPerson
-                            ? '${formatPrice(listing.price)} / ${t(locale, ru: "чел.", kz: "адам")}'
-                            : t(locale, ru: 'Стоимость', kz: 'Құны'),
+                            ? '${formatPrice(listing.price)} / ${t(locale, ru: "чел.", kz: "адам", en: "guests")}'
+                            : t(
+                                locale,
+                                ru: 'Стоимость',
+                                kz: 'Құны',
+                                en: 'Cost',
+                              ),
                         style: Theme.of(context).textTheme.bodySmall,
                       ),
-                      Text(
-                        formatPrice(total),
+                      AnimatedPriceText(
+                        text: formatPrice(total),
                         style: TextStyle(
                           color: context.mereytoiColors.goldSoft,
                           fontWeight: FontWeight.w700,
@@ -272,6 +280,7 @@ class _StickyCta extends ConsumerWidget {
                                 locale,
                                 ru: 'Добавлено в корзину',
                                 kz: 'Себетке қосылды',
+                                en: 'Added to cart',
                               ),
                             ),
                           ),
@@ -287,8 +296,18 @@ class _StickyCta extends ConsumerWidget {
                         fit: BoxFit.scaleDown,
                         child: Text(
                           inCart
-                              ? t(locale, ru: 'Обновить', kz: 'Жаңарту')
-                              : t(locale, ru: 'В корзину', kz: 'Себетке'),
+                              ? t(
+                                  locale,
+                                  ru: 'Обновить',
+                                  kz: 'Жаңарту',
+                                  en: 'Update',
+                                )
+                              : t(
+                                  locale,
+                                  ru: 'В корзину',
+                                  kz: 'Себетке',
+                                  en: 'To cart',
+                                ),
                         ),
                       ),
                     ),
@@ -303,74 +322,147 @@ class _StickyCta extends ConsumerWidget {
   }
 }
 
-class _GuestStepper extends StatelessWidget {
-  const _GuestStepper({
+/// A compact "N чел. ▾" pill for the sticky CTA bar — too little room there
+/// for the full [NumericStepperField] inline, so it opens in a small
+/// bottom sheet instead (Этап 10Б-1: same direct-numeric-entry +
+/// quick-pick editing as the restaurant calculator, just reached with one
+/// tap from a bar that stays slim).
+class _GuestCountChip extends StatelessWidget {
+  const _GuestCountChip({
     required this.guests,
     required this.min,
     required this.max,
+    required this.locale,
     required this.onChanged,
   });
 
   final int guests;
   final int min;
-  final int max;
+  final int? max;
+  final AppLocale locale;
   final ValueChanged<int> onChanged;
+
+  Future<void> _open(BuildContext context) async {
+    await showModalBottomSheet<void>(
+      context: context,
+      isScrollControlled: true,
+      builder: (sheetContext) => _GuestCountSheet(
+        guests: guests,
+        min: min,
+        max: max,
+        locale: locale,
+        onChanged: onChanged,
+      ),
+    );
+  }
 
   @override
   Widget build(BuildContext context) {
-    return Row(
-      mainAxisSize: MainAxisSize.min,
-      children: [
-        _StepButton(
-          icon: Icons.remove_rounded,
-          onTap: guests > min ? () => onChanged(guests - 1) : null,
-        ),
-        SizedBox(
-          width: 36,
-          child: Text(
-            '$guests',
-            textAlign: TextAlign.center,
-            style: Theme.of(context).textTheme.titleMedium,
+    return Material(
+      color: context.mereytoiColors.surfaceSoft,
+      borderRadius: BorderRadius.circular(AppRadius.chip),
+      child: InkWell(
+        onTap: () => _open(context),
+        borderRadius: BorderRadius.circular(AppRadius.chip),
+        child: Padding(
+          padding: const EdgeInsets.symmetric(
+            horizontal: AppSpacing.sm,
+            vertical: AppSpacing.xs,
+          ),
+          child: Row(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              Text(
+                '$guests ${t(locale, ru: "чел.", kz: "адам", en: "guests")}',
+                style: Theme.of(context).textTheme.titleSmall,
+              ),
+              const SizedBox(width: AppSpacing.xxs),
+              Icon(
+                Icons.expand_more_rounded,
+                size: 16,
+                color: context.mereytoiColors.textSecondary,
+              ),
+            ],
           ),
         ),
-        _StepButton(
-          icon: Icons.add_rounded,
-          onTap: (max == 0 || guests < max)
-              ? () => onChanged(guests + 1)
-              : null,
-        ),
-      ],
+      ),
     );
   }
 }
 
-class _StepButton extends StatelessWidget {
-  const _StepButton({required this.icon, required this.onTap});
+class _GuestCountSheet extends StatelessWidget {
+  const _GuestCountSheet({
+    required this.guests,
+    required this.min,
+    required this.max,
+    required this.locale,
+    required this.onChanged,
+  });
 
-  final IconData icon;
-  final VoidCallback? onTap;
+  final int guests;
+  final int min;
+  final int? max;
+  final AppLocale locale;
+  final ValueChanged<int> onChanged;
 
   @override
   Widget build(BuildContext context) {
-    final enabled = onTap != null;
-    return Material(
-      color: enabled
-          ? context.mereytoiColors.surfaceSoft
-          : context.mereytoiColors.surface,
-      shape: const CircleBorder(),
-      child: InkWell(
-        onTap: onTap,
-        customBorder: const CircleBorder(),
-        child: SizedBox(
-          width: 44,
-          height: 44,
-          child: Icon(
-            icon,
-            size: 17,
-            color: enabled
-                ? context.mereytoiColors.goldPrimary
-                : context.mereytoiColors.textMuted,
-          ),
+    return SafeArea(
+      top: false,
+      child: Padding(
+        padding: EdgeInsets.fromLTRB(
+          AppSpacing.lg,
+          AppSpacing.sm,
+          AppSpacing.lg,
+          AppSpacing.lg + MediaQuery.viewInsetsOf(context).bottom,
+        ),
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Center(
+              child: Container(
+                width: 36,
+                height: 4,
+                margin: const EdgeInsets.only(bottom: AppSpacing.md),
+                decoration: BoxDecoration(
+                  color: context.mereytoiColors.divider,
+                  borderRadius: BorderRadius.circular(AppRadius.chip),
+                ),
+              ),
+            ),
+            Text(
+              t(
+                locale,
+                ru: 'Количество гостей',
+                kz: 'Қонақтар саны',
+                en: 'Number of guests',
+              ),
+              style: Theme.of(context).textTheme.titleMedium,
+            ),
+            const SizedBox(height: AppSpacing.sm),
+            NumericStepperField(
+              value: guests,
+              min: min,
+              max: max,
+              suffixLabel: t(locale, ru: 'чел.', kz: 'адам', en: 'guests'),
+              quickPickLabel: t(
+                locale,
+                ru: 'Быстрый выбор гостей',
+                kz: 'Қонақтарды жылдам таңдау',
+                en: 'Quick guest picks',
+              ),
+              onChanged: onChanged,
+            ),
+            const SizedBox(height: AppSpacing.md),
+            SizedBox(
+              width: double.infinity,
+              child: ElevatedButton(
+                onPressed: () => Navigator.of(context).pop(),
+                child: Text(t(locale, ru: 'Готово', kz: 'Дайын', en: 'Done')),
+              ),
+            ),
+          ],
         ),
       ),
     );

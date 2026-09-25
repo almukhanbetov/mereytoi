@@ -135,7 +135,7 @@ class _MemberTile extends ConsumerWidget {
               mainAxisSize: MainAxisSize.min,
               children: [
                 Text(
-                  '${member.user?.name ?? '—'}${isMe ? ' (${t(locale, ru: "вы", kz: "сіз")})' : ''}',
+                  '${member.user?.name ?? '—'}${isMe ? ' (${t(locale, ru: "вы", kz: "сіз", en: "you")})' : ''}',
                   style: Theme.of(context).textTheme.bodyLarge,
                 ),
                 Text(
@@ -180,7 +180,12 @@ class _MemberTile extends ConsumerWidget {
                   PopupMenuItem(
                     value: eventRoleEditor,
                     child: Text(
-                      t(locale, ru: 'Сделать участником', kz: 'Қатысушы ету'),
+                      t(
+                        locale,
+                        ru: 'Сделать участником',
+                        kz: 'Қатысушы ету',
+                        en: 'Make a member',
+                      ),
                     ),
                   ),
                 if (member.role != eventRoleViewer)
@@ -191,6 +196,7 @@ class _MemberTile extends ConsumerWidget {
                         locale,
                         ru: 'Сделать наблюдателем',
                         kz: 'Бақылаушы ету',
+                        en: 'Make an observer',
                       ),
                     ),
                   ),
@@ -201,6 +207,7 @@ class _MemberTile extends ConsumerWidget {
                       locale,
                       ru: 'Удалить из мероприятия',
                       kz: 'Іс-шарадан жою',
+                      en: 'Remove from event',
                     ),
                   ),
                 ),
@@ -277,7 +284,12 @@ class _InviteSheetState extends ConsumerState<_InviteSheet> {
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
                 Text(
-                  t(locale, ru: 'Пригласить участника', kz: 'Қатысушы шақыру'),
+                  t(
+                    locale,
+                    ru: 'Пригласить участника',
+                    kz: 'Қатысушы шақыру',
+                    en: 'Invite a member',
+                  ),
                   style: Theme.of(context).textTheme.titleLarge,
                 ),
                 const SizedBox(height: AppSpacing.md),
@@ -327,6 +339,7 @@ class _InviteSheetState extends ConsumerState<_InviteSheet> {
                                     locale,
                                     ru: 'Ссылка скопирована',
                                     kz: 'Сілтеме көшірілді',
+                                    en: 'Link copied',
                                   ),
                                 ),
                               ),
@@ -363,7 +376,12 @@ class _InviteSheetState extends ConsumerState<_InviteSheet> {
                             ),
                           )
                         : Text(
-                            t(locale, ru: 'Создать ссылку', kz: 'Сілтеме құру'),
+                            t(
+                              locale,
+                              ru: 'Создать ссылку',
+                              kz: 'Сілтеме құру',
+                              en: 'Create link',
+                            ),
                           ),
                   ),
                 ),

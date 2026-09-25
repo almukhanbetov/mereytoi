@@ -49,4 +49,22 @@ type Listing struct {
 	Longitude *float64 `json:"longitude,omitempty"`
 	PlaceID   *string  `gorm:"size:200" json:"place_id,omitempty"`
 	Capacity  uint     `gorm:"default:0" json:"capacity,omitempty"`
+
+	// PriceType — Этап 11 "Provider Marketplace" (brief section 7). Purely
+	// descriptive of what Price means for this listing; nothing in the
+	// existing price-display/calculator code reads it yet, so every
+	// pre-existing listing (empty string) renders exactly as before. No
+	// `default:` tag, same lesson as ListingHall.IsActive's own doc
+	// comment: the handler defaults an empty value to PriceTypeFixed in Go
+	// before saving, rather than trusting a DB-level default that GORM
+	// would silently apply on top of an explicitly-empty write.
+	PriceType string `gorm:"size:20" json:"price_type,omitempty"`
 }
+
+const (
+	PriceTypeFixed      = "fixed"
+	PriceTypeFrom       = "from"
+	PriceTypePerHour    = "per_hour"
+	PriceTypePerEvent   = "per_event"
+	PriceTypeNegotiable = "negotiable"
+)

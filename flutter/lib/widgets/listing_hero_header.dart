@@ -3,13 +3,17 @@ import 'package:url_launcher/url_launcher.dart';
 
 import '../core/config/api_config.dart';
 import '../core/theme/app_theme.dart';
+import '../core/utils/whatsapp.dart';
 import '../models/listing.dart';
+import '../screens/provider/provider_profile_screen.dart';
 import '../state/locale_provider.dart';
 import 'app_back_button.dart';
 import 'app_chip.dart';
 import 'app_icon_badge.dart';
 import 'manager_chat/ask_manager_button.dart';
 import 'network_image_box.dart';
+import 'photo_viewer_screen.dart';
+import 'provider_chat/message_provider_button.dart';
 
 /// The shared "top of a listing detail page" — photo gallery hero, swipe
 /// gallery + thumbnail strip, category/title/rating/city/phone, and
@@ -30,6 +34,15 @@ List<Widget> listingHeroSlivers({
   required ValueChanged<int> onPageChanged,
   required ValueChanged<int> onThumbnailTap,
   bool includeDescription = true,
+  // Этап 10Б-53 — the restaurant calculator's current selection, passed
+  // straight through to `AskManagerButton` so "Спросить менеджера" carries
+  // the actual hall/menu/guests/total the customer is looking at, not
+  // just the listing. `ServiceDetailScreen` never passes these.
+  String? chatHallName,
+  String? chatMenuName,
+  int? chatMenuPricePerGuest,
+  int? chatGuestCount,
+  int? chatEstimatedTotal,
 }) {
   final images = listing.imageUrls;
   final categoryLabel = listing.category?.name(locale);
@@ -57,10 +70,17 @@ List<Widget> listingHeroSlivers({
                     controller: pageController,
                     onPageChanged: onPageChanged,
                     itemCount: images.length,
-                    itemBuilder: (context, i) => NetworkImageBox(
-                      url: ApiConfig.mediaUrl(images[i]),
-                      borderRadius: 0,
-                      fallbackIcon: Icons.celebration_outlined,
+                    itemBuilder: (context, i) => GestureDetector(
+                      onTap: () => PhotoViewerScreen.open(
+                        context,
+                        imageUrls: images,
+                        initialIndex: i,
+                      ),
+                      child: NetworkImageBox(
+                        url: ApiConfig.mediaUrl(images[i]),
+                        borderRadius: 0,
+                        fallbackIcon: Icons.celebration_outlined,
+                      ),
                     ),
                   ),
                   if (images.length > 1)
@@ -86,6 +106,24 @@ List<Widget> listingHeroSlivers({
                         ),
                       ),
                     ),
+                  Positioned(
+                    bottom: AppSpacing.md,
+                    right: AppSpacing.md,
+                    child: IgnorePointer(
+                      child: Container(
+                        padding: const EdgeInsets.all(6),
+                        decoration: BoxDecoration(
+                          color: Colors.black.withValues(alpha: 0.5),
+                          shape: BoxShape.circle,
+                        ),
+                        child: const Icon(
+                          Icons.zoom_out_map_rounded,
+                          color: Colors.white,
+                          size: 16,
+                        ),
+                      ),
+                    ),
+                  ),
                 ],
               ),
       ),
@@ -182,13 +220,33 @@ List<Widget> listingHeroSlivers({
               const SizedBox(height: AppSpacing.sm),
               Align(
                 alignment: Alignment.centerLeft,
-                child: AskManagerButton(listing: listing, locale: locale),
+                child: AskManagerButton(
+                  listing: listing,
+                  locale: locale,
+                  hallName: chatHallName,
+                  menuName: chatMenuName,
+                  menuPricePerGuest: chatMenuPricePerGuest,
+                  guestCount: chatGuestCount,
+                  estimatedTotal: chatEstimatedTotal,
+                ),
               ),
+              // Этап 11 "Provider Marketplace" (Этап 11E QA finding: this
+              // was missing from the Flutter side entirely — the model
+              // parsed `provider` but no screen ever rendered it). Null
+              // for every listing with no self-serve provider owner.
+              if (listing.provider != null) ...[
+                const SizedBox(height: AppSpacing.sm),
+                _ProviderBlock(
+                  provider: listing.provider!,
+                  listing: listing,
+                  locale: locale,
+                ),
+              ],
               if (includeDescription &&
                   listing.description(locale).isNotEmpty) ...[
                 const SizedBox(height: AppSpacing.lg),
                 Text(
-                  t(locale, ru: 'Описание', kz: 'Сипаттама'),
+                  t(locale, ru: 'Описание', kz: 'Сипаттама', en: 'Description'),
                   style: Theme.of(context).textTheme.titleMedium,
                 ),
                 const SizedBox(height: AppSpacing.xs),
@@ -207,7 +265,7 @@ List<Widget> listingHeroSlivers({
               if (listing.videoUrls.isNotEmpty) ...[
                 const SizedBox(height: AppSpacing.lg),
                 Text(
-                  t(locale, ru: 'Видео', kz: 'Видео'),
+                  t(locale, ru: 'Видео', kz: 'Видео', en: 'Video'),
                   style: Theme.of(context).textTheme.titleMedium,
                 ),
                 const SizedBox(height: AppSpacing.xs),
@@ -275,16 +333,184 @@ class _ListingDescriptionTextState extends State<ListingDescriptionText> {
               ),
               child: Text(
                 _expanded
-                    ? t(widget.locale, ru: 'Свернуть', kz: 'Жию')
+                    ? t(
+                        widget.locale,
+                        ru: 'Свернуть',
+                        kz: 'Жию',
+                        en: 'Collapse',
+                      )
                     : t(
                         widget.locale,
                         ru: 'Показать полностью',
                         kz: 'Толығырақ көрсету',
+                        en: 'Show more',
                       ),
               ),
             ),
           ),
       ],
+    );
+  }
+}
+
+/// Этап 11 brief section 9: name/avatar/city + a contact button.
+/// Deliberately NOT `AskManagerButton` above (that's a real chat with
+/// MEREYTOI's own manager) — a direct WhatsApp/Telegram/phone link to the
+/// service's own provider, since no provider<->client chat backend exists
+/// this stage. Mirrors frontend/src/components/services/ServiceDetail.jsx's
+/// own ProviderBlock.
+class _ProviderBlock extends StatelessWidget {
+  const _ProviderBlock({
+    required this.provider,
+    required this.listing,
+    required this.locale,
+  });
+
+  final ListingProviderBrief provider;
+  final Listing listing;
+  final AppLocale locale;
+
+  Uri? get _contactUri {
+    final waDigits = toWhatsAppDigits(provider.whatsapp ?? '');
+    if (waDigits.isNotEmpty) return Uri.parse('https://wa.me/$waDigits');
+    final telegram = provider.telegram;
+    if (telegram != null && telegram.isNotEmpty) {
+      return Uri.parse('https://t.me/${telegram.replaceFirst('@', '')}');
+    }
+    final phone = provider.phone;
+    if (phone != null && phone.isNotEmpty) {
+      return Uri.parse('tel:${phone.replaceAll(' ', '')}');
+    }
+    return null;
+  }
+
+  /// Этап 11G brief section 1 — name/avatar open the public
+  /// ProviderProfileScreen. `provider.id` is always present for any
+  /// provider a listing actually has (see providerDetailOut's own doc
+  /// comment on the backend) — never 0 in practice, but a listing that
+  /// somehow predates the id field simply doesn't navigate rather than
+  /// opening a broken profile.
+  void _openProfile(BuildContext context) {
+    if (provider.id == 0) return;
+    Navigator.of(context).push(
+      MaterialPageRoute(
+        builder: (_) => ProviderProfileScreen(providerId: provider.id),
+      ),
+    );
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final colors = context.mereytoiColors;
+    final contactUri = _contactUri;
+    return Container(
+      padding: const EdgeInsets.all(AppSpacing.sm),
+      decoration: BoxDecoration(
+        color: colors.surface,
+        borderRadius: BorderRadius.circular(AppRadius.md),
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          InkWell(
+            borderRadius: BorderRadius.circular(AppRadius.sm),
+            onTap: () => _openProfile(context),
+            child: Row(
+              children: [
+                if (provider.avatarUrl != null &&
+                    provider.avatarUrl!.isNotEmpty)
+                  ClipRRect(
+                    borderRadius: BorderRadius.circular(22),
+                    child: SizedBox(
+                      width: 44,
+                      height: 44,
+                      child: NetworkImageBox(
+                        url: ApiConfig.mediaUrl(provider.avatarUrl),
+                        borderRadius: 0,
+                      ),
+                    ),
+                  )
+                else
+                  const AppIconBadge(icon: Icons.storefront_outlined, size: 44),
+                const SizedBox(width: AppSpacing.xs),
+                Expanded(
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    mainAxisSize: MainAxisSize.min,
+                    children: [
+                      Text(
+                        t(
+                          locale,
+                          ru: 'Услугодатель',
+                          kz: 'Қызмет көрсетуші',
+                          en: 'Provider',
+                        ),
+                        style: TextStyle(
+                          fontSize: 10.5,
+                          fontWeight: FontWeight.w700,
+                          letterSpacing: .4,
+                          color: colors.goldPrimary,
+                        ),
+                      ),
+                      Text(
+                        provider.displayName,
+                        maxLines: 1,
+                        overflow: TextOverflow.ellipsis,
+                        style: Theme.of(context).textTheme.titleSmall,
+                      ),
+                      if (provider.city != null && provider.city!.isNotEmpty)
+                        Text(
+                          provider.city!,
+                          style: Theme.of(context).textTheme.bodySmall,
+                        ),
+                    ],
+                  ),
+                ),
+                Icon(
+                  Icons.chevron_right_rounded,
+                  size: 18,
+                  color: colors.textMuted,
+                ),
+              ],
+            ),
+          ),
+          const SizedBox(height: AppSpacing.xs),
+          Wrap(
+            spacing: AppSpacing.xs,
+            runSpacing: AppSpacing.xxs,
+            children: [
+              if (provider.id != 0)
+                MessageProviderButton(
+                  providerId: provider.id,
+                  providerName: provider.displayName,
+                  providerAvatarUrl: provider.avatarUrl,
+                  listingId: listing.id,
+                  listingName: listing.name(locale),
+                  listingPrice: listing.price,
+                  locale: locale,
+                ),
+              if (contactUri != null)
+                TextButton(
+                  onPressed: () => launchUrl(
+                    contactUri,
+                    mode: LaunchMode.externalApplication,
+                  ),
+                  style: TextButton.styleFrom(
+                    minimumSize: const Size(0, 36),
+                  ),
+                  child: Text(
+                    t(
+                      locale,
+                      ru: 'Связаться →',
+                      kz: 'Байланысу →',
+                      en: 'Contact →',
+                    ),
+                  ),
+                ),
+            ],
+          ),
+        ],
+      ),
     );
   }
 }
@@ -326,7 +552,12 @@ class _VideoLinkTile extends StatelessWidget {
               const SizedBox(width: AppSpacing.sm),
               Expanded(
                 child: Text(
-                  t(locale, ru: 'Смотреть видео', kz: 'Видеоны көру'),
+                  t(
+                    locale,
+                    ru: 'Смотреть видео',
+                    kz: 'Видеоны көру',
+                    en: 'Watch video',
+                  ),
                   style: Theme.of(context).textTheme.bodyLarge,
                 ),
               ),

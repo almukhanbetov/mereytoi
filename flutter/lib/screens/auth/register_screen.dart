@@ -64,7 +64,7 @@ class _RegisterScreenState extends ConsumerState<RegisterScreen> {
 
     return Scaffold(
       appBar: AppBar(
-        title: Text(t(locale, ru: 'Регистрация', kz: 'Тіркелу')),
+        title: Text(t(locale, ru: 'Регистрация', kz: 'Тіркелу', en: 'Sign up')),
       ),
       body: SafeArea(
         child: SingleChildScrollView(
@@ -80,7 +80,12 @@ class _RegisterScreenState extends ConsumerState<RegisterScreen> {
               crossAxisAlignment: CrossAxisAlignment.stretch,
               children: [
                 Text(
-                  t(locale, ru: 'Создать аккаунт', kz: 'Аккаунт жасау'),
+                  t(
+                    locale,
+                    ru: 'Создать аккаунт',
+                    kz: 'Аккаунт жасау',
+                    en: 'Create account',
+                  ),
                   style: Theme.of(context).textTheme.displayMedium,
                 ),
                 const SizedBox(height: AppSpacing.xxs),
@@ -89,6 +94,7 @@ class _RegisterScreenState extends ConsumerState<RegisterScreen> {
                     locale,
                     ru: 'Сохраняйте прогресс планирования тоя',
                     kz: 'Той жоспарлау барысын сақтаңыз',
+                    en: 'Save your event-planning progress',
                   ),
                   style: Theme.of(context).textTheme.bodyMedium,
                 ),
@@ -98,10 +104,15 @@ class _RegisterScreenState extends ConsumerState<RegisterScreen> {
                   textInputAction: TextInputAction.next,
                   autofillHints: const [AutofillHints.name],
                   decoration: InputDecoration(
-                    labelText: t(locale, ru: 'Имя', kz: 'Атыңыз'),
+                    labelText: t(locale, ru: 'Имя', kz: 'Атыңыз', en: 'Name'),
                   ),
                   validator: (v) => (v == null || v.trim().isEmpty)
-                      ? t(locale, ru: 'Введите имя', kz: 'Атыңызды енгізіңіз')
+                      ? t(
+                          locale,
+                          ru: 'Введите имя',
+                          kz: 'Атыңызды енгізіңіз',
+                          en: 'Enter your name',
+                        )
                       : null,
                 ),
                 const SizedBox(height: AppSpacing.sm),
@@ -118,6 +129,7 @@ class _RegisterScreenState extends ConsumerState<RegisterScreen> {
                         locale,
                         ru: 'Введите email',
                         kz: 'Email енгізіңіз',
+                        en: 'Enter your email',
                       );
                     }
                     if (!value.contains('@') || !value.contains('.')) {
@@ -125,6 +137,7 @@ class _RegisterScreenState extends ConsumerState<RegisterScreen> {
                         locale,
                         ru: 'Введите корректный email',
                         kz: 'Email дұрыс емес',
+                        en: 'Enter a valid email',
                       );
                     }
                     return null;
@@ -141,6 +154,7 @@ class _RegisterScreenState extends ConsumerState<RegisterScreen> {
                       locale,
                       ru: 'Телефон (необязательно)',
                       kz: 'Телефон (міндетті емес)',
+                      en: 'Phone (optional)',
                     ),
                     hintText: '+7 700 000 00 00',
                   ),
@@ -148,17 +162,24 @@ class _RegisterScreenState extends ConsumerState<RegisterScreen> {
                 const SizedBox(height: AppSpacing.sm),
                 AppPasswordField(
                   controller: _passwordController,
-                  labelText: t(locale, ru: 'Пароль', kz: 'Құпия сөз'),
+                  labelText: t(
+                    locale,
+                    ru: 'Пароль',
+                    kz: 'Құпия сөз',
+                    en: 'Password',
+                  ),
                   onFieldSubmitted: (_) => _submit(),
                   showTooltip: t(
                     locale,
                     ru: 'Показать пароль',
                     kz: 'Құпия сөзді көрсету',
+                    en: 'Show password',
                   ),
                   hideTooltip: t(
                     locale,
                     ru: 'Скрыть пароль',
                     kz: 'Құпия сөзді жасыру',
+                    en: 'Hide password',
                   ),
                   validator: (v) {
                     if (v == null || v.isEmpty) {
@@ -166,6 +187,7 @@ class _RegisterScreenState extends ConsumerState<RegisterScreen> {
                         locale,
                         ru: 'Введите пароль',
                         kz: 'Құпия сөзді енгізіңіз',
+                        en: 'Enter your password',
                       );
                     }
                     if (v.length < 6) {
@@ -173,6 +195,7 @@ class _RegisterScreenState extends ConsumerState<RegisterScreen> {
                         locale,
                         ru: 'Минимум 6 символов',
                         kz: 'Кемінде 6 таңба',
+                        en: 'At least 6 characters',
                       );
                     }
                     return null;
@@ -201,7 +224,12 @@ class _RegisterScreenState extends ConsumerState<RegisterScreen> {
                           ),
                         )
                       : Text(
-                          t(locale, ru: 'Зарегистрироваться', kz: 'Тіркелу'),
+                          t(
+                            locale,
+                            ru: 'Зарегистрироваться',
+                            kz: 'Тіркелу',
+                            en: 'Sign up',
+                          ),
                         ),
                 ),
                 const SizedBox(height: AppSpacing.md),
@@ -219,6 +247,7 @@ class _RegisterScreenState extends ConsumerState<RegisterScreen> {
                         locale,
                         ru: 'Уже есть аккаунт? Войти',
                         kz: 'Аккаунт бар ма? Кіру',
+                        en: 'Already have an account? Sign in',
                       ),
                     ),
                   ),

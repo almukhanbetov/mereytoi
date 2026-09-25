@@ -158,7 +158,56 @@ final _menuJson = {
 };
 
 void main() {
-  const sizes = [Size(320, 700), Size(360, 800)];
+  // Этап 10Б-1Б — the exact real-device profile reported by the user
+  // (Xiaomi M2102J20SG): `adb shell wm size` → 1080x2400px,
+  // `wm density` → 440dpi (logical width = 1080/(440/160) ≈ 393dp),
+  // `settings get system font_scale` → 1.25. Confirmed via adb against
+  // the connected device, not assumed. This exact combination did NOT
+  // reproduce an overflow against this screen's worst-case (deliberately
+  // very long) fixture strings — kept as a locked-in regression guard,
+  // and as evidence the still-reported overflow is either elsewhere on
+  // screen, or depends on real production data/fonts this synthetic
+  // fixture and the test font don't reproduce (see Этап 10Б-1Б report).
+  testWidgets(
+    'no overflow at the real Xiaomi M2102J20SG profile — 393dp logical width, 1.25x font scale',
+    (tester) async {
+      final client = ApiClient.test(tokenProvider: () async => null);
+      client.debugDio.httpClientAdapter = _FakeAdapter();
+      final container = ProviderContainer(
+        overrides: [apiClientProvider.overrideWithValue(client)],
+      );
+      addTearDown(container.dispose);
+
+      await tester.pumpWidget(
+        UncontrolledProviderScope(
+          container: container,
+          child: MediaQuery(
+            data: const MediaQueryData(
+              size: Size(393, 851),
+              textScaler: TextScaler.linear(1.25),
+            ),
+            child: MaterialApp(
+              theme: AppTheme.dark,
+              home: const RestaurantDetailScreen(listingId: 16),
+            ),
+          ),
+        ),
+      );
+      await tester.pumpAndSettle();
+
+      expect(tester.takeException(), isNull);
+    },
+  );
+
+  // 320/360/393/430dp — Этап 10Б-Б2 QA section adds 430 (a common large
+  // Android width, e.g. Pixel Pro/Ultra devices) to the three already
+  // covered.
+  const sizes = [
+    Size(320, 700),
+    Size(360, 800),
+    Size(393, 851),
+    Size(430, 932),
+  ];
 
   for (final size in sizes) {
     testWidgets(
@@ -191,4 +240,38 @@ void main() {
       },
     );
   }
+
+  testWidgets(
+    'RestaurantDetailScreen does not overflow at a large system text size (320px, 1.3x scale) — '
+    'the exact regression this stage fixes (MenuContentAccordion header, "OVERFLOWED BY 41 PIXELS", '
+    'and AppMetaChip\'s own long-city overflow found alongside it)',
+    (tester) async {
+      final client = ApiClient.test(tokenProvider: () async => null);
+      client.debugDio.httpClientAdapter = _FakeAdapter();
+      final container = ProviderContainer(
+        overrides: [apiClientProvider.overrideWithValue(client)],
+      );
+      addTearDown(container.dispose);
+
+      await tester.pumpWidget(
+        UncontrolledProviderScope(
+          container: container,
+          child: MediaQuery(
+            data: const MediaQueryData(
+              size: Size(320, 700),
+              textScaler: TextScaler.linear(1.3),
+            ),
+            child: MaterialApp(
+              theme: AppTheme.dark,
+              home: const RestaurantDetailScreen(listingId: 16),
+            ),
+          ),
+        ),
+      );
+      await tester.pumpAndSettle();
+
+      expect(tester.takeException(), isNull);
+      expect(find.textContaining('Sultan Palace'), findsOneWidget);
+    },
+  );
 }
