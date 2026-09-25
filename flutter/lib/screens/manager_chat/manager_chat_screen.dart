@@ -68,9 +68,14 @@ class ManagerChatScreen extends ConsumerWidget {
   const ManagerChatScreen({
     super.key,
     this.chatContext = const ManagerChatContext(),
+    this.conversationId,
   });
 
   final ManagerChatContext chatContext;
+
+  /// Set only when opened from a notification (Этап 12B) — see
+  /// `ManagerChatKey.conversationId`.
+  final int? conversationId;
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
@@ -113,6 +118,7 @@ class ManagerChatScreen extends ConsumerWidget {
         AuthUnauthenticated() => _LoginPrompt(locale: locale),
         AuthAuthenticated() => _ChatBody(
           chatContext: chatContext,
+          conversationId: conversationId,
           locale: locale,
         ),
       },
@@ -158,9 +164,14 @@ class _LoginPrompt extends StatelessWidget {
 }
 
 class _ChatBody extends ConsumerStatefulWidget {
-  const _ChatBody({required this.chatContext, required this.locale});
+  const _ChatBody({
+    required this.chatContext,
+    required this.locale,
+    this.conversationId,
+  });
 
   final ManagerChatContext chatContext;
+  final int? conversationId;
   final AppLocale locale;
 
   @override
@@ -176,6 +187,7 @@ class _ChatBodyState extends ConsumerState<_ChatBody> {
   ManagerChatKey get _key => (
     eventId: widget.chatContext.eventId,
     listingId: widget.chatContext.listingId,
+    conversationId: widget.conversationId,
   );
 
   @override

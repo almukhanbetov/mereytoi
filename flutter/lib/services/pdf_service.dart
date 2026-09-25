@@ -1,9 +1,18 @@
+import 'package:flutter/services.dart';
 import 'package:pdf/pdf.dart';
 import 'package:pdf/widgets.dart' as pw;
 import 'package:printing/printing.dart';
 
 import '../core/utils/format.dart';
 import '../domain/pdf/pdf_booking_lines.dart';
+import '../state/locale_provider.dart';
+
+/// Этап 12C — Noto Sans bundled under assets/fonts/pdf/ rather than
+/// fetched via `PdfGoogleFonts` at export time: no network dependency
+/// (the export used to fail offline), and the glyph set is fixed and
+/// covered by test (Cyrillic incl. Kazakh Ә Ғ Қ Ң Ө Ұ Ү Һ І, and ₸).
+const pdfRegularFontAsset = 'assets/fonts/pdf/NotoSans-Regular.ttf';
+const pdfBoldFontAsset = 'assets/fonts/pdf/NotoSans-Bold.ttf';
 
 /// Flutter's functional equivalent of `frontend/src/lib/pdf.js`'s
 /// `downloadOfferPdf` (jsPDF + html2canvas rasterizing a styled HTML block)
@@ -17,10 +26,18 @@ import '../domain/pdf/pdf_booking_lines.dart';
 class PdfService {
   const PdfService();
 
-  Future<pw.Document> buildDocument(PdfBookingData data) async {
-    final regular = await PdfGoogleFonts.notoSansRegular();
-    final bold = await PdfGoogleFonts.notoSansBold();
+  /// [bundle] is injectable only so tests can load the fonts without a
+  /// running app; production always uses [rootBundle].
+  Future<pw.Document> buildDocument(
+    PdfBookingData data,
+    AppLocale locale, {
+    AssetBundle? bundle,
+  }) async {
+    final assets = bundle ?? rootBundle;
+    final regular = pw.Font.ttf(await assets.load(pdfRegularFontAsset));
+    final bold = pw.Font.ttf(await assets.load(pdfBoldFontAsset));
     final theme = pw.ThemeData.withFont(base: regular, bold: bold);
+    final labels = PdfLabels(locale);
 
     final doc = pw.Document(theme: theme);
     doc.addPage(
@@ -40,13 +57,13 @@ class PdfService {
             ),
             pw.SizedBox(height: 4),
             pw.Text(
-              data.createdAt != null ? formatMenuDate(data.createdAt!) : '',
+              data.createdAt != null ? labels.date(data.createdAt!) : '',
               style: const pw.TextStyle(fontSize: 10, color: PdfColors.grey700),
             ),
             pw.SizedBox(height: 16),
             if (data.publicRef.isNotEmpty)
               pw.Text(
-                'Номер заявки: ${data.publicRef}',
+                '${labels.requestNumber}: ${data.publicRef}',
                 style: const pw.TextStyle(fontSize: 11),
               ),
             if (data.customerName.isNotEmpty || data.customerPhone.isNotEmpty)
@@ -62,14 +79,14 @@ class PdfService {
               ),
             pw.SizedBox(height: 20),
             pw.Divider(color: PdfColors.grey400),
-            for (final line in data.lines) _buildLine(line),
+            for (final line in data.lines) _buildLine(line, labels),
             pw.Divider(color: PdfColors.grey700, thickness: 1),
             pw.SizedBox(height: 8),
             pw.Row(
               mainAxisAlignment: pw.MainAxisAlignment.spaceBetween,
               children: [
                 pw.Text(
-                  'Итого',
+                  labels.total,
                   style: pw.TextStyle(
                     fontSize: 14,
                     fontWeight: pw.FontWeight.bold,
@@ -96,14 +113,14 @@ class PdfService {
     return doc;
   }
 
-  pw.Widget _buildLine(PdfBookingLine line) {
+  pw.Widget _buildLine(PdfBookingLine line, PdfLabels labels) {
     final details = <String>[
       if (line.hallName != null && line.hallName!.isNotEmpty)
-        'Зал: ${line.hallName}',
+        '${labels.hall}: ${line.hallName}',
       if (line.menuName != null && line.menuName!.isNotEmpty)
-        'Меню: ${line.menuName}',
+        '${labels.menu}: ${line.menuName}',
       if (line.guests != null && line.pricePerGuest != null)
-        '${line.guests} чел. × ${formatPrice(line.pricePerGuest!)}',
+        labels.guestsTimesPrice(line.guests!, formatPrice(line.pricePerGuest!)),
     ];
     return pw.Padding(
       padding: const pw.EdgeInsets.symmetric(vertical: 8),
@@ -156,8 +173,8 @@ class PdfService {
   /// "Open PDF" — the platform print/preview sheet, which itself also
   /// offers Save-to-Files/Print, without this app needing any storage
   /// permission of its own.
-  Future<void> open(PdfBookingData data) async {
-    final doc = await buildDocument(data);
+  Future<void> open(PdfBookingData data, AppLocale locale) async {
+    final doc = await buildDocument(data, locale);
     final bytes = await doc.save();
     await Printing.layoutPdf(
       onLayout: (_) async => bytes,
@@ -168,8 +185,8 @@ class PdfService {
   /// "Share PDF" — the native share sheet (WhatsApp/Telegram/Files/etc.),
   /// the same one `url_launcher`-based sharing elsewhere in this app
   /// leaves to the OS rather than this app picking a destination itself.
-  Future<void> share(PdfBookingData data) async {
-    final doc = await buildDocument(data);
+  Future<void> share(PdfBookingData data, AppLocale locale) async {
+    final doc = await buildDocument(data, locale);
     final bytes = await doc.save();
     await Printing.sharePdf(bytes: bytes, filename: _fileName(data));
   }

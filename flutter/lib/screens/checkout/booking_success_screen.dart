@@ -43,10 +43,13 @@ class _BookingSuccessScreenState extends ConsumerState<BookingSuccessScreen> {
   Booking get _booking => widget.result.booking;
   BookingOnboarding? get _onboarding => widget.result.onboarding;
 
-  Future<void> _withPdf(Future<void> Function(PdfBookingData) action) async {
+  Future<void> _withPdf(
+    Future<void> Function(PdfBookingData, AppLocale) action,
+  ) async {
     setState(() => _pdfBusy = true);
     try {
-      await action(pdfDataFromBooking(_booking));
+      // The PDF follows the app's current RU/KZ/EN setting (Этап 12C).
+      await action(pdfDataFromBooking(_booking), ref.read(localeProvider));
     } catch (_) {
       if (!mounted) return;
       final locale = ref.read(localeProvider);

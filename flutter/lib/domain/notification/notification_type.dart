@@ -30,6 +30,16 @@ const notifRequestCancelled = 'request_cancelled';
 
 const notifWorkspaceCreated = 'workspace_created';
 
+/// Chat notifications (Этап 11G / 12A) — addressed by conversation, not by
+/// event: `entity_type` is `provider_conversation`/`manager_conversation`
+/// and `entity_id` the conversation id; `event_id` is never set.
+/// `manager_chat_user_message` only ever reaches admins (a customer wrote
+/// to the managers) — its thread lives in the web admin inbox, so it's
+/// rendered but has no in-app destination.
+const notifProviderMessageReceived = 'provider_message_received';
+const notifManagerMessageReceived = 'manager_message_received';
+const notifManagerChatUserMessage = 'manager_chat_user_message';
+
 /// Deep-link target for a notification — an event workspace opened to a
 /// specific tab, resolved from the real `entity_type` the backend actually
 /// sets per notification (see notification_helpers.go's call sites):
@@ -80,6 +90,90 @@ NotificationTarget? resolveNotificationTarget({
   }
   if (type == notifCommentAdded) {
     return (eventId: eventId, tabIndex: _tabDiscussion);
+  }
+
+  return null;
+}
+
+/// Deep-link target for a chat notification — resolved separately from
+/// [resolveNotificationTarget], since these open a conversation screen
+/// rather than an event workspace tab.
+sealed class ChatNotificationTarget {
+  const ChatNotificationTarget({required this.conversationId});
+
+  final int conversationId;
+}
+
+/// Opens `ManagerChatScreen` on exactly this thread; [eventId]/[listingId]
+/// are only the display context (the thread itself is fetched by id).
+class ManagerChatNotificationTarget extends ChatNotificationTarget {
+  const ManagerChatNotificationTarget({
+    required super.conversationId,
+    this.eventId,
+    this.listingId,
+  });
+
+  final int? eventId;
+  final int? listingId;
+}
+
+/// Opens `ProviderChatScreen` by [conversationId] — the direct `GET
+/// /api/provider-chat/:id` path, which works for whichever side (customer
+/// or provider) the recipient is on. [peerName] is the sender as the
+/// recipient knows them (the backend's `sender_name`).
+class ProviderChatNotificationTarget extends ChatNotificationTarget {
+  const ProviderChatNotificationTarget({
+    required super.conversationId,
+    required this.providerId,
+    required this.peerName,
+    this.listingId,
+  });
+
+  final int providerId;
+  final String peerName;
+  final int? listingId;
+}
+
+int? _payloadInt(Map<String, dynamic> payload, String key) {
+  final v = payload[key];
+  return v is num ? v.toInt() : null;
+}
+
+/// [fallbackPeerName] covers notifications created before the backend
+/// started sending `sender_name` (Этап 12A) — the caller passes the
+/// notification's own actor name.
+ChatNotificationTarget? resolveChatNotificationTarget({
+  required String type,
+  String? entityType,
+  int? entityId,
+  Map<String, dynamic> payload = const {},
+  String? fallbackPeerName,
+}) {
+  if (entityId == null) return null;
+
+  if (type == notifManagerMessageReceived &&
+      entityType == 'manager_conversation') {
+    return ManagerChatNotificationTarget(
+      conversationId: entityId,
+      eventId: _payloadInt(payload, 'event_id'),
+      listingId: _payloadInt(payload, 'listing_id'),
+    );
+  }
+
+  if (type == notifProviderMessageReceived &&
+      entityType == 'provider_conversation') {
+    final senderName = payload['sender_name'];
+    return ProviderChatNotificationTarget(
+      conversationId: entityId,
+      // Older rows have no provider_id; the screen never needs it when a
+      // conversationId is known (it's only used by the customer-side
+      // start path), so 0 is a safe placeholder there.
+      providerId: _payloadInt(payload, 'provider_id') ?? 0,
+      listingId: _payloadInt(payload, 'listing_id'),
+      peerName: senderName is String && senderName.isNotEmpty
+          ? senderName
+          : (fallbackPeerName ?? '—'),
+    );
   }
 
   return null;

@@ -13,7 +13,13 @@ import 'providers.dart';
 /// into `ManagerChatScreen` as widget params, not through this key, since
 /// the backend has no columns for it anyway (see `ManagerChatContext`'s
 /// own doc comment).
-typedef ManagerChatKey = ({int? eventId, int? listingId});
+///
+/// [conversationId] (Этап 12B) is set only when the caller already knows
+/// the exact thread — a `manager_message_received` notification. Opening
+/// by id fetches that conversation directly (`GET /api/manager-chat/:id`)
+/// instead of re-resolving it by context through `start`, which would miss
+/// a thread the manager has since closed (start only matches open ones).
+typedef ManagerChatKey = ({int? eventId, int? listingId, int? conversationId});
 
 class ManagerChatState {
   const ManagerChatState({this.conversation, this.messages = const []});
@@ -52,10 +58,13 @@ class ManagerChatNotifier extends StateNotifier<AsyncValue<ManagerChatState>> {
   Future<void> _load() async {
     state = const AsyncValue.loading();
     try {
-      final (conversation, messages) = await _service.start(
-        eventId: _key.eventId,
-        listingId: _key.listingId,
-      );
+      final knownId = _key.conversationId;
+      final (conversation, messages) = knownId != null
+          ? await _service.get(knownId)
+          : await _service.start(
+              eventId: _key.eventId,
+              listingId: _key.listingId,
+            );
       if (!mounted) return;
       state = AsyncValue.data(
         ManagerChatState(conversation: conversation, messages: messages),

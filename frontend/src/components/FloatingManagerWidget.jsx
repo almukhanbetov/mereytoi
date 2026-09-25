@@ -207,8 +207,13 @@ export default function FloatingManagerWidget() {
     // while the new context's conversation loads.
     setConversation(null);
     setChatMessages(null);
-    managerChatApi
-      .start('', { eventId: chatContext?.eventId, listingId: chatContext?.listingId })
+    // A notification (Этап 12B) already knows the exact thread — fetch it
+    // by id rather than re-resolving by context, which only matches *open*
+    // conversations and would miss one the manager has since closed.
+    const load = chatContext?.conversationId
+      ? managerChatApi.get(chatContext.conversationId)
+      : managerChatApi.start('', { eventId: chatContext?.eventId, listingId: chatContext?.listingId });
+    load
       .then((data) => {
         if (cancelled) return;
         setConversation(data.conversation);
@@ -228,7 +233,7 @@ export default function FloatingManagerWidget() {
     // Keyed on the two ids that actually matter (not the whole chatContext
     // object, which is a fresh reference from the caller on every
     // openChat() call) so this doesn't refire on every parent re-render.
-  }, [isOpen, view, isAuthenticated, chatContext?.eventId, chatContext?.listingId]);
+  }, [isOpen, view, isAuthenticated, chatContext?.eventId, chatContext?.listingId, chatContext?.conversationId]);
 
   // Poll for the manager's replies while the chat is actually open — same
   // pattern as CommentThread's discussion poll, just a slower cadence
