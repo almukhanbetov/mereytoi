@@ -10,6 +10,7 @@ import CartDrawer from "@/components/CartDrawer";
 import CursorGlow from "@/components/CursorGlow";
 import BackToTop from "@/components/BackToTop";
 import FloatingManagerWidget from "@/components/FloatingManagerWidget";
+import AiAssistantWidget from "@/components/AiAssistantWidget";
 
 const playfair = Playfair_Display({
   variable: "--font-playfair",
@@ -60,6 +61,7 @@ export default function RootLayout({ children }) {
             <BackToTop />
             <CartDrawer />
             <FloatingManagerWidget />
+            <AiAssistantWidget />
           </AppProviders>
         </AuthProvider>
       </body>

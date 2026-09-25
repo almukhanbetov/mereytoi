@@ -41,7 +41,9 @@ class AppErrorView extends StatelessWidget {
             const SizedBox(height: AppSpacing.lg),
             OutlinedButton(
               onPressed: onRetry,
-              child: Text(t(locale, ru: 'Повторить', kz: 'Қайталау')),
+              child: Text(
+                t(locale, ru: 'Повторить', kz: 'Қайталау', en: 'Retry'),
+              ),
             ),
           ],
         ),

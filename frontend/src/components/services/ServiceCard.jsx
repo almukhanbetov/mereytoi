@@ -47,6 +47,9 @@ export default function ServiceCard({ listing, categoryLabel, delay = 0 }) {
           </p>
         )}
         {listing.city && <p className="listing-card__city">📍 {listing.city}</p>}
+        {listing.provider?.display_name && (
+          <p className="product-card__provider">👤 {listing.provider.display_name}</p>
+        )}
         {hasMenus ? (
           <div className="product-card__row product-card__row--menus">
             <div>

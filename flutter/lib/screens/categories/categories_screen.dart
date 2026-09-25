@@ -30,7 +30,9 @@ class CategoriesScreen extends ConsumerWidget {
       // correct if that ever changes — same rule the default back button
       // follows, just with the app's own back-button styling.
       appBar: AppBar(
-        title: Text(t(locale, ru: 'Категории', kz: 'Санаттар')),
+        title: Text(
+          t(locale, ru: 'Категории', kz: 'Санаттар', en: 'Categories'),
+        ),
         leading: Navigator.canPop(context) ? const AppBackButton() : null,
       ),
       body: categories.when(
@@ -48,6 +50,7 @@ class CategoriesScreen extends ConsumerWidget {
                   locale,
                   ru: 'Категории скоро появятся',
                   kz: 'Санаттар жақында қосылады',
+                  en: 'Categories are coming soon',
                 ),
                 style: Theme.of(context).textTheme.bodyMedium,
               ),

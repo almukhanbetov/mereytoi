@@ -44,6 +44,9 @@ class Listing {
     this.hallCount,
     this.menuCount,
     this.minMenuPricePerGuest,
+    this.myRole,
+    this.priceType,
+    this.provider,
   });
 
   final int id;
@@ -85,6 +88,21 @@ class Listing {
   final int? menuCount;
   final int? minMenuPricePerGuest;
 
+  // ---- GET /api/users/me/listings only (myListingOut) — the caller's own
+  // role on this listing: "admin" for a global admin, "owner"/"manager"
+  // for a ListingManager row. Null on every other endpoint. ----
+  final String? myRole;
+
+  // ---- Этап 11 "Provider Marketplace" ----
+  // priceType — fixed/from/per_hour/per_event/negotiable, empty string on
+  // every listing predating this stage (backend's own omitempty).
+  final String? priceType;
+  // provider — the owning ListingManager(role=owner)'s Provider profile,
+  // when one exists (see backend's attachProviderBriefs/loadListingProvider).
+  // Null for every listing with no self-serve provider owner, i.e. every
+  // admin-created restaurant/venue listing from before this stage.
+  final ListingProviderBrief? provider;
+
   factory Listing.fromJson(Map<String, dynamic> json) {
     return Listing(
       id: json['id'] as int,
@@ -122,6 +140,13 @@ class Listing {
       hallCount: json['hall_count'] as int?,
       menuCount: json['menu_count'] as int?,
       minMenuPricePerGuest: json['min_menu_price_per_guest'] as int?,
+      myRole: json['role'] as String?,
+      priceType: json['price_type'] as String?,
+      provider: json['provider'] is Map
+          ? ListingProviderBrief.fromJson(
+              Map<String, dynamic>.from(json['provider'] as Map),
+            )
+          : null,
     );
   }
 
@@ -139,4 +164,45 @@ class Listing {
   /// `hasCoords` — both present, both real numbers. Never assumed from
   /// `address`/`placeId` alone (either can exist without the other).
   bool get hasCoords => latitude != null && longitude != null;
+}
+
+/// The small, display-only slice of a Provider a catalog card/detail page
+/// needs — mirrors backend/internal/handlers/listing_handler.go's own
+/// `providerBrief` (catalog) shape; the detail endpoint actually sends the
+/// full contact shape (phone/whatsapp/telegram included), so every field
+/// here is nullable/optional to parse either shape without throwing. `id` —
+/// Этап 11G: the provider's own public routing handle (never `user_id`,
+/// which the backend deliberately never sends here — see
+/// providerDetailOut's own doc comment), used to open ProviderProfileScreen
+/// and to address POST /api/provider-chat/start.
+class ListingProviderBrief {
+  const ListingProviderBrief({
+    required this.id,
+    required this.displayName,
+    this.city,
+    this.avatarUrl,
+    this.phone,
+    this.whatsapp,
+    this.telegram,
+  });
+
+  final int id;
+  final String displayName;
+  final String? city;
+  final String? avatarUrl;
+  final String? phone;
+  final String? whatsapp;
+  final String? telegram;
+
+  factory ListingProviderBrief.fromJson(Map<String, dynamic> json) {
+    return ListingProviderBrief(
+      id: json['id'] as int? ?? 0,
+      displayName: json['display_name'] as String? ?? '',
+      city: json['city'] as String?,
+      avatarUrl: json['avatar_url'] as String?,
+      phone: json['phone'] as String?,
+      whatsapp: json['whatsapp'] as String?,
+      telegram: json['telegram'] as String?,
+    );
+  }
 }

@@ -15,11 +15,18 @@ class NetworkImageBox extends StatelessWidget {
     required this.url,
     this.borderRadius = AppRadius.md,
     this.fallbackIcon = Icons.auto_awesome,
+    this.fit = BoxFit.cover,
   });
 
   final String? url;
   final double borderRadius;
   final IconData fallbackIcon;
+
+  /// `cover` everywhere a photo fills a fixed-shape slot (cards, hero
+  /// headers, thumbnails) — the one exception is the full-screen
+  /// [PhotoViewerScreen], which passes `contain` so the *whole* photo is
+  /// visible before the viewer's own pinch-to-zoom takes over.
+  final BoxFit fit;
 
   @override
   Widget build(BuildContext context) {
@@ -34,7 +41,7 @@ class NetworkImageBox extends StatelessWidget {
       borderRadius: radius,
       child: CachedNetworkImage(
         imageUrl: url!,
-        fit: BoxFit.cover,
+        fit: fit,
         fadeInDuration: const Duration(milliseconds: 220),
         placeholder: (context, _) => const AppSkeleton(borderRadius: 0),
         errorWidget: (context, _, _) => _Placeholder(icon: fallbackIcon),

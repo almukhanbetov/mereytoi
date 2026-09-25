@@ -37,7 +37,7 @@ class RestaurantLocationCard extends StatelessWidget {
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
           Text(
-            t(locale, ru: 'Расположение', kz: 'Орналасуы'),
+            t(locale, ru: 'Расположение', kz: 'Орналасуы', en: 'Location'),
             style: Theme.of(context).textTheme.titleMedium,
           ),
           if (addressText.isNotEmpty) ...[
@@ -64,7 +64,14 @@ class RestaurantLocationCard extends StatelessWidget {
             onPressed: () =>
                 launchUrl(Uri.parse(url), mode: LaunchMode.externalApplication),
             icon: const Icon(Icons.directions_outlined, size: 18),
-            label: Text(t(locale, ru: 'Построить маршрут', kz: 'Бағыт салу')),
+            label: Text(
+              t(
+                locale,
+                ru: 'Построить маршрут',
+                kz: 'Бағыт салу',
+                en: 'Get directions',
+              ),
+            ),
           ),
         ],
       ),

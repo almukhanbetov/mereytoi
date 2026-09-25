@@ -1,4 +1,5 @@
 import '../../core/utils/format.dart';
+import '../../state/locale_provider.dart';
 
 /// The "what page were they on" context a Manager Chat opening can carry —
 /// mirrors `AppProviders.jsx`'s `chatContext` shape exactly:
@@ -46,26 +47,34 @@ class ManagerChatContext {
 /// that actually survives into the conversation history a manager reads
 /// later (the backend has no columns to persist hall/menu/guests on the
 /// conversation itself).
-String restaurantContextText(ManagerChatContext ctx) {
+String restaurantContextText(AppLocale locale, ManagerChatContext ctx) {
   if ((ctx.menuName == null || ctx.menuName!.isEmpty) &&
       (ctx.hallName == null || ctx.hallName!.isEmpty)) {
     return '';
   }
   final parts = <String>[];
   if (ctx.hallName != null && ctx.hallName!.isNotEmpty) {
-    parts.add('Зал: ${ctx.hallName}');
+    parts.add(
+      '${t(locale, ru: "Зал", kz: "Зал", en: "Hall")}: ${ctx.hallName}',
+    );
   }
   if (ctx.menuName != null && ctx.menuName!.isNotEmpty) {
     final price = ctx.menuPricePerGuest != null && ctx.menuPricePerGuest! > 0
-        ? ' (${formatPrice(ctx.menuPricePerGuest!)}/чел.)'
+        ? ' (${formatPrice(ctx.menuPricePerGuest!)}/${t(locale, ru: "чел.", kz: "адам", en: "guest")})'
         : '';
-    parts.add('Меню: ${ctx.menuName}$price');
+    parts.add(
+      '${t(locale, ru: "Меню", kz: "Мәзір", en: "Menu")}: ${ctx.menuName}$price',
+    );
   }
   if (ctx.guestCount != null && ctx.guestCount! > 0) {
-    parts.add('${ctx.guestCount} гостей');
+    parts.add(
+      '${ctx.guestCount} ${t(locale, ru: "гостей", kz: "қонақ", en: "guests")}',
+    );
   }
   if (ctx.estimatedTotal != null && ctx.estimatedTotal! > 0) {
     parts.add('≈${formatPrice(ctx.estimatedTotal!)}');
   }
-  return parts.isEmpty ? '' : 'Контекст: ${parts.join(', ')}. ';
+  return parts.isEmpty
+      ? ''
+      : '${t(locale, ru: "Контекст", kz: "Контекст", en: "Context")}: ${parts.join(', ')}. ';
 }

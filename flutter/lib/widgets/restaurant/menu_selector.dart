@@ -95,7 +95,7 @@ class _MenuCard extends StatelessWidget {
             ),
             const SizedBox(height: 4),
             Text(
-              '${formatPrice(menu.pricePerGuest)} / ${t(locale, ru: "чел.", kz: "адам")}',
+              '${formatPrice(menu.pricePerGuest)} / ${t(locale, ru: "чел.", kz: "адам", en: "guests")}',
               style: TextStyle(
                 color: context.mereytoiColors.goldSoft,
                 fontWeight: FontWeight.w700,
@@ -116,16 +116,16 @@ class _MenuCard extends StatelessWidget {
               _Fact(
                 icon: Icons.groups_outlined,
                 text:
-                    '${menu.minGuests ?? "—"}–${menu.maxGuests ?? "—"} ${t(locale, ru: "гостей", kz: "қонақ")}',
+                    '${menu.minGuests ?? "—"}–${menu.maxGuests ?? "—"} ${t(locale, ru: "гостей", kz: "қонақ", en: "guests")}',
               ),
             if (hasPeriod)
               _Fact(
                 icon: Icons.event_outlined,
                 text: [
                   if (menu.validFrom != null)
-                    'с ${formatMenuDate(menu.validFrom!)}',
+                    '${t(locale, ru: "с", kz: "бастап", en: "from")} ${formatMenuDate(menu.validFrom!)}',
                   if (menu.validUntil != null)
-                    'по ${formatMenuDate(menu.validUntil!)}',
+                    '${t(locale, ru: "по", kz: "дейін", en: "until")} ${formatMenuDate(menu.validUntil!)}',
                 ].join(' '),
               ),
           ],

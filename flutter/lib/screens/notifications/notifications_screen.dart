@@ -31,14 +31,21 @@ class NotificationsScreen extends ConsumerWidget {
 
     return Scaffold(
       appBar: AppBar(
-        title: Text(t(locale, ru: 'Уведомления', kz: 'Хабарламалар')),
+        title: Text(
+          t(locale, ru: 'Уведомления', kz: 'Хабарламалар', en: 'Notifications'),
+        ),
         actions: authState is AuthAuthenticated
             ? [
                 TextButton(
                   onPressed: () =>
                       ref.read(notificationActionsProvider).markAllRead(),
                   child: Text(
-                    t(locale, ru: 'Прочитать все', kz: 'Барлығын оқу'),
+                    t(
+                      locale,
+                      ru: 'Прочитать все',
+                      kz: 'Барлығын оқу',
+                      en: 'Mark all as read',
+                    ),
                   ),
                 ),
               ]
@@ -57,6 +64,7 @@ class NotificationsScreen extends ConsumerWidget {
                     locale,
                     ru: 'Войдите, чтобы видеть уведомления',
                     kz: 'Хабарламаларды көру үшін кіріңіз',
+                    en: 'Sign in to see notifications',
                   ),
                   textAlign: TextAlign.center,
                   style: Theme.of(context).textTheme.titleMedium,
@@ -66,7 +74,9 @@ class NotificationsScreen extends ConsumerWidget {
                   onPressed: () => Navigator.of(context).push(
                     MaterialPageRoute(builder: (_) => const LoginScreen()),
                   ),
-                  child: Text(t(locale, ru: 'Войти', kz: 'Кіру')),
+                  child: Text(
+                    t(locale, ru: 'Войти', kz: 'Кіру', en: 'Sign in'),
+                  ),
                 ),
               ],
             ),
@@ -126,6 +136,7 @@ class _NotificationsList extends ConsumerWidget {
                         locale,
                         ru: 'Пока нет уведомлений',
                         kz: 'Әлі хабарлама жоқ',
+                        en: 'No notifications yet',
                       ),
                       style: Theme.of(context).textTheme.bodyMedium,
                     ),
@@ -260,12 +271,18 @@ String _notificationText(AppLocale locale, AppNotification n) {
         kz: '«${name ?? ''}» үшін жаңа дауыс',
       );
     case notifCommentAdded:
-      return t(locale, ru: 'Новый комментарий', kz: 'Жаңа пікір');
+      return t(
+        locale,
+        ru: 'Новый комментарий',
+        kz: 'Жаңа пікір',
+        en: 'New comment',
+      );
     case notifBudgetUpdated:
       return t(
         locale,
         ru: 'Бюджет мероприятия обновлён',
         kz: 'Іс-шара бюджеті жаңартылды',
+        en: 'Event budget updated',
       );
     case notifTaskCreated:
       return t(
@@ -292,7 +309,12 @@ String _notificationText(AppLocale locale, AppNotification n) {
         kz: '${name ?? ''} іс-шараға қосылды',
       );
     case notifMemberRoleChanged:
-      return t(locale, ru: 'Ваша роль изменена', kz: 'Рөліңіз өзгертілді');
+      return t(
+        locale,
+        ru: 'Ваша роль изменена',
+        kz: 'Рөліңіз өзгертілді',
+        en: 'Your role has changed',
+      );
     case notifInvitationAccepted:
       return t(
         locale,
@@ -305,26 +327,49 @@ String _notificationText(AppLocale locale, AppNotification n) {
         locale,
         ru: 'Заявка отправлена менеджеру',
         kz: 'Өтінім менеджерге жіберілді',
+        en: 'Request sent to the manager',
       );
     case notifRequestInReview:
-      return t(locale, ru: 'Заявка на рассмотрении', kz: 'Өтінім қаралуда');
+      return t(
+        locale,
+        ru: 'Заявка на рассмотрении',
+        kz: 'Өтінім қаралуда',
+        en: 'Request under review',
+      );
     case notifRequestChangesRequested:
       return t(
         locale,
         ru: 'Менеджер запросил правки',
         kz: 'Менеджер түзету сұрады',
+        en: 'The manager requested changes',
       );
     case notifRequestApproved:
-      return t(locale, ru: 'Заявка подтверждена', kz: 'Өтінім расталды');
+      return t(
+        locale,
+        ru: 'Заявка подтверждена',
+        kz: 'Өтінім расталды',
+        en: 'Request confirmed',
+      );
     case notifRequestRejected:
-      return t(locale, ru: 'Заявка отклонена', kz: 'Өтінім қабылданбады');
+      return t(
+        locale,
+        ru: 'Заявка отклонена',
+        kz: 'Өтінім қабылданбады',
+        en: 'Request declined',
+      );
     case notifRequestCancelled:
-      return t(locale, ru: 'Заявка отменена', kz: 'Өтінім болдырылмады');
+      return t(
+        locale,
+        ru: 'Заявка отменена',
+        kz: 'Өтінім болдырылмады',
+        en: 'Request canceled',
+      );
     case notifWorkspaceCreated:
       return t(
         locale,
         ru: 'Ваше пространство «Мой той» готово',
         kz: '«Менің тойым» кеңістігіңіз дайын',
+        en: 'Your "My Event" space is ready',
       );
     default:
       return n.type;
@@ -333,15 +378,17 @@ String _notificationText(AppLocale locale, AppNotification n) {
 
 String _timeAgo(AppLocale locale, DateTime dt) {
   final diff = DateTime.now().difference(dt);
-  if (diff.inMinutes < 1) return t(locale, ru: 'только что', kz: 'жаңа ғана');
+  if (diff.inMinutes < 1) {
+    return t(locale, ru: 'только что', kz: 'жаңа ғана', en: 'just now');
+  }
   if (diff.inMinutes < 60) {
-    return '${diff.inMinutes} ${t(locale, ru: "мин", kz: "мин")}';
+    return '${diff.inMinutes} ${t(locale, ru: "мин", kz: "мин", en: "min")}';
   }
   if (diff.inHours < 24) {
-    return '${diff.inHours} ${t(locale, ru: "ч", kz: "сағ")}';
+    return '${diff.inHours} ${t(locale, ru: "ч", kz: "сағ", en: "h")}';
   }
   if (diff.inDays < 7) {
-    return '${diff.inDays} ${t(locale, ru: "дн", kz: "күн")}';
+    return '${diff.inDays} ${t(locale, ru: "дн", kz: "күн", en: "d")}';
   }
   return '${dt.day.toString().padLeft(2, '0')}.${dt.month.toString().padLeft(2, '0')}.${dt.year}';
 }

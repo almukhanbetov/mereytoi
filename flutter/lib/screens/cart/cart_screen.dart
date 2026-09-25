@@ -9,6 +9,7 @@ import '../../domain/checkout/checkout_validation.dart';
 import '../../models/cart_item.dart';
 import '../../state/cart_provider.dart';
 import '../../state/locale_provider.dart';
+import '../../widgets/animated_price_text.dart';
 import '../../widgets/app_card.dart';
 import '../../widgets/app_icon_badge.dart';
 import '../../widgets/network_image_box.dart';
@@ -18,18 +19,25 @@ import '../root_shell.dart';
 String _blockReasonText(AppLocale locale, CheckoutBlockReason reason) {
   switch (reason) {
     case CheckoutBlockReason.emptyCart:
-      return t(locale, ru: 'Корзина пуста', kz: 'Себет бос');
+      return t(
+        locale,
+        ru: 'Корзина пуста',
+        kz: 'Себет бос',
+        en: 'Cart is empty',
+      );
     case CheckoutBlockReason.missingEstimatedTotal:
       return t(
         locale,
         ru: 'Не удалось определить стоимость позиции. Удалите её и добавьте заново.',
         kz: 'Позицияның құнын анықтау мүмкін болмады. Оны жойып, қайта қосыңыз.',
+        en: 'Couldn\'t determine this item\'s price. Remove it and add it again.',
       );
     case CheckoutBlockReason.invalidGuestCount:
       return t(
         locale,
         ru: 'Проверьте количество гостей в корзине.',
         kz: 'Себеттегі қонақтар санын тексеріңіз.',
+        en: 'Check the number of guests in your cart.',
       );
   }
 }
@@ -51,7 +59,7 @@ class CartScreen extends ConsumerWidget {
 
     return Scaffold(
       appBar: AppBar(
-        title: Text(t(locale, ru: 'Корзина', kz: 'Себет')),
+        title: Text(t(locale, ru: 'Корзина', kz: 'Себет', en: 'Cart')),
       ),
       body: items.isEmpty
           ? _EmptyCart(locale: locale)
@@ -76,7 +84,12 @@ class _EmptyCart extends ConsumerWidget {
             const AppIconBadge(icon: Icons.shopping_bag_outlined),
             const SizedBox(height: AppSpacing.md),
             Text(
-              t(locale, ru: 'Корзина пока пуста', kz: 'Себет әлі бос'),
+              t(
+                locale,
+                ru: 'Корзина пока пуста',
+                kz: 'Себет әлі бос',
+                en: 'Your cart is empty',
+              ),
               style: Theme.of(context).textTheme.titleMedium,
             ),
             const SizedBox(height: AppSpacing.xs),
@@ -85,6 +98,7 @@ class _EmptyCart extends ConsumerWidget {
                 locale,
                 ru: 'Добавьте услуги из каталога',
                 kz: 'Каталогтан қызметтерді қосыңыз',
+                en: 'Add services from the catalog',
               ),
               textAlign: TextAlign.center,
               style: Theme.of(context).textTheme.bodyMedium,
@@ -93,7 +107,12 @@ class _EmptyCart extends ConsumerWidget {
             OutlinedButton(
               onPressed: () => ref.read(selectedTabProvider.notifier).state = 1,
               child: Text(
-                t(locale, ru: 'Выбрать услуги', kz: 'Қызметтерді таңдау'),
+                t(
+                  locale,
+                  ru: 'Выбрать услуги',
+                  kz: 'Қызметтерді таңдау',
+                  en: 'Choose services',
+                ),
               ),
             ),
           ],
@@ -154,7 +173,7 @@ class _CartBody extends ConsumerWidget {
           child: Padding(
             padding: const EdgeInsets.only(top: AppSpacing.sm),
             child: _TotalsRow(
-              label: t(locale, ru: 'Итого', kz: 'Барлығы'),
+              label: t(locale, ru: 'Итого', kz: 'Барлығы', en: 'Total'),
               value: formatPrice(total),
               emphasize: true,
             ),
@@ -166,7 +185,14 @@ class _CartBody extends ConsumerWidget {
           child: ElevatedButton.icon(
             onPressed: () => _goToCheckout(context, ref),
             icon: const Icon(Icons.arrow_forward_rounded, size: 17),
-            label: Text(t(locale, ru: 'Оформить заявку', kz: 'Өтінім жасау')),
+            label: Text(
+              t(
+                locale,
+                ru: 'Оформить заявку',
+                kz: 'Өтінім жасау',
+                en: 'Submit request',
+              ),
+            ),
           ),
         ),
         const SizedBox(height: AppSpacing.xs),
@@ -193,7 +219,12 @@ class _CartBody extends ConsumerWidget {
               color: context.mereytoiColors.whatsapp,
             ),
             label: Text(
-              t(locale, ru: 'Написать в WhatsApp', kz: 'WhatsApp-қа жазу'),
+              t(
+                locale,
+                ru: 'Написать в WhatsApp',
+                kz: 'WhatsApp-қа жазу',
+                en: 'Message on WhatsApp',
+              ),
             ),
           ),
         ),
@@ -218,8 +249,8 @@ class _CartItemCard extends ConsumerWidget {
           ClipRRect(
             borderRadius: BorderRadius.circular(AppRadius.sm),
             child: SizedBox(
-              width: 44,
-              height: 44,
+              width: 60,
+              height: 60,
               child: NetworkImageBox(
                 url: ApiConfig.mediaUrl(item.image),
                 fallbackIcon: Icons.celebration_outlined,
@@ -246,7 +277,7 @@ class _CartItemCard extends ConsumerWidget {
                 else if (item.guests > 0) ...[
                   const SizedBox(height: 1),
                   Text(
-                    '${item.guests} ${t(locale, ru: "чел.", kz: "адам")} × ${formatPrice(item.unitPrice)}',
+                    '${item.guests} ${t(locale, ru: "чел.", kz: "адам", en: "guests")} × ${formatPrice(item.unitPrice)}',
                     maxLines: 1,
                     overflow: TextOverflow.ellipsis,
                     style: Theme.of(context).textTheme.bodySmall,
@@ -305,7 +336,7 @@ class _RestaurantVariantDetails {
         Padding(
           padding: const EdgeInsets.only(top: 1),
           child: Text(
-            '${t(locale, ru: "Зал", kz: "Зал")}: ${item.hallName}',
+            '${t(locale, ru: "Зал", kz: "Зал", en: "Hall")}: ${item.hallName}',
             maxLines: 1,
             overflow: TextOverflow.ellipsis,
             style: style,
@@ -315,7 +346,7 @@ class _RestaurantVariantDetails {
         Padding(
           padding: const EdgeInsets.only(top: 1),
           child: Text(
-            '${item.guests} ${t(locale, ru: "гостей", kz: "қонақ")} × ${formatPrice(item.menuPricePerGuest ?? item.unitPrice)}',
+            '${item.guests} ${t(locale, ru: "гостей", kz: "қонақ", en: "guests")} × ${formatPrice(item.menuPricePerGuest ?? item.unitPrice)}',
             maxLines: 1,
             overflow: TextOverflow.ellipsis,
             style: style,
@@ -348,19 +379,25 @@ class _TotalsRow extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return Row(
-      mainAxisAlignment: MainAxisAlignment.spaceBetween,
+    final valueStyle = emphasize
+        ? Theme.of(context).textTheme.titleLarge?.copyWith(
+            color: context.mereytoiColors.goldSoft,
+            fontSize: 22,
+          )
+        : Theme.of(context).textTheme.bodyLarge;
+    // Этап 10Б-1А: same shape as PriceSummaryCard's own "Итого" row, same
+    // fix — a plain Row here overflows at a large system text scale
+    // (label + a genuinely large 22px total, neither flexible). Wrap
+    // reflows to its own line instead when it doesn't fit.
+    return Wrap(
+      alignment: WrapAlignment.spaceBetween,
+      crossAxisAlignment: WrapCrossAlignment.center,
+      runSpacing: AppSpacing.xxs,
       children: [
         Text(label, style: Theme.of(context).textTheme.bodyLarge),
-        Text(
-          value,
-          style: emphasize
-              ? Theme.of(context).textTheme.titleLarge?.copyWith(
-                  color: context.mereytoiColors.goldSoft,
-                  fontSize: 22,
-                )
-              : Theme.of(context).textTheme.bodyLarge,
-        ),
+        emphasize
+            ? AnimatedPriceText(text: value, style: valueStyle)
+            : Text(value, style: valueStyle),
       ],
     );
   }

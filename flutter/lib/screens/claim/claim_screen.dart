@@ -81,16 +81,18 @@ class _ClaimScreenState extends ConsumerState<ClaimScreen> {
                 locale,
                 ru: 'Открываем ваше пространство…',
                 kz: 'Кеңістігіңіз ашылуда…',
+                en: 'Opening your space…',
               ),
               showSpinner: true,
             ),
             ClaimStatus.success => _StatusView(
               icon: '✨',
-              title: t(locale, ru: 'Готово!', kz: 'Дайын!'),
+              title: t(locale, ru: 'Готово!', kz: 'Дайын!', en: 'Done!'),
               text: t(
                 locale,
                 ru: 'Открываем «Мой той»…',
                 kz: '«Менің тойым» ашылуда…',
+                en: 'Opening "My Event"…',
               ),
             ),
             ClaimStatus.used => _StatusView(
@@ -99,11 +101,13 @@ class _ClaimScreenState extends ConsumerState<ClaimScreen> {
                 locale,
                 ru: 'Ссылка уже использована',
                 kz: 'Сілтеме бұрын қолданылған',
+                en: 'Link already used',
               ),
               text: t(
                 locale,
                 ru: 'Похоже, пространство уже открывали раньше. Войдите в свой аккаунт, чтобы продолжить.',
                 kz: 'Бұл кеңістік бұрын ашылған сияқты. Жалғастыру үшін аккаунтыңызға кіріңіз.',
+                en: 'It looks like this space was already opened before. Sign in to your account to continue.',
               ),
               loginCta: true,
             ),
@@ -113,11 +117,13 @@ class _ClaimScreenState extends ConsumerState<ClaimScreen> {
                 locale,
                 ru: 'Ссылка больше не активна',
                 kz: 'Сілтеме енді белсенді емес',
+                en: 'This link is no longer active',
               ),
               text: t(
                 locale,
                 ru: 'Срок действия ссылки истёк.',
                 kz: 'Сілтеменің мерзімі аяқталды.',
+                en: 'The link has expired.',
               ),
               resendCta: true,
             ),
@@ -127,20 +133,28 @@ class _ClaimScreenState extends ConsumerState<ClaimScreen> {
                 locale,
                 ru: 'Ссылка недействительна',
                 kz: 'Сілтеме жарамсыз',
+                en: 'Invalid link',
               ),
               text: t(
                 locale,
                 ru: 'Проверьте, что ссылка скопирована полностью.',
                 kz: 'Сілтеменің толық көшірілгенін тексеріңіз.',
+                en: 'Make sure the link was copied in full.',
               ),
             ),
             ClaimStatus.networkError => _StatusView(
               icon: '📡',
-              title: t(locale, ru: 'Нет соединения', kz: 'Байланыс жоқ'),
+              title: t(
+                locale,
+                ru: 'Нет соединения',
+                kz: 'Байланыс жоқ',
+                en: 'No connection',
+              ),
               text: t(
                 locale,
                 ru: 'Проверьте интернет-соединение и попробуйте ещё раз.',
                 kz: 'Интернет байланысын тексеріп, қайта көріңіз.',
+                en: 'Check your internet connection and try again.',
               ),
               retry: _claim,
             ),
@@ -197,7 +211,9 @@ class _StatusView extends ConsumerWidget {
           const SizedBox(height: AppSpacing.lg),
           ElevatedButton(
             onPressed: retry,
-            child: Text(t(locale, ru: 'Повторить', kz: 'Қайталау')),
+            child: Text(
+              t(locale, ru: 'Повторить', kz: 'Қайталау', en: 'Retry'),
+            ),
           ),
         ],
         if (loginCta) ...[
@@ -206,7 +222,9 @@ class _StatusView extends ConsumerWidget {
             onPressed: () => Navigator.of(context).pushReplacement(
               MaterialPageRoute(builder: (_) => const RootShell()),
             ),
-            child: Text(t(locale, ru: 'На главную', kz: 'Басты бетке')),
+            child: Text(
+              t(locale, ru: 'На главную', kz: 'Басты бетке', en: 'Go to Home'),
+            ),
           ),
         ],
         if (resendCta) ...[
@@ -223,6 +241,7 @@ class _StatusView extends ConsumerWidget {
                 locale,
                 ru: 'Отправить ссылку заново',
                 kz: 'Сілтемені қайта жіберу',
+                en: 'Resend the link',
               ),
             ),
           ),
@@ -305,13 +324,21 @@ class _ResendClaimSheetState extends ConsumerState<_ResendClaimSheet> {
                           locale,
                           ru: 'Если кабинет связан с этим номером, ссылка будет отправлена.',
                           kz: 'Егер кабинет осы нөмірмен байланысты болса, сілтеме жіберіледі.',
+                          en: 'If an account is linked to this number, a link will be sent.',
                         ),
                         style: Theme.of(context).textTheme.bodyLarge,
                       ),
                       const SizedBox(height: AppSpacing.md),
                       ElevatedButton(
                         onPressed: () => Navigator.of(context).pop(),
-                        child: Text(t(locale, ru: 'Понятно', kz: 'Түсінікті')),
+                        child: Text(
+                          t(
+                            locale,
+                            ru: 'Понятно',
+                            kz: 'Түсінікті',
+                            en: 'Got it',
+                          ),
+                        ),
                       ),
                     ]
                   : [
@@ -320,6 +347,7 @@ class _ResendClaimSheetState extends ConsumerState<_ResendClaimSheet> {
                           locale,
                           ru: 'Отправить ссылку заново',
                           kz: 'Сілтемені қайта жіберу',
+                          en: 'Resend the link',
                         ),
                         style: Theme.of(context).textTheme.titleLarge,
                       ),
@@ -328,7 +356,12 @@ class _ResendClaimSheetState extends ConsumerState<_ResendClaimSheet> {
                         controller: _phoneController,
                         keyboardType: TextInputType.phone,
                         decoration: InputDecoration(
-                          labelText: t(locale, ru: 'Телефон', kz: 'Телефон'),
+                          labelText: t(
+                            locale,
+                            ru: 'Телефон',
+                            kz: 'Телефон',
+                            en: 'Phone',
+                          ),
                           hintText: '+7 700 000 00 00',
                         ),
                       ),
@@ -356,7 +389,14 @@ class _ResendClaimSheetState extends ConsumerState<_ResendClaimSheet> {
                                     color: context.mereytoiColors.onGold,
                                   ),
                                 )
-                              : Text(t(locale, ru: 'Отправить', kz: 'Жіберу')),
+                              : Text(
+                                  t(
+                                    locale,
+                                    ru: 'Отправить',
+                                    kz: 'Жіберу',
+                                    en: 'Send',
+                                  ),
+                                ),
                         ),
                       ),
                     ],

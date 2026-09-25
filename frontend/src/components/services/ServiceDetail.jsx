@@ -9,6 +9,7 @@ import { T, useLang, useCart, useManagerChat } from '@/context/AppProviders';
 import { formatPrice } from '@/lib/format';
 import { mediaUrl } from '@/lib/media';
 import { flyToCart } from '@/lib/flyToCart';
+import { toWhatsAppDigits } from '@/lib/whatsapp';
 import AddToEventMenu from '@/components/profile/AddToEventMenu';
 import RestaurantMenus from '@/components/services/RestaurantMenus';
 import RestaurantLocation from '@/components/services/RestaurantLocation';
@@ -175,6 +176,8 @@ export default function ServiceDetail({ listing, related }) {
             <p className={`booking-added${added ? ' is-visible' : ''}`}>
               <T ru="Добавлено в корзину!" kz="Себетке қосылды!" />
             </p>
+
+            {listing.provider && <ProviderBlock provider={listing.provider} />}
           </div>
         </div>
       </section>
@@ -213,5 +216,52 @@ export default function ServiceDetail({ listing, related }) {
         </section>
       )}
     </>
+  );
+}
+
+// ProviderBlock — Этап 11 brief section 9: name/avatar/city + a contact
+// button. Deliberately NOT the "Спросить менеджера" button above (that's a
+// real chat with MEREYTOI's own manager, see ManagerConversation's own doc
+// comment) — this is a direct WhatsApp/Telegram/phone link to the
+// service's own provider, since no provider<->client chat backend exists
+// this stage (brief section 9's own "чат напрямую с услугодателем НЕ
+// реализовывать").
+function ProviderBlock({ provider }) {
+  const waDigits = toWhatsAppDigits(provider.whatsapp);
+  const contactHref = waDigits
+    ? `https://wa.me/${waDigits}`
+    : provider.telegram
+      ? `https://t.me/${provider.telegram.replace(/^@/, '')}`
+      : provider.phone
+        ? `tel:${provider.phone.replace(/\s+/g, '')}`
+        : null;
+
+  return (
+    <div className="manager-chat-ctx" style={{ marginTop: 16 }}>
+      <div style={{ display: 'flex', gap: 12, alignItems: 'center' }}>
+        {provider.avatar_url && (
+          <img
+            src={mediaUrl(provider.avatar_url)}
+            alt=""
+            style={{ width: 44, height: 44, borderRadius: '50%', objectFit: 'cover', flexShrink: 0 }}
+          />
+        )}
+        <div>
+          <div className="manager-chat-ctx__label"><T ru="Услугодатель" kz="Қызмет көрсетуші" en="Provider" /></div>
+          <div className="manager-chat-ctx__title">{provider.display_name}</div>
+          {provider.city && <div className="manager-chat-ctx__meta"><span>{provider.city}</span></div>}
+        </div>
+      </div>
+      {contactHref && (
+        <a
+          className="manager-chat-ctx__link"
+          href={contactHref}
+          target={contactHref.startsWith('tel:') ? undefined : '_blank'}
+          rel={contactHref.startsWith('tel:') ? undefined : 'noopener noreferrer'}
+        >
+          <T ru="Связаться →" kz="Байланысу →" en="Contact →" />
+        </a>
+      )}
+    </div>
   );
 }

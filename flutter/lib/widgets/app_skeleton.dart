@@ -63,10 +63,23 @@ class _AppSkeletonState extends State<AppSkeleton>
 /// A skeleton the same shape as [ServiceCard] / [CategoryCard] — used while
 /// GET /api/listings or GET /api/categories is loading, so the grid never
 /// flashes a blank frame.
+///
+/// The image block is `Expanded`, not a fixed [AspectRatio] — this card
+/// sits inside two genuinely different bounded-height contexts (a
+/// `GridView` cell, and a fixed-height horizontal list item — see
+/// `home_screen.dart`'s own two call sites), and a *fixed* image ratio
+/// used to assume a shape that didn't match either one exactly. A real
+/// bug this caused: `AppGridSkeleton(aspectRatio: 0.92)` (categories/
+/// featured-services grids) never forwarded that ratio to this card's own
+/// image box, which kept defaulting to `4/3` regardless — at a narrow
+/// device width the fixed 4/3 image plus this card's own fixed-height
+/// text lines together exceeded the actual (0.92-ratio-derived) cell
+/// height, overflowing (`RenderFlex overflowed ... on the bottom`).
+/// `Expanded` sidesteps needing the two ratios to ever agree again: the
+/// image simply fills whatever height is left after the fixed text block,
+/// in both contexts, at any width.
 class AppCardSkeleton extends StatelessWidget {
-  const AppCardSkeleton({super.key, this.aspectRatio = 4 / 3});
-
-  final double aspectRatio;
+  const AppCardSkeleton({super.key});
 
   @override
   Widget build(BuildContext context) {
@@ -79,10 +92,7 @@ class AppCardSkeleton extends StatelessWidget {
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          AspectRatio(
-            aspectRatio: aspectRatio,
-            child: const AppSkeleton(borderRadius: 0),
-          ),
+          const Expanded(child: AppSkeleton(borderRadius: 0)),
           Padding(
             padding: const EdgeInsets.all(AppSpacing.md),
             child: Column(

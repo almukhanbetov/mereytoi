@@ -58,11 +58,21 @@ class BudgetTab extends ConsumerWidget {
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
                   _BigRow(
-                    label: t(locale, ru: 'Общий бюджет', kz: 'Жалпы бюджет'),
+                    label: t(
+                      locale,
+                      ru: 'Общий бюджет',
+                      kz: 'Жалпы бюджет',
+                      en: 'Total budget',
+                    ),
                     value: formatPrice(summary.budgetTotal),
                   ),
                   _BigRow(
-                    label: t(locale, ru: 'Выбрано', kz: 'Таңдалды'),
+                    label: t(
+                      locale,
+                      ru: 'Выбрано',
+                      kz: 'Таңдалды',
+                      en: 'Selected',
+                    ),
                     value: formatPrice(summary.spent),
                   ),
                   const Padding(
@@ -70,7 +80,12 @@ class BudgetTab extends ConsumerWidget {
                     child: Divider(height: 1),
                   ),
                   _BigRow(
-                    label: t(locale, ru: 'Остаток', kz: 'Қалды'),
+                    label: t(
+                      locale,
+                      ru: 'Остаток',
+                      kz: 'Қалды',
+                      en: 'Remaining',
+                    ),
                     value: formatPrice(summary.remaining),
                     emphasize: true,
                     valueColor: summary.remaining < 0
@@ -83,7 +98,12 @@ class BudgetTab extends ConsumerWidget {
           ),
           const SizedBox(height: AppSpacing.md),
           Text(
-            t(locale, ru: 'Вклад по услугам', kz: 'Қызметтер бойынша үлес'),
+            t(
+              locale,
+              ru: 'Вклад по услугам',
+              kz: 'Қызметтер бойынша үлес',
+              en: 'Breakdown by service',
+            ),
             style: Theme.of(context).textTheme.titleMedium,
           ),
           const SizedBox(height: AppSpacing.xs),
@@ -109,6 +129,7 @@ class BudgetTab extends ConsumerWidget {
                       locale,
                       ru: 'Пока ничего не выбрано',
                       kz: 'Әлі ештеңе таңдалмаған',
+                      en: 'Nothing selected yet',
                     ),
                     style: Theme.of(context).textTheme.bodyMedium,
                   ),
@@ -151,7 +172,7 @@ class _CandidateBudgetRow extends StatelessWidget {
   Widget build(BuildContext context) {
     final title =
         candidate.listing?.name(locale) ??
-        t(locale, ru: 'Услуга', kz: 'Қызмет');
+        t(locale, ru: 'Услуга', kz: 'Қызмет', en: 'Service');
     final amount = candidateEstimate(candidate, eventGuests: eventGuests);
 
     return AppCard(

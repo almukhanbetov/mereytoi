@@ -42,6 +42,20 @@ class ListingService {
     return Listing.fromJson(Map<String, dynamic>.from(json['listing'] as Map));
   }
 
+  /// GET /api/users/me/listings — "Мои рестораны": every listing (any
+  /// is_active state — this is a management view, not the public
+  /// catalog's active-only one) the caller may manage. A global admin
+  /// gets all of them (role "admin" on each row); anyone else gets only
+  /// what they're an owner/manager of via ListingManager. Requires auth —
+  /// the caller must be logged in.
+  Future<List<Listing>> fetchMyListings() async {
+    final json = await _client.getJson('/api/users/me/listings');
+    final raw = json['listings'] as List? ?? const [];
+    return raw
+        .map((e) => Listing.fromJson(Map<String, dynamic>.from(e as Map)))
+        .toList();
+  }
+
   /// GET /api/listings/:id/halls — active halls only (the handler's own
   /// filter, see listing_handler.go's `Halls`). Lighter than the full
   /// `GET /api/listings/:id`, for a hall-picker that doesn't also need the

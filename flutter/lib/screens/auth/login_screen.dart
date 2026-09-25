@@ -66,7 +66,7 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
 
     return Scaffold(
       appBar: AppBar(
-        title: Text(t(locale, ru: 'Вход', kz: 'Кіру')),
+        title: Text(t(locale, ru: 'Вход', kz: 'Кіру', en: 'Sign in')),
       ),
       body: SafeArea(
         child: SingleChildScrollView(
@@ -86,6 +86,7 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
                     locale,
                     ru: 'С возвращением',
                     kz: 'Қайта көргенімізге қуаныштымыз',
+                    en: 'Welcome back',
                   ),
                   style: Theme.of(context).textTheme.displayMedium,
                 ),
@@ -95,6 +96,7 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
                     locale,
                     ru: 'Войдите, чтобы продолжить планирование тоя',
                     kz: 'Тойды жоспарлауды жалғастыру үшін кіріңіз',
+                    en: 'Sign in to continue planning your event',
                   ),
                   style: Theme.of(context).textTheme.bodyMedium,
                 ),
@@ -109,6 +111,7 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
                       locale,
                       ru: 'Email или телефон',
                       kz: 'Email немесе телефон',
+                      en: 'Email or phone',
                     ),
                   ),
                   validator: (v) => (v == null || v.trim().isEmpty)
@@ -116,30 +119,39 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
                           locale,
                           ru: 'Введите email или телефон',
                           kz: 'Email немесе телефонды енгізіңіз',
+                          en: 'Enter your email or phone',
                         )
                       : null,
                 ),
                 const SizedBox(height: AppSpacing.sm),
                 AppPasswordField(
                   controller: _passwordController,
-                  labelText: t(locale, ru: 'Пароль', kz: 'Құпия сөз'),
+                  labelText: t(
+                    locale,
+                    ru: 'Пароль',
+                    kz: 'Құпия сөз',
+                    en: 'Password',
+                  ),
                   textInputAction: TextInputAction.done,
                   onFieldSubmitted: (_) => _submit(),
                   showTooltip: t(
                     locale,
                     ru: 'Показать пароль',
                     kz: 'Құпия сөзді көрсету',
+                    en: 'Show password',
                   ),
                   hideTooltip: t(
                     locale,
                     ru: 'Скрыть пароль',
                     kz: 'Құпия сөзді жасыру',
+                    en: 'Hide password',
                   ),
                   validator: (v) => (v == null || v.isEmpty)
                       ? t(
                           locale,
                           ru: 'Введите пароль',
                           kz: 'Құпия сөзді енгізіңіз',
+                          en: 'Enter your password',
                         )
                       : null,
                 ),
@@ -165,7 +177,7 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
                             color: context.mereytoiColors.onGold,
                           ),
                         )
-                      : Text(t(locale, ru: 'Войти', kz: 'Кіру')),
+                      : Text(t(locale, ru: 'Войти', kz: 'Кіру', en: 'Sign in')),
                 ),
                 const SizedBox(height: AppSpacing.md),
                 Center(
@@ -182,6 +194,7 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
                         locale,
                         ru: 'Нет аккаунта? Зарегистрироваться',
                         kz: 'Аккаунт жоқ па? Тіркелу',
+                        en: 'Don\'t have an account? Sign up',
                       ),
                     ),
                   ),
@@ -196,6 +209,7 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
                         locale,
                         ru: 'Есть ссылка-приглашение?',
                         kz: 'Шақыру сілтемесі бар ма?',
+                        en: 'Have an invite link?',
                       ),
                     ),
                   ),

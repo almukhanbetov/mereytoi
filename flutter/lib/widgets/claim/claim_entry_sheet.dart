@@ -61,6 +61,7 @@ class _ClaimEntrySheetState extends ConsumerState<_ClaimEntrySheet> {
           ref.read(localeProvider),
           ru: 'Не удалось распознать ссылку',
           kz: 'Сілтемені тану мүмкін болмады',
+          en: 'Couldn\'t recognize the link',
         ),
       );
       return;
@@ -97,7 +98,12 @@ class _ClaimEntrySheetState extends ConsumerState<_ClaimEntrySheet> {
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
                 Text(
-                  t(locale, ru: 'Ссылка-приглашение', kz: 'Шақыру сілтемесі'),
+                  t(
+                    locale,
+                    ru: 'Ссылка-приглашение',
+                    kz: 'Шақыру сілтемесі',
+                    en: 'Invite link',
+                  ),
                   style: Theme.of(context).textTheme.titleLarge,
                 ),
                 const SizedBox(height: AppSpacing.xs),
@@ -106,6 +112,7 @@ class _ClaimEntrySheetState extends ConsumerState<_ClaimEntrySheet> {
                     locale,
                     ru: 'Вставьте ссылку или код, который вам прислали',
                     kz: 'Сізге жіберілген сілтемені немесе кодты қойыңыз',
+                    en: 'Paste the link or code you were sent',
                   ),
                   style: Theme.of(context).textTheme.bodyMedium,
                 ),
@@ -131,7 +138,9 @@ class _ClaimEntrySheetState extends ConsumerState<_ClaimEntrySheet> {
                   width: double.infinity,
                   child: ElevatedButton(
                     onPressed: _submit,
-                    child: Text(t(locale, ru: 'Открыть', kz: 'Ашу')),
+                    child: Text(
+                      t(locale, ru: 'Открыть', kz: 'Ашу', en: 'Open'),
+                    ),
                   ),
                 ),
               ],

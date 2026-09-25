@@ -7,12 +7,21 @@ import '../../core/utils/error_messages.dart';
 import '../../domain/event/event_status.dart';
 import '../../models/user.dart';
 import '../../state/auth_provider.dart';
+import '../../state/categories_provider.dart';
 import '../../state/event_providers.dart';
+import '../../state/listings_provider.dart';
 import '../../state/locale_provider.dart';
+import '../../state/provider_provider.dart';
 import '../../state/providers.dart';
 import '../../state/theme_provider.dart';
 import '../../widgets/app_card.dart';
+import '../../widgets/theme_mode_sheet.dart';
 import '../events/event_workspace_screen.dart';
+import '../manager_chat/manager_chat_screen.dart';
+import '../provider_chat/provider_chat_list_screen.dart';
+import 'provider/my_services_screen.dart';
+import 'provider/widgets/provider_profile_form_sheet.dart';
+import 'restaurant_admin/restaurant_admin_list_screen.dart';
 
 /// Brief section 3 — the account screen: identity, messenger/delivery
 /// settings, "Мои мероприятия", logout. Every field/endpoint here is real
@@ -28,7 +37,7 @@ class ProfileScreen extends ConsumerWidget {
 
     return Scaffold(
       appBar: AppBar(
-        title: Text(t(locale, ru: 'Профиль', kz: 'Профиль')),
+        title: Text(t(locale, ru: 'Профиль', kz: 'Профиль', en: 'Profile')),
       ),
       body: switch (authState) {
         AuthAuthenticated(:final user) => _ProfileBody(
@@ -36,7 +45,14 @@ class ProfileScreen extends ConsumerWidget {
           locale: locale,
         ),
         _ => Center(
-          child: Text(t(locale, ru: 'Нужно войти', kz: 'Кіру керек')),
+          child: Text(
+            t(
+              locale,
+              ru: 'Нужно войти',
+              kz: 'Кіру керек',
+              en: 'Sign-in required',
+            ),
+          ),
         ),
       },
     );
@@ -98,6 +114,7 @@ class _ProfileBodyState extends ConsumerState<_ProfileBody>
               widget.locale,
               ru: 'Telegram сейчас недоступен',
               kz: 'Telegram қазір қолжетімсіз',
+              en: 'Telegram is currently unavailable',
             ),
           );
         }
@@ -207,7 +224,9 @@ class _ProfileBodyState extends ConsumerState<_ProfileBody>
         const SizedBox(height: AppSpacing.lg),
 
         // ---- Мессенджеры ----
-        _SectionTitle(t(locale, ru: 'Мессенджеры', kz: 'Мессенджерлер')),
+        _SectionTitle(
+          t(locale, ru: 'Мессенджеры', kz: 'Мессенджерлер', en: 'Messengers'),
+        ),
         AppCard(
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
@@ -231,11 +250,13 @@ class _ProfileBodyState extends ConsumerState<_ProfileBody>
                               locale,
                               ru: 'Telegram подключён',
                               kz: 'Telegram қосылған',
+                              en: 'Telegram connected',
                             )
                           : t(
                               locale,
                               ru: 'Telegram не подключён',
                               kz: 'Telegram қосылмаған',
+                              en: 'Telegram not connected',
                             ),
                       style: Theme.of(context).textTheme.bodyLarge,
                     ),
@@ -249,7 +270,14 @@ class _ProfileBodyState extends ConsumerState<_ProfileBody>
                               height: 14,
                               child: CircularProgressIndicator(strokeWidth: 2),
                             )
-                          : Text(t(locale, ru: 'Подключить', kz: 'Қосу')),
+                          : Text(
+                              t(
+                                locale,
+                                ru: 'Подключить',
+                                kz: 'Қосу',
+                                en: 'Connect',
+                              ),
+                            ),
                     ),
                 ],
               ),
@@ -269,6 +297,7 @@ class _ProfileBodyState extends ConsumerState<_ProfileBody>
                   locale,
                   ru: 'Куда присылать ссылки',
                   kz: 'Сілтемелерді қайда жіберу',
+                  en: 'Where to send links',
                 ),
                 style: Theme.of(context).textTheme.bodySmall,
               ),
@@ -294,7 +323,9 @@ class _ProfileBodyState extends ConsumerState<_ProfileBody>
         const SizedBox(height: AppSpacing.lg),
 
         // ---- Оформление ----
-        _SectionTitle(t(locale, ru: 'Оформление', kz: 'Көрініс')),
+        _SectionTitle(
+          t(locale, ru: 'Оформление', kz: 'Көрініс', en: 'Appearance'),
+        ),
         Consumer(
           builder: (context, ref, _) {
             final mode = ref.watch(themeModeProvider);
@@ -306,7 +337,7 @@ class _ProfileBodyState extends ConsumerState<_ProfileBody>
                   context: context,
                   isScrollControlled: true,
                   backgroundColor: Colors.transparent,
-                  builder: (_) => const _ThemeModeSheet(),
+                  builder: (_) => const ThemeModeSheet(),
                 ),
                 child: Padding(
                   padding: const EdgeInsets.all(AppSpacing.md),
@@ -324,12 +355,13 @@ class _ProfileBodyState extends ConsumerState<_ProfileBody>
                             locale,
                             ru: 'Тема оформления',
                             kz: 'Көрініс тақырыбы',
+                            en: 'Theme',
                           ),
                           style: Theme.of(context).textTheme.bodyLarge,
                         ),
                       ),
                       Text(
-                        _themeModeLabel(locale, mode),
+                        themeModeLabel(locale, mode),
                         style: Theme.of(context).textTheme.bodyMedium,
                       ),
                       const SizedBox(width: AppSpacing.xxs),
@@ -347,9 +379,186 @@ class _ProfileBodyState extends ConsumerState<_ProfileBody>
         ),
         const SizedBox(height: AppSpacing.lg),
 
+        // ---- Поддержка — Этап 10Б-53: the only entry point into Manager
+        // Chat that doesn't depend on already being on a specific
+        // service/restaurant page (those get their own context-aware
+        // `AskManagerButton`; this one opens a plain, contextless thread —
+        // the same shape `booking_success_screen.dart`'s own "Связаться с
+        // менеджером" button already uses). ----
+        _SectionTitle(t(locale, ru: 'Поддержка', kz: 'Қолдау', en: 'Support')),
+        AppCard(
+          padding: EdgeInsets.zero,
+          child: Column(
+            children: [
+              InkWell(
+                borderRadius: const BorderRadius.vertical(
+                  top: Radius.circular(AppRadius.lg),
+                ),
+                onTap: () => Navigator.of(context).push(
+                  MaterialPageRoute(builder: (_) => const ManagerChatScreen()),
+                ),
+                child: Padding(
+                  padding: const EdgeInsets.all(AppSpacing.md),
+                  child: Row(
+                    children: [
+                      Icon(
+                        Icons.support_agent_rounded,
+                        size: 18,
+                        color: context.mereytoiColors.textSecondary,
+                      ),
+                      const SizedBox(width: AppSpacing.xs),
+                      Expanded(
+                        child: Text(
+                          t(
+                            locale,
+                            ru: 'Написать менеджеру',
+                            kz: 'Менеджерге жазу',
+                            en: 'Message the manager',
+                          ),
+                          style: Theme.of(context).textTheme.bodyLarge,
+                        ),
+                      ),
+                      Icon(
+                        Icons.chevron_right_rounded,
+                        size: 18,
+                        color: context.mereytoiColors.textMuted,
+                      ),
+                    ],
+                  ),
+                ),
+              ),
+              Divider(height: 1, color: context.mereytoiColors.divider),
+              // Этап 11G — a customer's own entry point into the provider
+              // dialogs list, reachable without a provider profile (unlike
+              // "Сообщения от клиентов" below, which only ever shows for an
+              // actual provider). Pushes the exact same
+              // ProviderChatListScreen — GET /api/provider-chat already
+              // returns every conversation the caller is a participant of
+              // on either side.
+              InkWell(
+                borderRadius: const BorderRadius.vertical(
+                  bottom: Radius.circular(AppRadius.lg),
+                ),
+                onTap: () => Navigator.of(context).push(
+                  MaterialPageRoute(
+                    builder: (_) => const ProviderChatListScreen(),
+                  ),
+                ),
+                child: Padding(
+                  padding: const EdgeInsets.all(AppSpacing.md),
+                  child: Row(
+                    children: [
+                      Icon(
+                        Icons.chat_bubble_outline_rounded,
+                        size: 18,
+                        color: context.mereytoiColors.textSecondary,
+                      ),
+                      const SizedBox(width: AppSpacing.xs),
+                      Expanded(
+                        child: Text(
+                          t(
+                            locale,
+                            ru: 'Переписка с услугодателями',
+                            kz: 'Қызмет көрсетушілермен хат алысу',
+                            en: 'Messages with providers',
+                          ),
+                          style: Theme.of(context).textTheme.bodyLarge,
+                        ),
+                      ),
+                      Icon(
+                        Icons.chevron_right_rounded,
+                        size: 18,
+                        color: context.mereytoiColors.textMuted,
+                      ),
+                    ],
+                  ),
+                ),
+              ),
+            ],
+          ),
+        ),
+        const SizedBox(height: AppSpacing.lg),
+
+        // ---- Мои рестораны — server-side scoped by ListingManager, not
+        // by `user.isAdmin` (see RestaurantAdminListScreen's own doc
+        // comment): a global admin gets a permanent "Управление
+        // ресторанами" entry that reaches every listing; anyone else only
+        // sees this section at all once GET /api/users/me/listings
+        // actually returns at least one assigned listing — never a dead
+        // end for a user who manages nothing. ----
+        if (user.isAdmin)
+          _RestaurantsEntrySection(
+            sectionTitle: t(
+              locale,
+              ru: 'Мои услуги',
+              kz: 'Менің қызметтерім',
+              en: 'My services',
+            ),
+            screenTitle: t(
+              locale,
+              ru: 'Управление ресторанами',
+              kz: 'Мейрамханаларды басқару',
+              en: 'Manage restaurants',
+            ),
+          )
+        else
+          Consumer(
+            builder: (context, ref, _) {
+              final myListingsAsync = ref.watch(myListingsProvider);
+              final categoriesAsync = ref.watch(categoriesProvider);
+              // Этап 11E QA finding: myListingsProvider returns every
+              // category a caller manages, not just venues (see its own
+              // doc comment) — a provider who only self-serve-created a
+              // non-restaurant service (Этап 11's own MyServicesScreen)
+              // must not see a "Мои рестораны" entry that would open
+              // RestaurantManageScreen (halls/menus tabs) on a listing
+              // that has neither.
+              final venueCategoryIds = categoriesAsync.maybeWhen(
+                data: (categories) => categories
+                    .where((c) => c.slug == 'venues')
+                    .map((c) => c.id)
+                    .toSet(),
+                orElse: () => const <int>{},
+              );
+              final hasOwn = myListingsAsync.maybeWhen(
+                data: (listings) =>
+                    listings.any((l) => venueCategoryIds.contains(l.categoryId)),
+                orElse: () => false,
+              );
+              if (!hasOwn) return const SizedBox.shrink();
+              final restaurantsTitle = t(
+                locale,
+                ru: 'Мои рестораны',
+                kz: 'Менің мейрамханаларым',
+                en: 'My restaurants',
+              );
+              return _RestaurantsEntrySection(
+                sectionTitle: restaurantsTitle,
+                screenTitle: restaurantsTitle,
+              );
+            },
+          ),
+
+        // ---- Услугодатель — Этап 11 "Provider Marketplace". Deliberately
+        // separate from the Мои рестораны/"Мои услуги" (admin) section
+        // above: that one is restaurant/venue management via
+        // ListingManager directly; this is the new self-serve provider
+        // profile + non-venues services flow (see
+        // backend/internal/models/provider.go's own doc comment on why
+        // it's a distinct, optional profile rather than a Role). Hidden
+        // for a global admin — admin already manages every listing
+        // regardless, "стать услугодателем" has no meaning for that
+        // account. ----
+        if (!user.isAdmin) const _ProviderEntrySection(),
+
         // ---- Мои мероприятия ----
         _SectionTitle(
-          t(locale, ru: 'Мои мероприятия', kz: 'Менің іс-шараларым'),
+          t(
+            locale,
+            ru: 'Мои мероприятия',
+            kz: 'Менің іс-шараларым',
+            en: 'My events',
+          ),
         ),
         Consumer(
           builder: (context, ref, _) {
@@ -365,6 +574,7 @@ class _ProfileBodyState extends ConsumerState<_ProfileBody>
                         locale,
                         ru: 'У вас пока нет мероприятий',
                         kz: 'Сізде әлі іс-шара жоқ',
+                        en: 'You don\'t have any events yet',
                       ),
                       style: Theme.of(context).textTheme.bodyMedium,
                     ),
@@ -429,130 +639,275 @@ class _ProfileBodyState extends ConsumerState<_ProfileBody>
           style: OutlinedButton.styleFrom(
             foregroundColor: context.mereytoiColors.error,
           ),
-          child: Text(t(locale, ru: 'Выйти', kz: 'Шығу')),
+          child: Text(t(locale, ru: 'Выйти', kz: 'Шығу', en: 'Sign out')),
         ),
       ],
     );
   }
 }
 
-String _themeModeLabel(AppLocale locale, ThemeMode mode) {
-  return switch (mode) {
-    ThemeMode.system => t(locale, ru: 'Системная', kz: 'Жүйелік'),
-    ThemeMode.light => t(locale, ru: 'Светлая', kz: 'Ашық'),
-    ThemeMode.dark => t(locale, ru: 'Тёмная', kz: 'Қараңғы'),
-  };
-}
+/// Section title + the single "open restaurant management" card — shared
+/// between the always-on global-admin entry point and the conditional
+/// owner/manager one, which differ only in copy, never in behavior (both
+/// open the same [RestaurantAdminListScreen], scoped server-side by
+/// `GET /api/users/me/listings`).
+class _RestaurantsEntrySection extends StatelessWidget {
+  const _RestaurantsEntrySection({
+    required this.sectionTitle,
+    required this.screenTitle,
+  });
 
-/// "Оформление" — Системная / Светлая / Тёмная (brief section 8). A plain
-/// bottom sheet of radio-style tiles, the same mobile pattern the rest of
-/// this app already uses for a single pick-one choice (see
-/// `category_picker_sheet.dart`) rather than a segmented control, which
-/// reads more like a desktop/web control at this width.
-class _ThemeModeSheet extends ConsumerWidget {
-  const _ThemeModeSheet();
+  final String sectionTitle;
+  final String screenTitle;
 
   @override
-  Widget build(BuildContext context, WidgetRef ref) {
-    final locale = ref.watch(localeProvider);
-    final current = ref.watch(themeModeProvider);
-    final colors = context.mereytoiColors;
-
-    return SafeArea(
-      child: DecoratedBox(
-        decoration: BoxDecoration(
-          color: colors.surfaceElevated,
-          borderRadius: const BorderRadius.vertical(
-            top: Radius.circular(AppRadius.lg),
-          ),
-        ),
-        child: Padding(
-          padding: const EdgeInsets.fromLTRB(
-            AppSpacing.lg,
-            AppSpacing.md,
-            AppSpacing.lg,
-            AppSpacing.lg,
-          ),
-          child: Column(
-            mainAxisSize: MainAxisSize.min,
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              Text(
-                t(locale, ru: 'Оформление', kz: 'Көрініс'),
-                style: Theme.of(context).textTheme.titleLarge,
+  Widget build(BuildContext context) {
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        _SectionTitle(sectionTitle),
+        AppCard(
+          padding: EdgeInsets.zero,
+          child: InkWell(
+            borderRadius: BorderRadius.circular(AppRadius.lg),
+            onTap: () => Navigator.of(context).push(
+              MaterialPageRoute(
+                builder: (_) => RestaurantAdminListScreen(title: screenTitle),
               ),
-              const SizedBox(height: AppSpacing.sm),
-              for (final mode in ThemeMode.values)
-                _ThemeModeTile(
-                  mode: mode,
-                  label: _themeModeLabel(locale, mode),
-                  icon: switch (mode) {
-                    ThemeMode.system => Icons.brightness_auto_rounded,
-                    ThemeMode.light => Icons.light_mode_rounded,
-                    ThemeMode.dark => Icons.dark_mode_rounded,
-                  },
-                  selected: current == mode,
-                  onTap: () {
-                    ref.read(themeModeProvider.notifier).setMode(mode);
-                    Navigator.of(context).pop();
-                  },
-                ),
-            ],
+            ),
+            child: Padding(
+              padding: const EdgeInsets.all(AppSpacing.md),
+              child: Row(
+                children: [
+                  Icon(
+                    Icons.storefront_outlined,
+                    size: 18,
+                    color: context.mereytoiColors.textSecondary,
+                  ),
+                  const SizedBox(width: AppSpacing.xs),
+                  Expanded(
+                    child: Text(
+                      screenTitle,
+                      style: Theme.of(context).textTheme.bodyLarge,
+                    ),
+                  ),
+                  Icon(
+                    Icons.chevron_right_rounded,
+                    size: 18,
+                    color: context.mereytoiColors.textMuted,
+                  ),
+                ],
+              ),
+            ),
           ),
         ),
-      ),
+        const SizedBox(height: AppSpacing.lg),
+      ],
     );
   }
 }
 
-class _ThemeModeTile extends StatelessWidget {
-  const _ThemeModeTile({
-    required this.mode,
-    required this.label,
-    required this.icon,
-    required this.selected,
-    required this.onTap,
-  });
-
-  final ThemeMode mode;
-  final String label;
-  final IconData icon;
-  final bool selected;
-  final VoidCallback onTap;
+/// "Стать услугодателем" (no profile yet) → "Профиль услугодателя" + "Мои
+/// услуги" (profile exists) — Этап 11 brief section 3. Silently collapses
+/// on loading/error rather than blocking the rest of the profile screen —
+/// this is an optional, secondary section, same "don't gate the whole
+/// screen on it" treatment the Мои мероприятия block above already gives
+/// its own eventsAsync.
+class _ProviderEntrySection extends ConsumerWidget {
+  const _ProviderEntrySection();
 
   @override
-  Widget build(BuildContext context) {
-    final colors = context.mereytoiColors;
-    return Material(
-      color: Colors.transparent,
-      child: InkWell(
-        borderRadius: BorderRadius.circular(AppRadius.md),
-        onTap: onTap,
-        child: Padding(
-          padding: const EdgeInsets.symmetric(vertical: AppSpacing.sm),
-          child: Row(
+  Widget build(BuildContext context, WidgetRef ref) {
+    final locale = ref.watch(localeProvider);
+    final providerAsync = ref.watch(providerProfileProvider);
+
+    return providerAsync.when(
+      loading: () => const SizedBox.shrink(),
+      error: (_, _) => const SizedBox.shrink(),
+      data: (provider) {
+        if (provider == null) {
+          return Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
             children: [
-              Icon(
-                icon,
-                size: 20,
-                color: selected ? colors.goldPrimary : colors.textSecondary,
-              ),
-              const SizedBox(width: AppSpacing.sm),
-              Expanded(
-                child: Text(
-                  label,
-                  style: Theme.of(context).textTheme.bodyLarge?.copyWith(
-                    color: selected ? colors.textPrimary : colors.textSecondary,
-                    fontWeight: selected ? FontWeight.w700 : FontWeight.w500,
-                  ),
+              _SectionTitle(
+                t(
+                  locale,
+                  ru: 'Услугодатель',
+                  kz: 'Қызмет көрсетуші',
+                  en: 'Provider',
                 ),
               ),
-              if (selected)
-                Icon(Icons.check_rounded, size: 20, color: colors.goldPrimary),
+              AppCard(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text(
+                      t(
+                        locale,
+                        ru: 'Предлагаете услуги для тоев?',
+                        kz: 'Той қызметтерін ұсынасыз ба?',
+                        en: 'Do you offer event services?',
+                      ),
+                      style: Theme.of(context).textTheme.titleSmall,
+                    ),
+                    const SizedBox(height: AppSpacing.xxs),
+                    Text(
+                      t(
+                        locale,
+                        ru: 'Заполните короткий профиль и добавьте свою услугу в каталог MEREYTOI.',
+                        kz: 'Қысқаша профильді толтырып, қызметіңізді MEREYTOI каталогына қосыңыз.',
+                        en: 'Fill in a short profile and add your service to the MEREYTOI catalog.',
+                      ),
+                      style: Theme.of(context).textTheme.bodySmall,
+                    ),
+                    const SizedBox(height: AppSpacing.sm),
+                    ElevatedButton(
+                      onPressed: () => openProviderProfileFormSheet(context),
+                      child: Text(
+                        t(
+                          locale,
+                          ru: 'Стать услугодателем',
+                          kz: 'Қызмет көрсетуші болу',
+                          en: 'Become a provider',
+                        ),
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+              const SizedBox(height: AppSpacing.lg),
             ],
-          ),
-        ),
-      ),
+          );
+        }
+
+        return Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            _SectionTitle(provider.displayName),
+            AppCard(
+              padding: EdgeInsets.zero,
+              child: Column(
+                children: [
+                  InkWell(
+                    borderRadius: const BorderRadius.vertical(
+                      top: Radius.circular(AppRadius.lg),
+                    ),
+                    onTap: () => openProviderProfileFormSheet(
+                      context,
+                      existing: provider,
+                    ),
+                    child: Padding(
+                      padding: const EdgeInsets.all(AppSpacing.md),
+                      child: Row(
+                        children: [
+                          Icon(
+                            Icons.storefront_outlined,
+                            color: context.mereytoiColors.goldPrimary,
+                          ),
+                          const SizedBox(width: AppSpacing.xs),
+                          Expanded(
+                            child: Text(
+                              t(
+                                locale,
+                                ru: 'Профиль услугодателя',
+                                kz: 'Қызмет көрсетуші профилі',
+                                en: 'Provider profile',
+                              ),
+                              style: Theme.of(context).textTheme.bodyLarge,
+                            ),
+                          ),
+                          Icon(
+                            Icons.chevron_right_rounded,
+                            size: 18,
+                            color: context.mereytoiColors.textMuted,
+                          ),
+                        ],
+                      ),
+                    ),
+                  ),
+                  Divider(height: 1, color: context.mereytoiColors.divider),
+                  InkWell(
+                    onTap: () => Navigator.of(context).push(
+                      MaterialPageRoute(
+                        builder: (_) => const MyServicesScreen(),
+                      ),
+                    ),
+                    child: Padding(
+                      padding: const EdgeInsets.all(AppSpacing.md),
+                      child: Row(
+                        children: [
+                          Icon(
+                            Icons.design_services_outlined,
+                            color: context.mereytoiColors.goldPrimary,
+                          ),
+                          const SizedBox(width: AppSpacing.xs),
+                          Expanded(
+                            child: Text(
+                              t(
+                                locale,
+                                ru: 'Мои услуги',
+                                kz: 'Менің қызметтерім',
+                                en: 'My services',
+                              ),
+                              style: Theme.of(context).textTheme.bodyLarge,
+                            ),
+                          ),
+                          Icon(
+                            Icons.chevron_right_rounded,
+                            size: 18,
+                            color: context.mereytoiColors.textMuted,
+                          ),
+                        ],
+                      ),
+                    ),
+                  ),
+                  Divider(height: 1, color: context.mereytoiColors.divider),
+                  // Этап 11G brief section 6 — "Сообщения от клиентов".
+                  InkWell(
+                    borderRadius: const BorderRadius.vertical(
+                      bottom: Radius.circular(AppRadius.lg),
+                    ),
+                    onTap: () => Navigator.of(context).push(
+                      MaterialPageRoute(
+                        builder: (_) => const ProviderChatListScreen(),
+                      ),
+                    ),
+                    child: Padding(
+                      padding: const EdgeInsets.all(AppSpacing.md),
+                      child: Row(
+                        children: [
+                          Icon(
+                            Icons.chat_bubble_outline_rounded,
+                            color: context.mereytoiColors.goldPrimary,
+                          ),
+                          const SizedBox(width: AppSpacing.xs),
+                          Expanded(
+                            child: Text(
+                              t(
+                                locale,
+                                ru: 'Сообщения от клиентов',
+                                kz: 'Клиенттерден хабарламалар',
+                                en: 'Messages from customers',
+                              ),
+                              style: Theme.of(context).textTheme.bodyLarge,
+                            ),
+                          ),
+                          Icon(
+                            Icons.chevron_right_rounded,
+                            size: 18,
+                            color: context.mereytoiColors.textMuted,
+                          ),
+                        ],
+                      ),
+                    ),
+                  ),
+                ],
+              ),
+            ),
+            const SizedBox(height: AppSpacing.lg),
+          ],
+        );
+      },
     );
   }
 }
@@ -595,6 +950,7 @@ class _LogoutConfirmSheet extends StatelessWidget {
                 locale,
                 ru: 'Выйти из аккаунта?',
                 kz: 'Аккаунттан шығу керек пе?',
+                en: 'Sign out of your account?',
               ),
               style: Theme.of(context).textTheme.titleMedium,
               textAlign: TextAlign.center,
@@ -602,12 +958,14 @@ class _LogoutConfirmSheet extends StatelessWidget {
             const SizedBox(height: AppSpacing.md),
             ElevatedButton(
               onPressed: () => Navigator.of(context).pop(true),
-              child: Text(t(locale, ru: 'Выйти', kz: 'Шығу')),
+              child: Text(t(locale, ru: 'Выйти', kz: 'Шығу', en: 'Sign out')),
             ),
             const SizedBox(height: AppSpacing.xs),
             OutlinedButton(
               onPressed: () => Navigator.of(context).pop(false),
-              child: Text(t(locale, ru: 'Отмена', kz: 'Бас тарту')),
+              child: Text(
+                t(locale, ru: 'Отмена', kz: 'Бас тарту', en: 'Cancel'),
+              ),
             ),
           ],
         ),
@@ -684,14 +1042,19 @@ class _EditProfileSheetState extends ConsumerState<_EditProfileSheet> {
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
                 Text(
-                  t(locale, ru: 'Редактировать профиль', kz: 'Профильді өңдеу'),
+                  t(
+                    locale,
+                    ru: 'Редактировать профиль',
+                    kz: 'Профильді өңдеу',
+                    en: 'Edit profile',
+                  ),
                   style: Theme.of(context).textTheme.titleLarge,
                 ),
                 const SizedBox(height: AppSpacing.md),
                 TextField(
                   controller: _nameController,
                   decoration: InputDecoration(
-                    labelText: t(locale, ru: 'Имя', kz: 'Атыңыз'),
+                    labelText: t(locale, ru: 'Имя', kz: 'Атыңыз', en: 'Name'),
                   ),
                 ),
                 const SizedBox(height: AppSpacing.sm),
@@ -699,7 +1062,12 @@ class _EditProfileSheetState extends ConsumerState<_EditProfileSheet> {
                   controller: _phoneController,
                   keyboardType: TextInputType.phone,
                   decoration: InputDecoration(
-                    labelText: t(locale, ru: 'Телефон', kz: 'Телефон'),
+                    labelText: t(
+                      locale,
+                      ru: 'Телефон',
+                      kz: 'Телефон',
+                      en: 'Phone',
+                    ),
                   ),
                 ),
                 if (_error != null) ...[
@@ -726,7 +1094,14 @@ class _EditProfileSheetState extends ConsumerState<_EditProfileSheet> {
                               color: context.mereytoiColors.onGold,
                             ),
                           )
-                        : Text(t(locale, ru: 'Сохранить', kz: 'Сақтау')),
+                        : Text(
+                            t(
+                              locale,
+                              ru: 'Сохранить',
+                              kz: 'Сақтау',
+                              en: 'Save',
+                            ),
+                          ),
                   ),
                 ),
               ],

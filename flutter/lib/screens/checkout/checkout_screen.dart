@@ -18,18 +18,25 @@ import 'booking_success_screen.dart';
 String _blockReasonText(AppLocale locale, CheckoutBlockReason reason) {
   switch (reason) {
     case CheckoutBlockReason.emptyCart:
-      return t(locale, ru: 'Корзина пуста', kz: 'Себет бос');
+      return t(
+        locale,
+        ru: 'Корзина пуста',
+        kz: 'Себет бос',
+        en: 'Cart is empty',
+      );
     case CheckoutBlockReason.missingEstimatedTotal:
       return t(
         locale,
         ru: 'Не удалось определить стоимость позиции. Удалите её и добавьте заново.',
         kz: 'Позицияның құнын анықтау мүмкін болмады. Оны жойып, қайта қосыңыз.',
+        en: 'Couldn\'t determine this item\'s price. Remove it and add it again.',
       );
     case CheckoutBlockReason.invalidGuestCount:
       return t(
         locale,
         ru: 'Проверьте количество гостей в корзине.',
         kz: 'Себеттегі қонақтар санын тексеріңіз.',
+        en: 'Check the number of guests in your cart.',
       );
   }
 }
@@ -123,7 +130,12 @@ class _CheckoutScreenState extends ConsumerState<CheckoutScreen> {
     return Scaffold(
       appBar: AppBar(
         title: Text(
-          t(locale, ru: 'Оформление заявки', kz: 'Өтінімді рәсімдеу'),
+          t(
+            locale,
+            ru: 'Оформление заявки',
+            kz: 'Өтінімді рәсімдеу',
+            en: 'Checkout',
+          ),
         ),
       ),
       body: ListView(
@@ -135,7 +147,12 @@ class _CheckoutScreenState extends ConsumerState<CheckoutScreen> {
         ),
         children: [
           Text(
-            t(locale, ru: 'Ваш заказ', kz: 'Сіздің тапсырысыңыз'),
+            t(
+              locale,
+              ru: 'Ваш заказ',
+              kz: 'Сіздің тапсырысыңыз',
+              en: 'Your order',
+            ),
             style: Theme.of(context).textTheme.titleMedium,
           ),
           const SizedBox(height: AppSpacing.xs),
@@ -145,7 +162,12 @@ class _CheckoutScreenState extends ConsumerState<CheckoutScreen> {
           ],
           const SizedBox(height: AppSpacing.sm),
           Text(
-            t(locale, ru: 'Контактные данные', kz: 'Байланыс деректері'),
+            t(
+              locale,
+              ru: 'Контактные данные',
+              kz: 'Байланыс деректері',
+              en: 'Contact details',
+            ),
             style: Theme.of(context).textTheme.titleMedium,
           ),
           const SizedBox(height: AppSpacing.xs),
@@ -157,10 +179,20 @@ class _CheckoutScreenState extends ConsumerState<CheckoutScreen> {
                 TextFormField(
                   controller: _nameController,
                   decoration: InputDecoration(
-                    labelText: t(locale, ru: 'Ваше имя', kz: 'Атыңыз'),
+                    labelText: t(
+                      locale,
+                      ru: 'Ваше имя',
+                      kz: 'Атыңыз',
+                      en: 'Your name',
+                    ),
                   ),
                   validator: (v) => (v == null || v.trim().isEmpty)
-                      ? t(locale, ru: 'Введите имя', kz: 'Атыңызды енгізіңіз')
+                      ? t(
+                          locale,
+                          ru: 'Введите имя',
+                          kz: 'Атыңызды енгізіңіз',
+                          en: 'Enter your name',
+                        )
                       : null,
                 ),
                 const SizedBox(height: AppSpacing.xs),
@@ -168,7 +200,12 @@ class _CheckoutScreenState extends ConsumerState<CheckoutScreen> {
                   controller: _phoneController,
                   keyboardType: TextInputType.phone,
                   decoration: InputDecoration(
-                    labelText: t(locale, ru: 'Телефон', kz: 'Телефон'),
+                    labelText: t(
+                      locale,
+                      ru: 'Телефон',
+                      kz: 'Телефон',
+                      en: 'Phone',
+                    ),
                     hintText: '+7 700 000 00 00',
                   ),
                   validator: (v) => (v == null || v.trim().isEmpty)
@@ -176,6 +213,7 @@ class _CheckoutScreenState extends ConsumerState<CheckoutScreen> {
                           locale,
                           ru: 'Введите телефон',
                           kz: 'Телефоныңызды енгізіңіз',
+                          en: 'Enter your phone number',
                         )
                       : null,
                 ),
@@ -189,6 +227,7 @@ class _CheckoutScreenState extends ConsumerState<CheckoutScreen> {
                       locale,
                       ru: 'Комментарий (необязательно)',
                       kz: 'Түсініктеме (міндетті емес)',
+                      en: 'Comment (optional)',
                     ),
                   ),
                 ),
@@ -230,7 +269,7 @@ class _CheckoutScreenState extends ConsumerState<CheckoutScreen> {
                   mainAxisSize: MainAxisSize.min,
                   children: [
                     Text(
-                      t(locale, ru: 'Итого', kz: 'Барлығы'),
+                      t(locale, ru: 'Итого', kz: 'Барлығы', en: 'Total'),
                       style: Theme.of(context).textTheme.bodySmall,
                     ),
                     Text(
@@ -261,7 +300,12 @@ class _CheckoutScreenState extends ConsumerState<CheckoutScreen> {
                           )
                         : const Icon(Icons.check_rounded, size: 18),
                     label: Text(
-                      t(locale, ru: 'Отправить заявку', kz: 'Өтінімді жіберу'),
+                      t(
+                        locale,
+                        ru: 'Отправить заявку',
+                        kz: 'Өтінімді жіберу',
+                        en: 'Submit request',
+                      ),
                     ),
                   ),
                 ),
@@ -315,7 +359,7 @@ class _CheckoutItemCard extends StatelessWidget {
                     Padding(
                       padding: const EdgeInsets.only(top: 2),
                       child: Text(
-                        '${t(locale, ru: "Зал", kz: "Зал")}: ${item.hallName}',
+                        '${t(locale, ru: "Зал", kz: "Зал", en: "Hall")}: ${item.hallName}',
                         style: detailStyle,
                       ),
                     ),
@@ -323,7 +367,7 @@ class _CheckoutItemCard extends StatelessWidget {
                     Padding(
                       padding: const EdgeInsets.only(top: 2),
                       child: Text(
-                        '${t(locale, ru: "Меню", kz: "Меню")}: ${item.menuName}',
+                        '${t(locale, ru: "Меню", kz: "Меню", en: "Menu")}: ${item.menuName}',
                         style: detailStyle,
                       ),
                     ),
@@ -331,7 +375,7 @@ class _CheckoutItemCard extends StatelessWidget {
                     Padding(
                       padding: const EdgeInsets.only(top: 2),
                       child: Text(
-                        '${item.guests} ${t(locale, ru: "гостей", kz: "қонақ")} × ${formatPrice(item.menuPricePerGuest ?? item.unitPrice)}',
+                        '${item.guests} ${t(locale, ru: "гостей", kz: "қонақ", en: "guests")} × ${formatPrice(item.menuPricePerGuest ?? item.unitPrice)}',
                         style: detailStyle,
                       ),
                     ),
@@ -347,7 +391,7 @@ class _CheckoutItemCard extends StatelessWidget {
                   Padding(
                     padding: const EdgeInsets.only(top: 2),
                     child: Text(
-                      '${item.guests} ${t(locale, ru: "чел.", kz: "адам")} × ${formatPrice(item.unitPrice)}',
+                      '${item.guests} ${t(locale, ru: "чел.", kz: "адам", en: "guests")} × ${formatPrice(item.unitPrice)}',
                       style: detailStyle,
                     ),
                   ),

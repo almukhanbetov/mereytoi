@@ -72,6 +72,10 @@ func Register(r *gin.Engine, database *gorm.DB, cfg config.Config, mailSvc ...*m
 	eventRequestHandler := handlers.NewEventRequestHandler(database, mailer)
 	notificationHandler := handlers.NewNotificationHandler(database)
 	managerChatHandler := handlers.NewManagerChatHandler(database)
+	aiAssistantHandler := handlers.NewAIAssistantHandler(database, cfg)
+	providerHandler := handlers.NewProviderHandler(database)
+	publicProviderHandler := handlers.NewPublicProviderHandler(database)
+	providerChatHandler := handlers.NewProviderChatHandler(database)
 
 	r.GET("/api/health", func(c *gin.Context) {
 		c.JSON(http.StatusOK, gin.H{"status": "ok"})
@@ -149,7 +153,11 @@ func Register(r *gin.Engine, database *gorm.DB, cfg config.Config, mailSvc ...*m
 			adminOnly.Use(middleware.RequireAuth(cfg.JWTSecret), middleware.RequireAdmin())
 			{
 				adminOnly.POST("", listingHandler.Create)
-				adminOnly.DELETE("/:id", listingHandler.Delete)
+				// DELETE moved to the `manage` group below (Этап 11): its
+				// RequireListingAccess already passes a global admin through
+				// (see middleware/listing.go), so one registration there now
+				// covers both admin and owner/manager — this used to be its
+				// own adminOnly registration before that group existed.
 
 				adminOnly.GET("/:id/managers", listingManagerHandler.List)
 				adminOnly.POST("/:id/managers", listingManagerHandler.Assign)
@@ -165,6 +173,14 @@ func Register(r *gin.Engine, database *gorm.DB, cfg config.Config, mailSvc ...*m
 			manage.Use(middleware.RequireAuth(cfg.JWTSecret), middleware.RequireListingAccess(database))
 			{
 				manage.PUT("/:id", listingHandler.Update)
+				// Этап 11 "Мои услуги" — удаление own listing. Same handler
+				// Delete already used adminOnly above; mounting it here too
+				// (RequireListingAccess, not RequireAdmin) is safe because the
+				// handler itself does an unconditional delete-by-:id with no
+				// further ownership check inside it — RequireListingAccess is
+				// what actually enforces "only your own listing" before this
+				// ever runs.
+				manage.DELETE("/:id", listingHandler.Delete)
 
 				// Halls (brief section 10).
 				manage.POST("/:id/halls", listingHallHandler.Create)
@@ -200,11 +216,22 @@ func Register(r *gin.Engine, database *gorm.DB, cfg config.Config, mailSvc ...*m
 			comments.DELETE("/:id", commentHandler.Delete)
 		}
 
+		// Этап 11: image uploads (only — video stays admin-only below) opened
+		// to any authenticated user, not just admin — a provider adding
+		// photos to their own service (brief section 7) needs this same
+		// endpoint. Still never anonymous, still the same type/size checks
+		// inside UploadHandler.Upload; nothing about the handler itself
+		// changed, only who may call it.
 		uploads := api.Group("/uploads")
-		uploads.Use(middleware.RequireAuth(cfg.JWTSecret), middleware.RequireAdmin())
+		uploads.Use(middleware.RequireAuth(cfg.JWTSecret))
 		{
 			uploads.POST("", uploadHandler.Upload)
-			uploads.POST("/video", uploadHandler.UploadVideo)
+		}
+
+		adminUploads := api.Group("/uploads")
+		adminUploads.Use(middleware.RequireAuth(cfg.JWTSecret), middleware.RequireAdmin())
+		{
+			adminUploads.POST("/video", uploadHandler.UploadVideo)
 		}
 
 		bookings := api.Group("/bookings")
@@ -362,6 +389,54 @@ func Register(r *gin.Engine, database *gorm.DB, cfg config.Config, mailSvc ...*m
 			adminManagerChat.GET("/:id", managerChatHandler.Get)
 			adminManagerChat.POST("/:id/messages", managerChatHandler.AddMessage)
 			adminManagerChat.POST("/:id/status", managerChatHandler.AdminUpdateStatus)
+		}
+
+		// AI event-planning assistant — Этап 1, deliberately separate from
+		// Manager Chat above (see internal/aiassistant's own package doc).
+		// Public, same reasoning as /api/bookings' guest path: a visitor
+		// deciding whether to book shouldn't need an account first.
+		aiAssistant := api.Group("/ai-assistant")
+		{
+			aiAssistant.POST("/chat", aiAssistantHandler.Chat)
+		}
+
+		// Provider marketplace — Этап 11. "Мои услуги"' own list reuses
+		// GET /api/users/me/listings above rather than a new endpoint (brief
+		// section 12: "переиспользуй существующие endpoints"); update/delete
+		// of an existing listing reuse PUT/DELETE /api/listings/:id in the
+		// `manage` group above too. Only creation genuinely has no safe
+		// pre-existing non-admin path, hence /me/listings below.
+		provider := api.Group("/provider")
+		provider.Use(middleware.RequireAuth(cfg.JWTSecret))
+		{
+			provider.GET("/me", providerHandler.Me)
+			provider.POST("", providerHandler.Create)
+			provider.PUT("/me", providerHandler.UpdateMe)
+			provider.POST("/me/listings", listingHandler.CreateOwn)
+		}
+
+		// Public provider profile — Этап 11G brief section 1. Plural
+		// "/providers" deliberately, distinct from the singular
+		// "/provider"/"/provider/me" group above (caller's own profile,
+		// auth-only) — this is "look up someone else's profile", no auth.
+		providers := api.Group("/providers")
+		{
+			providers.GET("/:id", publicProviderHandler.Get)
+		}
+
+		// Direct customer<->provider chat — Этап 11G brief section 3/4.
+		// Deliberately separate from Manager Chat above (see
+		// models/provider_chat.go's own doc comment); auth-only both ways —
+		// unlike Manager Chat there's no admin-side counterpart to mount
+		// Get/AddMessage under, so each method here only ever runs the
+		// participant-only check (conversationRole), never an admin bypass.
+		providerChat := api.Group("/provider-chat")
+		providerChat.Use(middleware.RequireAuth(cfg.JWTSecret))
+		{
+			providerChat.POST("/start", providerChatHandler.Start)
+			providerChat.GET("", providerChatHandler.List)
+			providerChat.GET("/:id", providerChatHandler.Get)
+			providerChat.POST("/:id/messages", providerChatHandler.AddMessage)
 		}
 	}
 }

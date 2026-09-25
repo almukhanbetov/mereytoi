@@ -57,7 +57,12 @@ class TasksTab extends ConsumerWidget {
                     height: 420,
                     child: Center(
                       child: Text(
-                        t(locale, ru: 'Пока нет задач', kz: 'Әлі тапсырма жоқ'),
+                        t(
+                          locale,
+                          ru: 'Пока нет задач',
+                          kz: 'Әлі тапсырма жоқ',
+                          en: 'No tasks yet',
+                        ),
                         style: Theme.of(context).textTheme.bodyMedium,
                       ),
                     ),
@@ -314,7 +319,12 @@ class _CreateTaskSheetState extends ConsumerState<_CreateTaskSheet> {
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
                 Text(
-                  t(locale, ru: 'Новая задача', kz: 'Жаңа тапсырма'),
+                  t(
+                    locale,
+                    ru: 'Новая задача',
+                    kz: 'Жаңа тапсырма',
+                    en: 'New task',
+                  ),
                   style: Theme.of(context).textTheme.titleLarge,
                 ),
                 const SizedBox(height: AppSpacing.md),
@@ -326,6 +336,7 @@ class _CreateTaskSheetState extends ConsumerState<_CreateTaskSheet> {
                       locale,
                       ru: 'Название задачи',
                       kz: 'Тапсырма атауы',
+                      en: 'Task name',
                     ),
                   ),
                 ),
@@ -339,11 +350,17 @@ class _CreateTaskSheetState extends ConsumerState<_CreateTaskSheet> {
                         locale,
                         ru: 'Срок (необязательно)',
                         kz: 'Мерзімі (міндетті емес)',
+                        en: 'Due date (optional)',
                       ),
                     ),
                     child: Text(
                       _dueDate == null
-                          ? t(locale, ru: 'Не выбран', kz: 'Таңдалмаған')
+                          ? t(
+                              locale,
+                              ru: 'Не выбран',
+                              kz: 'Таңдалмаған',
+                              en: 'Not selected',
+                            )
                           : formatMenuDate(_dueDate!),
                     ),
                   ),
@@ -372,7 +389,9 @@ class _CreateTaskSheetState extends ConsumerState<_CreateTaskSheet> {
                               color: context.mereytoiColors.onGold,
                             ),
                           )
-                        : Text(t(locale, ru: 'Добавить', kz: 'Қосу')),
+                        : Text(
+                            t(locale, ru: 'Добавить', kz: 'Қосу', en: 'Add'),
+                          ),
                   ),
                 ),
               ],

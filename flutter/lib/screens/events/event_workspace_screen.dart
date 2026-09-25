@@ -44,7 +44,9 @@ class EventWorkspaceScreen extends ConsumerWidget {
           title: eventAsync.maybeWhen(
             data: (event) =>
                 Text(event.title, maxLines: 1, overflow: TextOverflow.ellipsis),
-            orElse: () => Text(t(locale, ru: 'Мой той', kz: 'Менің тойым')),
+            orElse: () => Text(
+              t(locale, ru: 'Мой той', kz: 'Менің тойым', en: 'My Event'),
+            ),
           ),
           bottom: TabBar(
             isScrollable: true,
@@ -53,22 +55,32 @@ class EventWorkspaceScreen extends ConsumerWidget {
             unselectedLabelColor: context.mereytoiColors.textSecondary,
             tabs: [
               Tab(
-                text: t(locale, ru: 'Обзор', kz: 'Шолу'),
+                text: t(locale, ru: 'Обзор', kz: 'Шолу', en: 'Overview'),
               ),
               Tab(
-                text: t(locale, ru: 'Услуги', kz: 'Қызметтер'),
+                text: t(locale, ru: 'Услуги', kz: 'Қызметтер', en: 'Services'),
               ),
               Tab(
-                text: t(locale, ru: 'Бюджет', kz: 'Бюджет'),
+                text: t(locale, ru: 'Бюджет', kz: 'Бюджет', en: 'Budget'),
               ),
               Tab(
-                text: t(locale, ru: 'Обсуждение', kz: 'Талқылау'),
+                text: t(
+                  locale,
+                  ru: 'Обсуждение',
+                  kz: 'Талқылау',
+                  en: 'Discussion',
+                ),
               ),
               Tab(
-                text: t(locale, ru: 'Задачи', kz: 'Тапсырмалар'),
+                text: t(locale, ru: 'Задачи', kz: 'Тапсырмалар', en: 'Tasks'),
               ),
               Tab(
-                text: t(locale, ru: 'Участники', kz: 'Қатысушылар'),
+                text: t(
+                  locale,
+                  ru: 'Участники',
+                  kz: 'Қатысушылар',
+                  en: 'Members',
+                ),
               ),
             ],
           ),

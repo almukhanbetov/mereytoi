@@ -90,11 +90,21 @@ class AppMetaChip extends StatelessWidget {
         children: [
           Icon(icon, size: 12, color: iconColor ?? colors.textSecondary),
           const SizedBox(width: AppSpacing.xxs),
-          Text(
-            label,
-            style: Theme.of(
-              context,
-            ).textTheme.labelSmall?.copyWith(color: colors.textPrimary),
+          // Этап 10Б-1А fix: a long label (a real city string like
+          // "Алматы (очень длинное уточнение района...)") combined with a
+          // larger system text scale can exceed whatever width this
+          // chip's own Wrap slot allocates it — this Row had no Expanded/
+          // Flexible child, so it overflowed instead of truncating.
+          // Flexible + ellipsis lets it shrink gracefully.
+          Flexible(
+            child: Text(
+              label,
+              maxLines: 1,
+              overflow: TextOverflow.ellipsis,
+              style: Theme.of(
+                context,
+              ).textTheme.labelSmall?.copyWith(color: colors.textPrimary),
+            ),
           ),
         ],
       ),

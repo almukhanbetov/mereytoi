@@ -100,3 +100,10 @@ const (
 	NotifWorkspaceCreated  = "workspace_created"
 	NotifPhoneVerification = "phone_verification" // reserved, never fired — no verification flow exists yet
 )
+
+// Provider chat (Этап 11G) — fired for whichever side (customer or
+// provider) didn't just send the message; createNotification's own
+// actor==recipient guard already prevents a sender notifying themselves.
+const (
+	NotifProviderMessageReceived = "provider_message_received"
+)

@@ -39,14 +39,20 @@ Widget _wrap(Widget home, {List<Override> overrides = const []}) {
 /// app reaches these screens via `Navigator.push`, never as the very first
 /// route, so `Navigator.canPop` (which the back-button logic depends on)
 /// needs a real predecessor to be meaningful.
-Future<void> _pumpPushed(WidgetTester tester, Widget target, {List<Override> overrides = const []}) async {
+Future<void> _pumpPushed(
+  WidgetTester tester,
+  Widget target, {
+  List<Override> overrides = const [],
+}) async {
   await tester.pumpWidget(
     _wrap(
       Builder(
         builder: (context) => Scaffold(
           body: Center(
             child: ElevatedButton(
-              onPressed: () => Navigator.of(context).push(MaterialPageRoute(builder: (_) => target)),
+              onPressed: () => Navigator.of(
+                context,
+              ).push(MaterialPageRoute(builder: (_) => target)),
               child: const Text('open'),
             ),
           ),
@@ -80,25 +86,40 @@ final _listing = const Listing(
 );
 
 void main() {
-  testWidgets('Service Detail shows a visible back button while still loading (regression: used to have none)', (tester) async {
-    // Never resolves — pins the screen in its "loading" state so the fix (a
-    // plain AppBar for non-data states) is what's under test.
+  testWidgets(
+    'Service Detail shows a visible back button while still loading (regression: used to have none)',
+    (tester) async {
+      // Never resolves — pins the screen in its "loading" state so the fix (a
+      // plain AppBar for non-data states) is what's under test.
+      await _pumpPushed(
+        tester,
+        const ServiceDetailScreen(listingId: 42),
+        overrides: [
+          listingDetailProvider(
+            42,
+          ).overrideWith((ref) => Completer<Listing>().future),
+        ],
+      );
+      await tester.pump(
+        const Duration(milliseconds: 400),
+      ); // let the push transition finish
+
+      expect(find.byType(BackButton), findsOneWidget);
+      expect(tester.takeException(), isNull);
+    },
+  );
+
+  testWidgets('Service Detail shows a visible back button on error', (
+    tester,
+  ) async {
     await _pumpPushed(
       tester,
       const ServiceDetailScreen(listingId: 42),
-      overrides: [listingDetailProvider(42).overrideWith((ref) => Completer<Listing>().future)],
-    );
-    await tester.pump(const Duration(milliseconds: 400)); // let the push transition finish
-
-    expect(find.byType(BackButton), findsOneWidget);
-    expect(tester.takeException(), isNull);
-  });
-
-  testWidgets('Service Detail shows a visible back button on error', (tester) async {
-    await _pumpPushed(
-      tester,
-      const ServiceDetailScreen(listingId: 42),
-      overrides: [listingDetailProvider(42).overrideWith((ref) => Future<Listing>.error(Exception('network down')))],
+      overrides: [
+        listingDetailProvider(42).overrideWith(
+          (ref) => Future<Listing>.error(Exception('network down')),
+        ),
+      ],
     );
     await tester.pump(); // let the error state settle in
 
@@ -106,38 +127,60 @@ void main() {
     expect(tester.takeException(), isNull);
   });
 
-  testWidgets('Service Detail (loaded): the hero back button pops via Navigator.pop, not a hard redirect', (tester) async {
-    await _pumpPushed(
-      tester,
-      const ServiceDetailScreen(listingId: 42),
-      overrides: [listingDetailProvider(42).overrideWith((ref) => Future.value(_listing))],
-    );
-    await tester.pumpAndSettle();
+  testWidgets(
+    'Service Detail (loaded): the hero back button pops via Navigator.pop, not a hard redirect',
+    (tester) async {
+      await _pumpPushed(
+        tester,
+        const ServiceDetailScreen(listingId: 42),
+        overrides: [
+          listingDetailProvider(
+            42,
+          ).overrideWith((ref) => Future.value(_listing)),
+        ],
+      );
+      await tester.pumpAndSettle();
 
-    expect(find.text('AURORA QUINTET'), findsOneWidget);
-    expect(find.byType(AppBackButton), findsOneWidget); // the styled hero back button, not the default BackButton
+      expect(find.text('AURORA QUINTET'), findsOneWidget);
+      expect(
+        find.byType(AppBackButton),
+        findsOneWidget,
+      ); // the styled hero back button, not the default BackButton
 
-    await tester.tap(find.byType(AppBackButton));
-    await tester.pumpAndSettle();
+      await tester.tap(find.byType(AppBackButton));
+      await tester.pumpAndSettle();
 
-    expect(tester.takeException(), isNull);
-    expect(find.text('open'), findsOneWidget); // back on the screen we pushed from
-    expect(find.text('AURORA QUINTET'), findsNothing);
-  });
+      expect(tester.takeException(), isNull);
+      expect(
+        find.text('open'),
+        findsOneWidget,
+      ); // back on the screen we pushed from
+      expect(find.text('AURORA QUINTET'), findsNothing);
+    },
+  );
 
-  testWidgets('ServicesScreen shows no back button as a tab root, but a real one when pushed on top of another screen', (tester) async {
-    await tester.pumpWidget(_wrap(const ServicesScreen(), overrides: _noNetworkOverrides));
-    await tester.pump();
-    expect(find.byType(BackButton), findsNothing);
-    expect(find.byType(AppBackButton), findsNothing);
+  testWidgets(
+    'ServicesScreen shows no back button as a tab root, but a real one when pushed on top of another screen',
+    (tester) async {
+      await tester.pumpWidget(
+        _wrap(const ServicesScreen(), overrides: _noNetworkOverrides),
+      );
+      await tester.pump();
+      expect(find.byType(BackButton), findsNothing);
+      expect(find.byType(AppBackButton), findsNothing);
 
-    await _pumpPushed(tester, const ServicesScreen(), overrides: _noNetworkOverrides);
-    await tester.pump();
+      await _pumpPushed(
+        tester,
+        const ServicesScreen(),
+        overrides: _noNetworkOverrides,
+      );
+      await tester.pump();
 
-    expect(find.byType(AppBackButton), findsOneWidget);
-    await tester.tap(find.byType(AppBackButton));
-    await tester.pumpAndSettle();
-    expect(tester.takeException(), isNull);
-    expect(find.text('open'), findsOneWidget);
-  });
+      expect(find.byType(AppBackButton), findsOneWidget);
+      await tester.tap(find.byType(AppBackButton));
+      await tester.pumpAndSettle();
+      expect(tester.takeException(), isNull);
+      expect(find.text('open'), findsOneWidget);
+    },
+  );
 }

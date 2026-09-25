@@ -51,22 +51,22 @@ class RootShell extends ConsumerWidget {
           AppBottomNavItem(
             icon: Icons.home_outlined,
             activeIcon: Icons.home_rounded,
-            label: t(locale, ru: 'Главная', kz: 'Басты'),
+            label: t(locale, ru: 'Главная', kz: 'Басты', en: 'Home'),
           ),
           AppBottomNavItem(
             icon: Icons.grid_view_outlined,
             activeIcon: Icons.grid_view_rounded,
-            label: t(locale, ru: 'Услуги', kz: 'Қызметтер'),
+            label: t(locale, ru: 'Услуги', kz: 'Қызметтер', en: 'Services'),
           ),
           AppBottomNavItem(
             icon: Icons.celebration_outlined,
             activeIcon: Icons.celebration_rounded,
-            label: t(locale, ru: 'Мой той', kz: 'Менің тойым'),
+            label: t(locale, ru: 'Мой той', kz: 'Менің тойым', en: 'My Event'),
           ),
           AppBottomNavItem(
             icon: Icons.shopping_bag_outlined,
             activeIcon: Icons.shopping_bag_rounded,
-            label: t(locale, ru: 'Корзина', kz: 'Себет'),
+            label: t(locale, ru: 'Корзина', kz: 'Себет', en: 'Cart'),
             badgeCount: cartCount,
           ),
         ],

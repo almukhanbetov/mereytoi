@@ -10,6 +10,7 @@ import { eventsApi } from '@/lib/eventsApi';
 import { formatPrice } from '@/lib/format';
 import { eventTypeEmoji, eventTypeLabel, formatEventDate, roleLabel } from '@/lib/eventHelpers';
 import TelegramConnectCard from '@/components/profile/TelegramConnectCard';
+import ProviderPanel from '@/components/profile/ProviderPanel';
 
 function paidLabel(paid, lang) {
   if (paid) return lang === 'kz' ? 'Белсенді' : 'Активна';
@@ -122,6 +123,15 @@ export default function ProfilePage() {
               onClick={() => setTab('account')}
             >
               <T ru="Аккаунт" kz="Аккаунт" />
+            </button>
+            <button
+              type="button"
+              role="tab"
+              aria-selected={tab === 'provider'}
+              className={`ws-tabs__btn${tab === 'provider' ? ' is-active' : ''}`}
+              onClick={() => setTab('provider')}
+            >
+              <T ru="Услугодатель" kz="Қызмет көрсетуші" />
             </button>
           </div>
 
@@ -258,6 +268,8 @@ export default function ProfilePage() {
               </div>
             </div>
           )}
+
+          {tab === 'provider' && <ProviderPanel />}
         </div>
       </section>
     </>

@@ -149,20 +149,31 @@ class _CreateEventSheetState extends ConsumerState<CreateEventSheet> {
                       ),
                     ),
                     Text(
-                      t(locale, ru: 'Новое мероприятие', kz: 'Жаңа іс-шара'),
+                      t(
+                        locale,
+                        ru: 'Новое мероприятие',
+                        kz: 'Жаңа іс-шара',
+                        en: 'New event',
+                      ),
                       style: Theme.of(context).textTheme.titleLarge,
                     ),
                     const SizedBox(height: AppSpacing.md),
                     TextFormField(
                       controller: _titleController,
                       decoration: InputDecoration(
-                        labelText: t(locale, ru: 'Название', kz: 'Атауы'),
+                        labelText: t(
+                          locale,
+                          ru: 'Название',
+                          kz: 'Атауы',
+                          en: 'Name',
+                        ),
                       ),
                       validator: (v) => (v == null || v.trim().isEmpty)
                           ? t(
                               locale,
                               ru: 'Введите название',
                               kz: 'Атауын енгізіңіз',
+                              en: 'Enter a name',
                             )
                           : null,
                     ),
@@ -188,11 +199,21 @@ class _CreateEventSheetState extends ConsumerState<CreateEventSheet> {
                       borderRadius: BorderRadius.circular(AppRadius.sm),
                       child: InputDecorator(
                         decoration: InputDecoration(
-                          labelText: t(locale, ru: 'Дата', kz: 'Күні'),
+                          labelText: t(
+                            locale,
+                            ru: 'Дата',
+                            kz: 'Күні',
+                            en: 'Date',
+                          ),
                         ),
                         child: Text(
                           _eventDate == null
-                              ? t(locale, ru: 'Не выбрана', kz: 'Таңдалмаған')
+                              ? t(
+                                  locale,
+                                  ru: 'Не выбрана',
+                                  kz: 'Таңдалмаған',
+                                  en: 'Not selected',
+                                )
                               : '${_eventDate!.day.toString().padLeft(2, '0')}.${_eventDate!.month.toString().padLeft(2, '0')}.${_eventDate!.year}',
                         ),
                       ),
@@ -201,7 +222,12 @@ class _CreateEventSheetState extends ConsumerState<CreateEventSheet> {
                     TextFormField(
                       controller: _cityController,
                       decoration: InputDecoration(
-                        labelText: t(locale, ru: 'Город', kz: 'Қала'),
+                        labelText: t(
+                          locale,
+                          ru: 'Город',
+                          kz: 'Қала',
+                          en: 'City',
+                        ),
                       ),
                     ),
                     const SizedBox(height: AppSpacing.sm),
@@ -216,6 +242,7 @@ class _CreateEventSheetState extends ConsumerState<CreateEventSheet> {
                                 locale,
                                 ru: 'Гостей',
                                 kz: 'Қонақтар',
+                                en: 'Guests',
                               ),
                             ),
                           ),
@@ -230,6 +257,7 @@ class _CreateEventSheetState extends ConsumerState<CreateEventSheet> {
                                 locale,
                                 ru: 'Бюджет, ₸',
                                 kz: 'Бюджет, ₸',
+                                en: 'Budget, ₸',
                               ),
                             ),
                           ),
@@ -245,6 +273,7 @@ class _CreateEventSheetState extends ConsumerState<CreateEventSheet> {
                           locale,
                           ru: 'Комментарий (необязательно)',
                           kz: 'Пікір (міндетті емес)',
+                          en: 'Comment (optional)',
                         ),
                       ),
                     ),
@@ -272,7 +301,14 @@ class _CreateEventSheetState extends ConsumerState<CreateEventSheet> {
                                   color: context.mereytoiColors.onGold,
                                 ),
                               )
-                            : Text(t(locale, ru: 'Создать', kz: 'Құру')),
+                            : Text(
+                                t(
+                                  locale,
+                                  ru: 'Создать',
+                                  kz: 'Құру',
+                                  en: 'Create',
+                                ),
+                              ),
                       ),
                     ),
                   ],

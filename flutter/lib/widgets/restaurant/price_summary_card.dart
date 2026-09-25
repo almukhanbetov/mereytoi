@@ -4,6 +4,7 @@ import '../../core/theme/app_theme.dart';
 import '../../core/utils/format.dart';
 import '../../domain/restaurant/restaurant_price_calculator.dart';
 import '../../state/locale_provider.dart';
+import '../animated_price_text.dart';
 import '../app_card.dart';
 
 /// Brief section 8 — the price breakdown card, "Итого" visually dominant.
@@ -36,7 +37,7 @@ class PriceSummaryCard extends StatelessWidget {
         children: [
           if (hasRealPrice) ...[
             _Line(
-              '$guests ${t(locale, ru: "гостей", kz: "қонақ")} × ${formatPrice(pricePerGuest)}',
+              '$guests ${t(locale, ru: "гостей", kz: "қонақ", en: "guests")} × ${formatPrice(pricePerGuest)}',
               formatPrice(breakdown.basePrice),
             ),
             for (final line in breakdown.flatLines)
@@ -54,21 +55,31 @@ class PriceSummaryCard extends StatelessWidget {
               child: Divider(height: 1),
             ),
           ],
-          Row(
-            mainAxisAlignment: MainAxisAlignment.spaceBetween,
-            crossAxisAlignment: CrossAxisAlignment.center,
+          // Этап 10Б-1А fix: neither child here was ever Expanded — at a
+          // large system text scale, "Итого" (titleLarge) plus a genuinely
+          // large multi-digit total (22px bold) can exceed the card's
+          // width, and a Row with two unconstrained children overflows
+          // instead of adapting. Wrap (same technique as the
+          // MenuContentAccordion header fix) keeps the same spaced layout
+          // when it fits, and drops the total to its own line — still
+          // fully readable, never clipped or shrunk — when it doesn't.
+          Wrap(
+            alignment: WrapAlignment.spaceBetween,
+            crossAxisAlignment: WrapCrossAlignment.center,
+            runSpacing: AppSpacing.xxs,
             children: [
               Text(
-                t(locale, ru: 'Итого', kz: 'Барлығы'),
+                t(locale, ru: 'Итого', kz: 'Барлығы', en: 'Total'),
                 style: Theme.of(context).textTheme.titleLarge,
               ),
-              Text(
-                hasRealPrice
+              AnimatedPriceText(
+                text: hasRealPrice
                     ? formatPrice(breakdown.estimatedTotal)
                     : t(
                         locale,
                         ru: 'Цена по запросу',
                         kz: 'Сұрау бойынша баға',
+                        en: 'Price on request',
                       ),
                 style: TextStyle(
                   color: context.mereytoiColors.goldSoft,

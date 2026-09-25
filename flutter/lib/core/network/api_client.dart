@@ -110,6 +110,18 @@ class ApiClient {
     return _asMap(res);
   }
 
+  /// Этап 11F — multipart uploads (POST /api/uploads). Dio sets its own
+  /// `Content-Type: multipart/form-data; boundary=...` for a [FormData]
+  /// body regardless of this client's default JSON header, so no extra
+  /// `Options` override is needed here.
+  Future<Map<String, dynamic>> postMultipart(
+    String path,
+    FormData data,
+  ) async {
+    final res = await _run(() => _dio.post(path, data: data));
+    return _asMap(res);
+  }
+
   Future<Response<dynamic>> _run(
     Future<Response<dynamic>> Function() request,
   ) async {

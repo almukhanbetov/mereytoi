@@ -87,7 +87,7 @@ class OverviewTab extends ConsumerWidget {
                       _Fact(
                         icon: Icons.groups_outlined,
                         text:
-                            '${event.guests} ${t(locale, ru: "гостей", kz: "қонақ")}',
+                            '${event.guests} ${t(locale, ru: "гостей", kz: "қонақ", en: "guests")}',
                       ),
                   ],
                 ),
@@ -117,20 +117,30 @@ class OverviewTab extends ConsumerWidget {
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
                   Text(
-                    t(locale, ru: 'Сводка', kz: 'Жиынтық'),
+                    t(locale, ru: 'Сводка', kz: 'Жиынтық', en: 'Summary'),
                     style: Theme.of(context).textTheme.titleMedium,
                   ),
                   const SizedBox(height: AppSpacing.xs),
                   _StatRow(
-                    label: t(locale, ru: 'Бюджет', kz: 'Бюджет'),
+                    label: t(locale, ru: 'Бюджет', kz: 'Бюджет', en: 'Budget'),
                     value: formatPrice(summary.budgetTotal),
                   ),
                   _StatRow(
-                    label: t(locale, ru: 'Потрачено', kz: 'Жұмсалды'),
+                    label: t(
+                      locale,
+                      ru: 'Потрачено',
+                      kz: 'Жұмсалды',
+                      en: 'Spent',
+                    ),
                     value: formatPrice(summary.spent),
                   ),
                   _StatRow(
-                    label: t(locale, ru: 'Остаток', kz: 'Қалды'),
+                    label: t(
+                      locale,
+                      ru: 'Остаток',
+                      kz: 'Қалды',
+                      en: 'Remaining',
+                    ),
                     value: formatPrice(summary.remaining),
                     valueColor: summary.remaining < 0
                         ? context.mereytoiColors.error
@@ -145,12 +155,18 @@ class OverviewTab extends ConsumerWidget {
                       locale,
                       ru: 'Категорий выбрано',
                       kz: 'Санат таңдалды',
+                      en: 'Categories selected',
                     ),
                     value:
                         '${summary.categoriesCovered} / ${summary.categoriesTotal}',
                   ),
                   _StatRow(
-                    label: t(locale, ru: 'В шортлисте', kz: 'Шортлисте'),
+                    label: t(
+                      locale,
+                      ru: 'В шортлисте',
+                      kz: 'Шортлисте',
+                      en: 'Shortlisted',
+                    ),
                     value: '${summary.shortlistedCount}',
                   ),
                   _StatRow(
@@ -158,11 +174,17 @@ class OverviewTab extends ConsumerWidget {
                       locale,
                       ru: 'Выбрано услуг',
                       kz: 'Таңдалған қызметтер',
+                      en: 'Services selected',
                     ),
                     value: '${summary.selectedCount}',
                   ),
                   _StatRow(
-                    label: t(locale, ru: 'Участников', kz: 'Қатысушылар'),
+                    label: t(
+                      locale,
+                      ru: 'Участников',
+                      kz: 'Қатысушылар',
+                      en: 'Members',
+                    ),
                     value: '${summary.membersCount}',
                   ),
                 ],
@@ -229,11 +251,13 @@ class _RequestCardState extends ConsumerState<_RequestCard> {
                       widget.locale,
                       ru: 'Заявка уже отправлена',
                       kz: 'Өтінім жіберілген',
+                      en: 'Request already sent',
                     )
                   : t(
                       widget.locale,
                       ru: 'Заявка отправлена',
                       kz: 'Өтінім жіберілді',
+                      en: 'Request sent',
                     ),
             ),
           ),
@@ -255,6 +279,7 @@ class _RequestCardState extends ConsumerState<_RequestCard> {
           widget.locale,
           ru: 'Отменить заявку?',
           kz: 'Өтінімді болдырмау керек пе?',
+          en: 'Cancel the request?',
         ),
       ),
     );
@@ -274,6 +299,7 @@ class _RequestCardState extends ConsumerState<_RequestCard> {
                 widget.locale,
                 ru: 'Заявка отменена',
                 kz: 'Өтінім болдырылмады',
+                en: 'Request canceled',
               ),
             ),
           ),
@@ -306,6 +332,7 @@ class _RequestCardState extends ConsumerState<_RequestCard> {
                   widget.locale,
                   ru: 'Заявка в MEREYTOI',
                   kz: 'MEREYTOI-ге өтінім',
+                  en: 'Request in MEREYTOI',
                 ),
                 style: Theme.of(context).textTheme.titleMedium,
               ),
@@ -315,7 +342,7 @@ class _RequestCardState extends ConsumerState<_RequestCard> {
           if (request.managerComment.isNotEmpty) ...[
             const SizedBox(height: AppSpacing.xs),
             Text(
-              '${t(widget.locale, ru: "Комментарий менеджера", kz: "Менеджер пікірі")}: ${request.managerComment}',
+              '${t(widget.locale, ru: "Комментарий менеджера", kz: "Менеджер пікірі", en: "Manager's comment")}: ${request.managerComment}',
               style: Theme.of(context).textTheme.bodyMedium,
             ),
           ],
@@ -342,6 +369,7 @@ class _RequestCardState extends ConsumerState<_RequestCard> {
                           widget.locale,
                           ru: 'Отправить заявку',
                           kz: 'Өтінім жіберу',
+                          en: 'Submit request',
                         ),
                       ),
                     ),
@@ -357,6 +385,7 @@ class _RequestCardState extends ConsumerState<_RequestCard> {
                           widget.locale,
                           ru: 'Отменить заявку',
                           kz: 'Өтінімді болдырмау',
+                          en: 'Cancel request',
                         ),
                       ),
                     ),
@@ -394,13 +423,20 @@ class _ConfirmSheet extends StatelessWidget {
             ElevatedButton(
               onPressed: () => Navigator.of(context).pop(true),
               child: Text(
-                t(locale, ru: 'Да, продолжить', kz: 'Иә, жалғастыру'),
+                t(
+                  locale,
+                  ru: 'Да, продолжить',
+                  kz: 'Иә, жалғастыру',
+                  en: 'Yes, continue',
+                ),
               ),
             ),
             const SizedBox(height: AppSpacing.xs),
             OutlinedButton(
               onPressed: () => Navigator.of(context).pop(false),
-              child: Text(t(locale, ru: 'Отмена', kz: 'Бас тарту')),
+              child: Text(
+                t(locale, ru: 'Отмена', kz: 'Бас тарту', en: 'Cancel'),
+              ),
             ),
           ],
         ),

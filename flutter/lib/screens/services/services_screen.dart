@@ -79,7 +79,7 @@ class _ServicesScreenState extends ConsumerState<ServicesScreen> {
       // the button, unlike Service Detail's, still has to stay conditional
       // on `canPop`, same as the default `BackButton` would be.
       appBar: AppBar(
-        title: Text(t(locale, ru: 'Услуги', kz: 'Қызметтер')),
+        title: Text(t(locale, ru: 'Услуги', kz: 'Қызметтер', en: 'Services')),
         leading: Navigator.canPop(context) ? const AppBackButton() : null,
       ),
       body: Column(
@@ -104,6 +104,7 @@ class _ServicesScreenState extends ConsumerState<ServicesScreen> {
                     locale,
                     ru: 'Поиск услуг',
                     kz: 'Қызметтерді іздеу',
+                    en: 'Search services',
                   ),
                   prefixIcon: Icon(
                     Icons.search_rounded,
@@ -229,7 +230,12 @@ class _EmptyResults extends StatelessWidget {
             ),
             const SizedBox(height: AppSpacing.md),
             Text(
-              t(locale, ru: 'Услуги не найдены', kz: 'Қызметтер табылмады'),
+              t(
+                locale,
+                ru: 'Услуги не найдены',
+                kz: 'Қызметтер табылмады',
+                en: 'No services found',
+              ),
               style: Theme.of(context).textTheme.titleMedium,
             ),
             if (showReset) ...[
@@ -237,7 +243,12 @@ class _EmptyResults extends StatelessWidget {
               OutlinedButton(
                 onPressed: onReset,
                 child: Text(
-                  t(locale, ru: 'Сбросить фильтры', kz: 'Сүзгілерді тазарту'),
+                  t(
+                    locale,
+                    ru: 'Сбросить фильтры',
+                    kz: 'Сүзгілерді тазарту',
+                    en: 'Clear filters',
+                  ),
                 ),
               ),
             ],

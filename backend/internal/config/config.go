@@ -3,6 +3,7 @@ package config
 import (
 	"fmt"
 	"os"
+	"strconv"
 	"strings"
 
 	"github.com/joho/godotenv"
@@ -103,6 +104,28 @@ type Config struct {
 	TelegramBotToken      string
 	TelegramBotUsername   string
 	TelegramWebhookSecret string // optional; if set, Webhook rejects requests missing the matching X-Telegram-Bot-Api-Secret-Token header
+
+	// AIAssistant* — Этап 1 "ИИ-помощник" (see internal/aiassistant).
+	// AnthropicAPIKey empty means the feature is off: routes.Register never
+	// constructs an aiassistant.Provider at all, and the handler answers
+	// with a clear "assistant unavailable" response — the rest of the site
+	// (catalog, bookings, Manager Chat) is on entirely separate handlers
+	// and is completely unaffected either way. Never logged, never sent to
+	// the frontend.
+	AIAssistantAnthropicAPIKey string
+	// AIAssistantModel — see shared/... model id table; defaults to the
+	// current mid-tier model rather than the most expensive one, since
+	// this is a chat-assist feature, not a coding agent.
+	AIAssistantModel string
+	// AIAssistantTimeoutSeconds bounds one Chat() call end-to-end (brief
+	// section 3: "таймаут вызова модели") — a slow/hanging provider must
+	// not hang the HTTP request indefinitely.
+	AIAssistantTimeoutSeconds int
+	// AIAssistantMaxMessageLen bounds a single incoming chat message
+	// (brief section 3: "ограничение длины сообщений") — matches Manager
+	// Chat's own 1000-char composer limit (frontend's MESSAGE_MAX) so the
+	// two features feel consistent.
+	AIAssistantMaxMessageLen int
 }
 
 func Load() Config {
@@ -165,6 +188,16 @@ func Load() Config {
 		TelegramBotToken:      getEnv("TELEGRAM_BOT_TOKEN", ""),
 		TelegramBotUsername:   getEnv("TELEGRAM_BOT_USERNAME", ""),
 		TelegramWebhookSecret: getEnv("TELEGRAM_WEBHOOK_SECRET", ""),
+
+		// Off by default, same reasoning as Mail/ClaimDelivery above: a
+		// fresh clone/CI run must not attempt a real LLM API call nobody
+		// configured. ANTHROPIC_API_KEY is read here, once, explicitly —
+		// internal/aiassistant's own provider never reads the environment
+		// itself (see AnthropicProvider's own doc comment).
+		AIAssistantAnthropicAPIKey: getEnv("ANTHROPIC_API_KEY", ""),
+		AIAssistantModel:           getEnv("AI_ASSISTANT_MODEL", "claude-sonnet-5"),
+		AIAssistantTimeoutSeconds:  getEnvInt("AI_ASSISTANT_TIMEOUT_SECONDS", 20),
+		AIAssistantMaxMessageLen:   getEnvInt("AI_ASSISTANT_MAX_MESSAGE_LEN", 1000),
 	}
 }
 
@@ -180,4 +213,16 @@ func getEnv(key, fallback string) string {
 		return v
 	}
 	return fallback
+}
+
+func getEnvInt(key string, fallback int) int {
+	v := os.Getenv(key)
+	if v == "" {
+		return fallback
+	}
+	n, err := strconv.Atoi(v)
+	if err != nil {
+		return fallback
+	}
+	return n
 }

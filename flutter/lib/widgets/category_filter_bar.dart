@@ -126,7 +126,7 @@ class _CategoryFilterBarState extends State<CategoryFilterBar> {
             itemBuilder: (context, i) {
               if (i == 0) {
                 return AppChip(
-                  label: t(widget.locale, ru: 'Все', kz: 'Барлығы'),
+                  label: t(widget.locale, ru: 'Все', kz: 'Барлығы', en: 'All'),
                   selected: widget.activeSlug == null,
                   onTap: () => widget.onSelect(null),
                 );
@@ -278,7 +278,12 @@ class _AllCategoriesChip extends StatelessWidget {
               ),
               const SizedBox(width: AppSpacing.xxs),
               Text(
-                t(locale, ru: 'Все категории', kz: 'Барлық санаттар'),
+                t(
+                  locale,
+                  ru: 'Все категории',
+                  kz: 'Барлық санаттар',
+                  en: 'All categories',
+                ),
                 style: Theme.of(context).textTheme.labelMedium?.copyWith(
                   color: context.mereytoiColors.textSecondary,
                 ),

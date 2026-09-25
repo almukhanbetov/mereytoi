@@ -18,31 +18,42 @@ const _suggestionChips = [
   (
     ru: 'Подобрать услуги',
     kz: 'Қызметтерді таңдау',
+    en: 'Help choose services',
     text: (
       ru: 'Помогите подобрать услуги для нашего мероприятия',
       kz: 'Іс-шарамызға қызметтерді таңдауға көмектесіңіз',
+      en: 'Help us choose services for our event',
     ),
   ),
   (
     ru: 'Рассчитать стоимость',
     kz: 'Құнын есептеу',
+    en: 'Calculate the cost',
     text: (
       ru: 'Подскажите, пожалуйста, примерную стоимость',
       kz: 'Болжамды құнын айтып жіберіңізші',
+      en: 'Could you give us an estimated cost, please',
     ),
   ),
   (
     ru: 'Свободна ли дата?',
     kz: 'Күн бос па?',
+    en: 'Is the date available?',
     text: (
       ru: 'Подскажите, свободна ли нужная нам дата?',
       kz: 'Бізге керек күн бос па, айтып жіберіңізші?',
+      en: 'Could you tell us if the date we need is available?',
     ),
   ),
   (
     ru: 'Вопрос по услуге',
     kz: 'Қызмет туралы сұрақ',
-    text: (ru: 'У меня вопрос по услуге', kz: 'Қызмет бойынша сұрағым бар'),
+    en: 'Question about the service',
+    text: (
+      ru: 'У меня вопрос по услуге',
+      kz: 'Қызмет бойынша сұрағым бар',
+      en: 'I have a question about the service',
+    ),
   ),
 ];
 
@@ -68,8 +79,33 @@ class ManagerChatScreen extends ConsumerWidget {
 
     return Scaffold(
       appBar: AppBar(
-        title: Text(
-          t(locale, ru: 'Менеджер MEREYTOI', kz: 'MEREYTOI менеджері'),
+        title: Row(
+          children: [
+            CircleAvatar(
+              radius: 16,
+              backgroundColor: context.mereytoiColors.goldPrimary.withValues(
+                alpha: 0.16,
+              ),
+              child: Icon(
+                Icons.support_agent_rounded,
+                size: 18,
+                color: context.mereytoiColors.goldPrimary,
+              ),
+            ),
+            const SizedBox(width: AppSpacing.sm),
+            Expanded(
+              child: Text(
+                t(
+                  locale,
+                  ru: 'Менеджер MEREYTOI',
+                  kz: 'MEREYTOI менеджері',
+                  en: 'MEREYTOI manager',
+                ),
+                maxLines: 1,
+                overflow: TextOverflow.ellipsis,
+              ),
+            ),
+          ],
         ),
       ),
       body: switch (authState) {
@@ -102,6 +138,7 @@ class _LoginPrompt extends StatelessWidget {
                 locale,
                 ru: 'Войдите, чтобы написать менеджеру',
                 kz: 'Менеджерге жазу үшін кіріңіз',
+                en: 'Sign in to message the manager',
               ),
               textAlign: TextAlign.center,
               style: Theme.of(context).textTheme.titleMedium,
@@ -111,7 +148,7 @@ class _LoginPrompt extends StatelessWidget {
               onPressed: () => Navigator.of(
                 context,
               ).push(MaterialPageRoute(builder: (_) => const LoginScreen())),
-              child: Text(t(locale, ru: 'Войти', kz: 'Кіру')),
+              child: Text(t(locale, ru: 'Войти', kz: 'Кіру', en: 'Sign in')),
             ),
           ],
         ),
@@ -132,6 +169,7 @@ class _ChatBody extends ConsumerStatefulWidget {
 
 class _ChatBodyState extends ConsumerState<_ChatBody> {
   final _controller = TextEditingController();
+  final _scrollController = ScrollController();
   bool _sending = false;
   String? _sendError;
 
@@ -143,7 +181,26 @@ class _ChatBodyState extends ConsumerState<_ChatBody> {
   @override
   void dispose() {
     _controller.dispose();
+    _scrollController.dispose();
     super.dispose();
+  }
+
+  /// Этап 10Б-53 — "прокрутка к последним сообщениям": jumps straight to
+  /// the bottom on the very first load (a returning thread shouldn't open
+  /// scrolled to the oldest message), then animates for every later
+  /// arrival (the user's own send, or the next poll picking up a reply).
+  void _scrollToBottom({required bool animate}) {
+    if (!_scrollController.hasClients) return;
+    final max = _scrollController.position.maxScrollExtent;
+    if (animate) {
+      _scrollController.animateTo(
+        max,
+        duration: const Duration(milliseconds: 220),
+        curve: Curves.easeOut,
+      );
+    } else {
+      _scrollController.jumpTo(max);
+    }
   }
 
   Future<void> _send(String text) async {
@@ -159,7 +216,10 @@ class _ChatBodyState extends ConsumerState<_ChatBody> {
           .read(managerChatProvider(_key).notifier)
           .sendMessage(
             body,
-            firstMessagePrefix: restaurantContextText(widget.chatContext),
+            firstMessagePrefix: restaurantContextText(
+              widget.locale,
+              widget.chatContext,
+            ),
           );
     } catch (err) {
       if (mounted) {
@@ -177,6 +237,22 @@ class _ChatBodyState extends ConsumerState<_ChatBody> {
   Widget build(BuildContext context) {
     final locale = widget.locale;
     final chatAsync = ref.watch(managerChatProvider(_key));
+
+    ref.listen(managerChatProvider(_key), (previous, next) {
+      final prevLen = previous?.valueOrNull?.messages.length ?? 0;
+      final nextLen = next.valueOrNull?.messages.length ?? 0;
+      if (nextLen > prevLen) {
+        // `previous` being non-null-but-empty-valueOrNull covers both "this
+        // is the very first successful load" (previous was AsyncLoading)
+        // and "we already had a shorter list" — jump instantly for the
+        // former (opening a thread shouldn't visibly animate down from the
+        // top), animate for every later arrival.
+        final isFirstLoad = previous == null || previous.valueOrNull == null;
+        WidgetsBinding.instance.addPostFrameCallback(
+          (_) => _scrollToBottom(animate: !isFirstLoad),
+        );
+      }
+    });
 
     return chatAsync.when(
       loading: () => const AppLoader(),
@@ -203,6 +279,7 @@ class _ChatBodyState extends ConsumerState<_ChatBody> {
                       onPick: (text) => _controller.text = text,
                     )
                   : ListView.builder(
+                      controller: _scrollController,
                       padding: const EdgeInsets.all(AppSpacing.md),
                       itemCount: messages.length,
                       itemBuilder: (context, i) =>
@@ -249,6 +326,7 @@ class _ChatBodyState extends ConsumerState<_ChatBody> {
                             locale,
                             ru: 'Написать сообщение…',
                             kz: 'Хабарлама жазу…',
+                            en: 'Write a message…',
                           ),
                         ),
                         onSubmitted: _send,
@@ -353,7 +431,7 @@ class _ContextCard extends StatelessWidget {
                 if (chatContext.guestCount != null &&
                     chatContext.guestCount! > 0)
                   _MiniTag(
-                    '${chatContext.guestCount} ${t(locale, ru: "гостей", kz: "қонақ")}',
+                    '${chatContext.guestCount} ${t(locale, ru: "гостей", kz: "қонақ", en: "guests")}',
                   ),
                 if (chatContext.estimatedTotal != null &&
                     chatContext.estimatedTotal! > 0)
@@ -396,39 +474,58 @@ class _EmptySuggestions extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return Center(
-      child: Padding(
-        padding: const EdgeInsets.all(AppSpacing.lg),
-        child: Column(
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            Text(
-              t(
-                locale,
-                ru: 'Задайте вопрос — менеджер ответит в ближайшее время.',
-                kz: 'Сұрағыңызды қойыңыз — менеджер жақын арада жауап береді.',
-              ),
-              textAlign: TextAlign.center,
-              style: Theme.of(context).textTheme.bodyMedium,
+    // Этап 10Б-53 finding: a plain `Center` gives its child loose-but-
+    // unbounded-feeling constraints, so once the keyboard shrinks this
+    // `Expanded` area on a small phone (4 suggestion chips + the intro
+    // line no longer fit), the Column hard-overflowed instead of
+    // adapting. `LayoutBuilder` + `SingleChildScrollView` keeps the
+    // normal case centered (`ConstrainedBox` forces the min height to
+    // fill the available space) while making the content scrollable
+    // instead of clipped/overflowing the moment it doesn't fit.
+    return LayoutBuilder(
+      builder: (context, constraints) {
+        return SingleChildScrollView(
+          padding: const EdgeInsets.all(AppSpacing.lg),
+          child: ConstrainedBox(
+            constraints: BoxConstraints(
+              minHeight: constraints.maxHeight - AppSpacing.lg - AppSpacing.lg,
             ),
-            const SizedBox(height: AppSpacing.md),
-            Wrap(
-              alignment: WrapAlignment.center,
-              spacing: AppSpacing.xxs,
-              runSpacing: AppSpacing.xxs,
-              children: _suggestionChips
-                  .map(
-                    (chip) => ActionChip(
-                      label: Text(t(locale, ru: chip.ru, kz: chip.kz)),
-                      onPressed: () =>
-                          onPick(t(locale, ru: chip.text.ru, kz: chip.text.kz)),
+            child: Center(
+              child: Column(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  Text(
+                    t(
+                      locale,
+                      ru: 'Задайте вопрос — менеджер ответит в ближайшее время.',
+                      kz: 'Сұрағыңызды қойыңыз — менеджер жақын арада жауап береді.',
+                      en: 'Ask a question — the manager will reply shortly.',
                     ),
-                  )
-                  .toList(),
+                    textAlign: TextAlign.center,
+                    style: Theme.of(context).textTheme.bodyMedium,
+                  ),
+                  const SizedBox(height: AppSpacing.md),
+                  Wrap(
+                    alignment: WrapAlignment.center,
+                    spacing: AppSpacing.xxs,
+                    runSpacing: AppSpacing.xxs,
+                    children: _suggestionChips
+                        .map(
+                          (chip) => ActionChip(
+                            label: Text(t(locale, ru: chip.ru, kz: chip.kz)),
+                            onPressed: () => onPick(
+                              t(locale, ru: chip.text.ru, kz: chip.text.kz),
+                            ),
+                          ),
+                        )
+                        .toList(),
+                  ),
+                ],
+              ),
             ),
-          ],
-        ),
-      ),
+          ),
+        );
+      },
     );
   }
 }

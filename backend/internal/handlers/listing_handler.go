@@ -23,6 +23,25 @@ type listingOut struct {
 	HallCount            int64 `json:"hall_count,omitempty"`
 	MenuCount            int64 `json:"menu_count,omitempty"`
 	MinMenuPricePerGuest *uint `json:"min_menu_price_per_guest,omitempty"`
+	// Provider — Этап 11 (brief section 8: "карточка ... должна при
+	// возможности отображать ... имя услугодателя"). nil for every listing
+	// with no owning ListingManager row, or whose owner has no Provider
+	// profile — exactly today's shape for every pre-existing listing.
+	Provider *providerBrief `json:"provider,omitempty"`
+}
+
+// providerBrief is the small, display-only slice of Provider a listing
+// card/page actually needs — never the full row (no phone/whatsapp/
+// telegram/description leak into the public catalog response via this
+// type; the service detail page's contact block gets the full contact
+// shape separately, see Get below). ID — Этап 11G: the provider's own
+// public routing handle, so a card's name/avatar can be tapped to open
+// ProviderProfileScreen (GET /api/providers/:id) without a second lookup.
+type providerBrief struct {
+	ID          uint   `json:"id"`
+	DisplayName string `json:"display_name"`
+	City        string `json:"city,omitempty"`
+	AvatarURL   string `json:"avatar_url,omitempty"`
 }
 
 type ListingHandler struct {
@@ -105,15 +124,53 @@ func attachListingCounts(db *gorm.DB, listings []models.Listing) []listingOut {
 		menuByListing[row.ListingID] = row
 	}
 
+	providerByListing := attachProviderBriefs(db, listingIDs)
+
 	out := make([]listingOut, 0, len(listings))
 	for _, l := range listings {
-		row := listingOut{Listing: l, HallCount: hallByListing[l.ID]}
+		row := listingOut{Listing: l, HallCount: hallByListing[l.ID], Provider: providerByListing[l.ID]}
 		if agg, ok := menuByListing[l.ID]; ok {
 			row.MenuCount = agg.Count
 			minPrice := agg.MinPrice
 			row.MinMenuPricePerGuest = &minPrice
 		}
 		out = append(out, row)
+	}
+	return out
+}
+
+// attachProviderBriefs resolves each listing's owning Provider (brief
+// section 8/9), reusing ListingManager as the one source of truth for
+// "who owns this listing" (brief section 6) rather than a new FK — two
+// grouped queries total regardless of how many listings were passed in,
+// same "no N+1" shape as the hall/menu aggregates above. A listing with no
+// owner row, or whose owner has no (or a non-active) Provider profile,
+// simply gets no entry in the returned map — exactly today's shape.
+func attachProviderBriefs(db *gorm.DB, listingIDs []uint) map[uint]*providerBrief {
+	out := map[uint]*providerBrief{}
+	if len(listingIDs) == 0 {
+		return out
+	}
+
+	var owners []models.ListingManager
+	db.Where("listing_id IN ? AND role = ?", listingIDs, models.ListingManagerRoleOwner).Find(&owners)
+	if len(owners) == 0 {
+		return out
+	}
+	userIDs := make([]uint, 0, len(owners))
+	listingByUser := map[uint][]uint{}
+	for _, o := range owners {
+		userIDs = append(userIDs, o.UserID)
+		listingByUser[o.UserID] = append(listingByUser[o.UserID], o.ListingID)
+	}
+
+	var providers []models.Provider
+	db.Where("user_id IN ? AND status = ?", userIDs, models.ProviderStatusActive).Find(&providers)
+	for _, p := range providers {
+		brief := &providerBrief{ID: p.ID, DisplayName: p.DisplayName, City: p.City, AvatarURL: p.AvatarURL}
+		for _, listingID := range listingByUser[p.UserID] {
+			out[listingID] = brief
+		}
 	}
 	return out
 }
@@ -189,6 +246,10 @@ type listingDetailOut struct {
 	models.Listing
 	Halls []models.ListingHall `json:"halls,omitempty"`
 	Menus []menuOut            `json:"menus,omitempty"`
+	// Provider — Этап 11 (brief section 9's contact block), Этап 11G
+	// redaction (no user_id) — the full contact shape, unlike listingOut's
+	// providerBrief (see loadListingProvider).
+	Provider *providerDetailOut `json:"provider,omitempty"`
 }
 
 type menuOut struct {
@@ -280,7 +341,27 @@ func (h *ListingHandler) Get(c *gin.Context) {
 	}
 
 	halls, menus := loadListingTree(h.DB, listing.ID)
-	c.JSON(http.StatusOK, gin.H{"listing": listingDetailOut{Listing: listing, Halls: halls, Menus: menus}})
+	provider := loadListingProvider(h.DB, listing.ID)
+	c.JSON(http.StatusOK, gin.H{"listing": listingDetailOut{Listing: listing, Halls: halls, Menus: menus, Provider: provider}})
+}
+
+// loadListingProvider — the single-listing counterpart to
+// attachProviderBriefs, used by Get. Returns the full contact shape (brief
+// section 9's contact block needs phone/whatsapp/telegram, which the
+// catalog-card providerBrief deliberately omits) minus internal fields
+// (Этап 11G — see providerDetailOut's own doc comment), or nil under the
+// exact same conditions attachProviderBriefs would omit an entry.
+func loadListingProvider(db *gorm.DB, listingID uint) *providerDetailOut {
+	var owner models.ListingManager
+	if err := db.Where("listing_id = ? AND role = ?", listingID, models.ListingManagerRoleOwner).First(&owner).Error; err != nil {
+		return nil
+	}
+	var provider models.Provider
+	if err := db.Where("user_id = ? AND status = ?", owner.UserID, models.ProviderStatusActive).First(&provider).Error; err != nil {
+		return nil
+	}
+	out := providerDetailFrom(provider)
+	return &out
 }
 
 // Menus — GET /api/listings/:id/menus. The lean alternative to Get above
@@ -345,6 +426,20 @@ type listingInput struct {
 	Longitude *float64 `json:"longitude"`
 	PlaceID   *string  `json:"place_id"`
 	Capacity  uint     `json:"capacity"`
+
+	// PriceType — Этап 11. Free-form on Create (defaults to "fixed" when
+	// omitted, see Create below).
+	PriceType string `json:"price_type"`
+
+	// IsActive — Этап 11 "включить/выключить публикацию". A *bool,
+	// deliberately: every pre-existing caller (the admin services form)
+	// never sends this field at all, and a plain `bool` would silently
+	// read as false and deactivate the listing on every single save. Only
+	// applied in Update when explicitly non-nil — same "own value only
+	// overrides when present" shape this codebase already uses for
+	// Latitude/Longitude/PlaceID above. Create ignores it; a brand-new
+	// listing is always published, matching pre-existing behavior exactly.
+	IsActive *bool `json:"is_active"`
 }
 
 func (h *ListingHandler) Create(c *gin.Context) {
@@ -360,7 +455,25 @@ func (h *ListingHandler) Create(c *gin.Context) {
 		return
 	}
 
-	listing := models.Listing{
+	listing := listingFromInput(in)
+	if err := h.DB.Create(&listing).Error; err != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{"error": "failed to create listing"})
+		return
+	}
+
+	c.JSON(http.StatusCreated, gin.H{"listing": listing})
+}
+
+// listingFromInput builds a brand-new Listing from Create's own input —
+// shared with CreateOwn below so the admin path and the self-serve
+// provider path can never drift on which fields a "new listing" actually
+// sets.
+func listingFromInput(in listingInput) models.Listing {
+	priceType := in.PriceType
+	if priceType == "" {
+		priceType = models.PriceTypeFixed
+	}
+	return models.Listing{
 		CategoryID:    in.CategoryID,
 		NameRu:        in.NameRu,
 		NameKz:        in.NameKz,
@@ -383,8 +496,49 @@ func (h *ListingHandler) Create(c *gin.Context) {
 		Longitude:     in.Longitude,
 		PlaceID:       in.PlaceID,
 		Capacity:      in.Capacity,
+		PriceType:     priceType,
 	}
-	if err := h.DB.Create(&listing).Error; err != nil {
+}
+
+// CreateOwn — POST /api/provider/me/listings (auth only, no RequireAdmin).
+// Этап 11's self-serve "Добавить услугу": requires an existing Provider
+// profile (brief section 4 — "После сохранения provider profile
+// пользователь получает доступ к разделу «Мои услуги»") and, on success,
+// creates the matching ListingManager(role=owner) row in the same
+// transaction — reusing the exact ownership model restaurants/venues
+// already use (brief section 6), rather than a parallel Provider->Listing
+// FK. From that point on, PUT/DELETE /api/listings/:id (the existing
+// `manage` route group) already authorize this caller via
+// RequireListingAccess with zero new code.
+func (h *ListingHandler) CreateOwn(c *gin.Context) {
+	userID := currentUserID(c)
+
+	var provider models.Provider
+	if err := h.DB.Where("user_id = ?", userID).First(&provider).Error; err != nil {
+		c.JSON(http.StatusForbidden, gin.H{"error": "create a provider profile first"})
+		return
+	}
+
+	var in listingInput
+	if err := c.ShouldBindJSON(&in); err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
+		return
+	}
+	var category models.Category
+	if err := h.DB.First(&category, in.CategoryID).Error; err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{"error": "category not found"})
+		return
+	}
+
+	listing := listingFromInput(in)
+	err := h.DB.Transaction(func(tx *gorm.DB) error {
+		if err := tx.Create(&listing).Error; err != nil {
+			return err
+		}
+		manager := models.ListingManager{ListingID: listing.ID, UserID: userID, Role: models.ListingManagerRoleOwner}
+		return tx.Create(&manager).Error
+	})
+	if err != nil {
 		c.JSON(http.StatusInternalServerError, gin.H{"error": "failed to create listing"})
 		return
 	}
@@ -432,6 +586,12 @@ func (h *ListingHandler) Update(c *gin.Context) {
 	listing.Longitude = in.Longitude
 	listing.PlaceID = in.PlaceID
 	listing.Capacity = in.Capacity
+	if in.PriceType != "" {
+		listing.PriceType = in.PriceType
+	}
+	if in.IsActive != nil {
+		listing.IsActive = *in.IsActive
+	}
 
 	if err := h.DB.Save(&listing).Error; err != nil {
 		c.JSON(http.StatusInternalServerError, gin.H{"error": "failed to update listing"})
@@ -448,7 +608,21 @@ func (h *ListingHandler) Delete(c *gin.Context) {
 		return
 	}
 
-	if err := h.DB.Delete(&models.Listing{}, id).Error; err != nil {
+	// Этап 11E QA finding: ListingManager has a real GORM relation back to
+	// Listing (`Listing *Listing`, unlike ListingHall/ListingMenu's
+	// deliberately relation-less ListingID — see their own doc comments),
+	// so the DB has a real FK constraint here. Deleting a listing that
+	// still has any ListingManager row (every self-serve provider listing
+	// has one — see CreateOwn) used to 500 with a foreign-key violation.
+	// Owner rows are removed first, in the same transaction, so a failed
+	// listing delete never leaves a dangling manager row behind either.
+	err = h.DB.Transaction(func(tx *gorm.DB) error {
+		if err := tx.Where("listing_id = ?", id).Delete(&models.ListingManager{}).Error; err != nil {
+			return err
+		}
+		return tx.Delete(&models.Listing{}, id).Error
+	})
+	if err != nil {
 		c.JSON(http.StatusInternalServerError, gin.H{"error": "failed to delete listing"})
 		return
 	}

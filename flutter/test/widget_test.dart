@@ -5,7 +5,9 @@ import 'package:mereytoi_app/app.dart';
 import 'package:mereytoi_app/screens/splash/splash_screen.dart';
 
 void main() {
-  testWidgets('app boots to the splash screen without crashing', (tester) async {
+  testWidgets('app boots to the splash screen without crashing', (
+    tester,
+  ) async {
     await tester.pumpWidget(const ProviderScope(child: MereytoiApp()));
     await tester.pump();
 

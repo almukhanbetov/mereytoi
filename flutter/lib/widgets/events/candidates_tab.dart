@@ -62,6 +62,7 @@ class CandidatesTab extends ConsumerWidget {
                         locale,
                         ru: 'Пока ничего не добавлено',
                         kz: 'Әлі ештеңе қосылмаған',
+                        en: 'Nothing added yet',
                       ),
                       style: Theme.of(context).textTheme.bodyMedium,
                     ),
@@ -181,7 +182,8 @@ class _CandidateCardState extends ConsumerState<_CandidateCard> {
     final listing = candidate.listing;
 
     final title =
-        listing?.name(locale) ?? t(locale, ru: 'Услуга', kz: 'Қызмет');
+        listing?.name(locale) ??
+        t(locale, ru: 'Услуга', kz: 'Қызмет', en: 'Service');
     final hallName = candidate.hall?.name(locale) ?? candidate.hallName;
     final menuName = candidate.menu?.name(locale) ?? candidate.menuName;
     final price =
@@ -224,7 +226,7 @@ class _CandidateCardState extends ConsumerState<_CandidateCard> {
                     _MiniFact(menuName),
                   if (candidate.guests != null)
                     _MiniFact(
-                      '${candidate.guests} ${t(locale, ru: "гостей", kz: "қонақ")}',
+                      '${candidate.guests} ${t(locale, ru: "гостей", kz: "қонақ", en: "guests")}',
                     ),
                 ],
               ),
@@ -299,24 +301,39 @@ class _CandidateCardState extends ConsumerState<_CandidateCard> {
                 children: [
                   if (_canDecide && candidate.status != candidateSelected)
                     _ActionChip(
-                      label: t(locale, ru: 'Выбрать', kz: 'Таңдау'),
+                      label: t(
+                        locale,
+                        ru: 'Выбрать',
+                        kz: 'Таңдау',
+                        en: 'Select',
+                      ),
                       onTap: _busy ? null : () => _setStatus(candidateSelected),
                     ),
                   if (_canDecide && candidate.status != candidateRejected)
                     _ActionChip(
-                      label: t(locale, ru: 'Отклонить', kz: 'Қабылдамау'),
+                      label: t(
+                        locale,
+                        ru: 'Отклонить',
+                        kz: 'Қабылдамау',
+                        en: 'Decline',
+                      ),
                       onTap: _busy ? null : () => _setStatus(candidateRejected),
                     ),
                   if (_canDecide && candidate.status != candidateShortlisted)
                     _ActionChip(
-                      label: t(locale, ru: 'В шортлист', kz: 'Шортлистке'),
+                      label: t(
+                        locale,
+                        ru: 'В шортлист',
+                        kz: 'Шортлистке',
+                        en: 'To shortlist',
+                      ),
                       onTap: _busy
                           ? null
                           : () => _setStatus(candidateShortlisted),
                     ),
                   if (_canRemove)
                     _ActionChip(
-                      label: t(locale, ru: 'Удалить', kz: 'Жою'),
+                      label: t(locale, ru: 'Удалить', kz: 'Жою', en: 'Delete'),
                       destructive: true,
                       onTap: _busy ? null : _remove,
                     ),

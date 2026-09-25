@@ -113,7 +113,12 @@ class _CategoryPickerSheetState extends State<_CategoryPickerSheet> {
                     children: [
                       Expanded(
                         child: Text(
-                          t(widget.locale, ru: 'Категории', kz: 'Санаттар'),
+                          t(
+                            widget.locale,
+                            ru: 'Категории',
+                            kz: 'Санаттар',
+                            en: 'Categories',
+                          ),
                           style: Theme.of(context).textTheme.titleLarge,
                         ),
                       ),
@@ -144,6 +149,7 @@ class _CategoryPickerSheetState extends State<_CategoryPickerSheet> {
                           widget.locale,
                           ru: 'Поиск категории',
                           kz: 'Санатты іздеу',
+                          en: 'Search category',
                         ),
                         prefixIcon: Icon(
                           Icons.search_rounded,
@@ -166,6 +172,7 @@ class _CategoryPickerSheetState extends State<_CategoryPickerSheet> {
                               widget.locale,
                               ru: 'Ничего не найдено',
                               kz: 'Ештеңе табылмады',
+                              en: 'Nothing found',
                             ),
                             style: Theme.of(context).textTheme.bodyMedium,
                           ),
@@ -193,6 +200,7 @@ class _CategoryPickerSheetState extends State<_CategoryPickerSheet> {
                                   widget.locale,
                                   ru: 'Все услуги',
                                   kz: 'Барлық қызметтер',
+                                  en: 'All services',
                                 ),
                                 selected: widget.activeSlug == null,
                                 image: const _AllIcon(),
