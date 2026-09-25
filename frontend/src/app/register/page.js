@@ -76,7 +76,7 @@ function RegisterForm() {
 
         <p className="auth-card__switch">
           <T ru="Уже есть аккаунт?" kz="Аккаунтыңыз бар ма?" />{' '}
-          <Link href="/login"><T ru="Войти" kz="Кіру" /></Link>
+          <Link href={searchParams.get('next') ? `/login?next=${encodeURIComponent(next)}` : '/login'}><T ru="Войти" kz="Кіру" /></Link>
         </p>
       </form>
     </div>

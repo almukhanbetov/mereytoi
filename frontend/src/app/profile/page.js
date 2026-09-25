@@ -1,7 +1,7 @@
 'use client';
 
-import { useEffect, useState } from 'react';
-import { useRouter } from 'next/navigation';
+import { Suspense, useEffect, useState } from 'react';
+import { useRouter, useSearchParams } from 'next/navigation';
 import Link from 'next/link';
 import { useAuth } from '@/context/AuthContext';
 import { T, useLang } from '@/context/AppProviders';
@@ -21,12 +21,39 @@ function formatDate(iso) {
   return new Date(iso).toLocaleDateString('ru-RU', { day: '2-digit', month: '2-digit', year: 'numeric' });
 }
 
+const PROFILE_TABS = ['events', 'account', 'provider'];
+
+function tabFromParam(value) {
+  return PROFILE_TABS.includes(value) ? value : null;
+}
+
+// useSearchParams() needs a Suspense boundary (same as login/page.js).
 export default function ProfilePage() {
+  return (
+    <Suspense>
+      <ProfileContent />
+    </Suspense>
+  );
+}
+
+function ProfileContent() {
   const { user, loading, isAuthenticated, logout, updateProfile } = useAuth();
   const { lang } = useLang();
   const router = useRouter();
+  const searchParams = useSearchParams();
 
-  const [tab, setTab] = useState('events');
+  // ?tab=events|account|provider opens that tab directly (the header's
+  // "Стать услугодателем" CTA links to ?tab=provider); anything else keeps
+  // the default. The param is re-read whenever it changes, since clicking
+  // the CTA while already on /profile keeps this component mounted — done
+  // by adjusting state during render rather than in an effect.
+  const tabParam = tabFromParam(searchParams.get('tab'));
+  const [tab, setTab] = useState(tabParam || 'events');
+  const [lastTabParam, setLastTabParam] = useState(tabParam);
+  if (tabParam !== lastTabParam) {
+    setLastTabParam(tabParam);
+    if (tabParam) setTab(tabParam);
+  }
 
   const [events, setEvents] = useState([]);
   const [eventsLoading, setEventsLoading] = useState(true);

@@ -197,6 +197,8 @@ textarea:focus-visible,
 .nav__link:hover::after{ width:100%; }
 .nav__link.is-active{ color: var(--gold-light); }
 .nav__link.is-active::after{ width:100%; }
+/* "Стать услугодателем" — the one nav item that's a call to action. */
+.nav__link--cta{ color: var(--gold-light); white-space: nowrap; }
 
 .header__actions{ display:flex; align-items:center; gap:16px; }
 
@@ -226,7 +228,10 @@ textarea:focus-visible,
 .burger.is-open span:nth-child(2){ opacity:0; }
 .burger.is-open span:nth-child(3){ transform: translateY(-7px) rotate(-45deg); }
 
-@media (max-width: 980px){
+/* The burger/drawer nav starts at 1199px (was 980px): six nav items incl.
+   the "Стать услугодателем" CTA don't fit one row below 1200px — and the
+   five-item row already overflowed the header by up to ~80px at 981-1099px. */
+@media (max-width: 1199px){
   .nav{
     position: fixed; top:0; right:-100%; height:100vh; width: min(320px, 80%);
     background: var(--bg-alt); border-left:1px solid var(--border);
@@ -234,8 +239,13 @@ textarea:focus-visible,
   }
   .nav.is-open{ right:0; }
   .nav__list{ flex-direction:column; gap: 26px; }
-  .header__actions .btn--sm{ display:none; }
   .burger{ display:flex; }
+}
+@media (min-width: 1200px) and (max-width: 1279px){
+  .nav__list{ gap: 18px; }
+}
+@media (max-width: 980px){
+  .header__actions .btn--sm{ display:none; }
 }
 
 @media (max-width: 480px){
