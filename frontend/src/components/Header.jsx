@@ -17,6 +17,8 @@ const NAV_LINKS = [
   { href: '/#contacts', ru: 'Контакты', kz: 'Байланыс' },
 ];
 
+const PROVIDER_TAB_HREF = '/profile?tab=provider';
+
 const HEADER_WHATSAPP_MESSAGE = 'Здравствуйте! Хочу заказать проведение мероприятия в MEREYTOI.';
 const HEADER_WHATSAPP_LINK = `https://wa.me/${AGENCY_WHATSAPP_DIGITS}?text=${encodeURIComponent(HEADER_WHATSAPP_MESSAGE)}`;
 
@@ -66,6 +68,18 @@ export default function Header() {
                 </li>
               );
             })}
+            <li>
+              {/* The only entry point to provider sign-up (ProviderPanel,
+                  /profile's "Услугодатель" tab) — a guest goes through
+                  login first and lands back on that tab. */}
+              <Link
+                href={isAuthenticated ? PROVIDER_TAB_HREF : `/login?next=${encodeURIComponent(PROVIDER_TAB_HREF)}`}
+                className="nav__link nav__link--cta"
+                onClick={() => setNavOpen(false)}
+              >
+                <T ru="Стать услугодателем" kz="Қызмет көрсетуші болу" en="Become a provider" />
+              </Link>
+            </li>
           </ul>
         </nav>
 
