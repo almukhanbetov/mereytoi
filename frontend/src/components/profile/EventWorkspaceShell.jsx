@@ -26,7 +26,7 @@ const MOBILE_PRIMARY = ['overview', 'services', 'discussion', 'budget'];
 function WorkspaceSkeleton() {
   return (
     <section className="ws-hero">
-      <div className="container">
+      <div className="container container--app">
         <div className="ws-skeleton" style={{ height: 28, width: 260, marginBottom: 14 }} />
         <div className="ws-skeleton" style={{ height: 16, width: 380, marginBottom: 28 }} />
         <div className="ws-stats">
@@ -102,7 +102,7 @@ export default function EventWorkspaceShell({ eventId, children }) {
   if (state.status === 'error') {
     return (
       <section style={{ padding: '160px 0 100px' }}>
-        <div className="container">
+        <div className="container container--app">
           <div className="ws-empty">
             <span className="ws-empty__icon">🔒</span>
             <h2 className="ws-empty__title"><T ru="Мероприятие не найдено" kz="Іс-шара табылмады" /></h2>
@@ -124,7 +124,7 @@ export default function EventWorkspaceShell({ eventId, children }) {
   return (
     <EventWorkspaceProvider eventId={Number(eventId)} event={event} myRole={myRole} summary={null}>
       <section className="ws-hero">
-        <div className="container">
+        <div className="container container--app">
           <Link href="/profile" className="ws-hero__back">← <T ru="Мои мероприятия" kz="Менің іс-шараларым" /></Link>
           <h1 className="ws-hero__title">{eventTypeEmoji(event.type)} {event.title}</h1>
           <p className="ws-hero__meta">
@@ -135,7 +135,7 @@ export default function EventWorkspaceShell({ eventId, children }) {
         </div>
       </section>
 
-      <div className="container">
+      <div className="container container--app">
         <div className="ws-shell">
           <nav className="ws-sidebar">
             {TABS.map((tab) => (

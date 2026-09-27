@@ -77,7 +77,7 @@ export default function Header() {
                 className="nav__link nav__link--cta"
                 onClick={() => setNavOpen(false)}
               >
-                <T ru="Стать услугодателем" kz="Қызмет көрсетуші болу" en="Become a provider" />
+                <T ru="Стать услугодателем" kz="Қызмет көрсету" en="Become a provider" />
               </Link>
             </li>
           </ul>
