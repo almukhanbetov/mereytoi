@@ -124,14 +124,14 @@ function ProfileContent() {
       <section className="page-hero" style={{ padding: '150px 0 40px' }}>
         <div className="hero__blob hero__blob--1"></div>
         <div className="hero__blob hero__blob--2"></div>
-        <div className="container">
+        <div className="container container--app">
           <h1><T ru="Мой той" kz="Менің тойым" /></h1>
           <p><T ru="Ваше пространство для совместной организации мероприятий" kz="Іс-шараларды бірге ұйымдастыруға арналған кеңістігіңіз" /></p>
         </div>
       </section>
 
       <section style={{ padding: '0 0 120px' }}>
-        <div className="container">
+        <div className="container container--app">
           <div className="ws-tabs" role="tablist">
             <button
               type="button"
