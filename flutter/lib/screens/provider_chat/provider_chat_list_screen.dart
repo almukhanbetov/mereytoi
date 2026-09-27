@@ -79,10 +79,12 @@ class ProviderChatListScreen extends ConsumerWidget {
               padding: const EdgeInsets.all(AppSpacing.md),
               itemCount: summaries.length,
               separatorBuilder: (_, _) => const SizedBox(height: AppSpacing.xs),
-              itemBuilder: (context, i) => _ConversationRow(
+              itemBuilder: (context, i) => ProviderConversationRow(
                 summary: summaries[i],
                 myUserId: myUserId,
                 locale: locale,
+                // The thread just read changes its unread_count.
+                onReturn: () => ref.invalidate(providerConversationsProvider),
               ),
             ),
           );
@@ -92,16 +94,23 @@ class ProviderChatListScreen extends ConsumerWidget {
   }
 }
 
-class _ConversationRow extends StatelessWidget {
-  const _ConversationRow({
+/// One provider-chat conversation row — public so the global "Сообщения"
+/// hub renders exactly the same row as this screen, never a second copy.
+class ProviderConversationRow extends StatelessWidget {
+  const ProviderConversationRow({
+    super.key,
     required this.summary,
     required this.myUserId,
     required this.locale,
+    this.onReturn,
   });
 
   final ProviderConversationSummary summary;
   final int? myUserId;
   final AppLocale locale;
+
+  /// Called after the opened chat is popped (e.g. to refresh unread counts).
+  final VoidCallback? onReturn;
 
   @override
   Widget build(BuildContext context) {
@@ -118,19 +127,21 @@ class _ConversationRow extends StatelessWidget {
       borderRadius: BorderRadius.circular(AppRadius.lg),
       clipBehavior: Clip.antiAlias,
       child: InkWell(
-        onTap: () => Navigator.of(context).push(
-          MaterialPageRoute(
-            builder: (_) => ProviderChatScreen(
-              providerId: conv.providerId,
-              peerName: peerName,
-              peerAvatarUrl: peerAvatarUrl,
-              listingId: conv.listingId,
-              listingName: conv.listingName,
-              listingPrice: conv.listingPrice,
-              conversationId: conv.id,
-            ),
-          ),
-        ),
+        onTap: () => Navigator.of(context)
+            .push(
+              MaterialPageRoute(
+                builder: (_) => ProviderChatScreen(
+                  providerId: conv.providerId,
+                  peerName: peerName,
+                  peerAvatarUrl: peerAvatarUrl,
+                  listingId: conv.listingId,
+                  listingName: conv.listingName,
+                  listingPrice: conv.listingPrice,
+                  conversationId: conv.id,
+                ),
+              ),
+            )
+            .then((_) => onReturn?.call()),
         child: Padding(
           padding: const EdgeInsets.all(AppSpacing.sm),
           child: Row(
@@ -200,7 +211,10 @@ class _ConversationRow extends StatelessWidget {
               if (summary.unreadCount > 0) ...[
                 const SizedBox(width: AppSpacing.xs),
                 Container(
-                  padding: const EdgeInsets.symmetric(horizontal: 7, vertical: 3),
+                  padding: const EdgeInsets.symmetric(
+                    horizontal: 7,
+                    vertical: 3,
+                  ),
                   decoration: BoxDecoration(
                     color: context.mereytoiColors.goldPrimary,
                     borderRadius: BorderRadius.circular(AppRadius.chip),

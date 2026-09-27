@@ -12,6 +12,21 @@ class ManagerChatService {
 
   final ApiClient _client;
 
+  /// `GET /api/manager-chat` — every conversation the caller owns (the
+  /// backend scopes it to them), newest activity first, each with its
+  /// last message and unread manager-reply count.
+  Future<List<ManagerConversationSummary>> list() async {
+    final json = await _client.getJson('/api/manager-chat');
+    final raw = json['conversations'] as List? ?? const [];
+    return raw
+        .map(
+          (e) => ManagerConversationSummary.fromJson(
+            Map<String, dynamic>.from(e as Map),
+          ),
+        )
+        .toList();
+  }
+
   /// `POST /api/manager-chat/start` — finds-or-creates the one open
   /// conversation for (this user, event_id, listing_id) and, if `message`
   /// is non-empty, posts it. Safe to call repeatedly with the same

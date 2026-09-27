@@ -136,3 +136,12 @@ final managerChatProvider = StateNotifierProvider.autoDispose
     ) {
       return ManagerChatNotifier(ref, key);
     });
+
+/// The customer's own manager conversations (`GET /api/manager-chat`) —
+/// backs the "Сообщения" hub's "Менеджер MEREYTOI" section and its share
+/// of the chat-FAB badge. Re-fetched on re-entry/pull-to-refresh rather
+/// than polled, same as [providerConversationsProvider].
+final managerConversationsProvider =
+    FutureProvider.autoDispose<List<ManagerConversationSummary>>((ref) {
+      return ref.read(managerChatServiceProvider).list();
+    });
