@@ -840,6 +840,19 @@ section{ position:relative; padding: clamp(88px, 9vw, 150px) 0; }
   .form-row{ grid-template-columns: 1fr; }
 }
 
+/* Provider profile form (ProviderPanel) — scoped on purpose: .contacts__form
+   and .form-row are shared by ~20 forms (login, register, admin, home). */
+.provider-form-card{
+  width: min(100%, 820px);
+  padding: clamp(22px, 3vw, 40px);
+}
+.provider-form-card .form-row{ grid-template-columns: 1fr 1fr; gap: 18px; }
+.provider-form-card input[type="file"]{ width: 100%; }
+.provider-form-card__actions .btn{ padding-inline: 44px; }
+@media (max-width: 599px){
+  .provider-form-card .form-row{ grid-template-columns: 1fr; }
+}
+
 /* ============ Footer ============ */
 .footer{ padding: 50px 0; border-top: 1px solid var(--border); }
 .footer__inner{ display:flex; align-items:center; justify-content:space-between; flex-wrap:wrap; gap: 20px; }

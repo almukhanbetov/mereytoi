@@ -144,7 +144,7 @@ export default function ProviderPanel() {
       )}
 
       {editingProfile && (
-        <form className="contacts__form" onSubmit={handleProfileSubmit} style={{ maxWidth: 480 }}>
+        <form className="contacts__form provider-form-card" onSubmit={handleProfileSubmit}>
           <h2 className="admin-section-title" style={{ marginTop: 0 }}>
             {provider ? <T ru="Профиль услугодателя" kz="Қызмет көрсетуші профилі" /> : <T ru="Стать услугодателем" kz="Қызмет көрсетуші болу" />}
           </h2>
@@ -186,7 +186,7 @@ export default function ProviderPanel() {
 
           {profileError && <p className="admin-login__error">{profileError}</p>}
 
-          <div style={{ display: 'flex', gap: 14 }}>
+          <div className="provider-form-card__actions" style={{ display: 'flex', gap: 14 }}>
             <button type="submit" className="btn btn--gold" disabled={profileSaving || avatarUploading}>
               {profileSaving ? <T ru="Сохраняем…" kz="Сақталуда…" /> : <T ru="Сохранить" kz="Сақтау" />}
             </button>
