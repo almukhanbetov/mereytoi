@@ -2,6 +2,7 @@ package main
 
 import (
 	"log"
+	"os"
 	"time"
 
 	"github.com/gin-contrib/cors"
@@ -14,6 +15,11 @@ import (
 )
 
 func main() {
+	// One-off maintenance command, run by hand — see backfill.go.
+	if len(os.Args) > 1 && os.Args[1] == "backfill-posters" {
+		os.Exit(runBackfillPosters(os.Args[2:]))
+	}
+
 	cfg := config.Load()
 	database := db.Connect(cfg)
 	seed.Run(database)
