@@ -263,19 +263,22 @@ List<Widget> listingHeroSlivers({
               // else in this app) instead of pulling in a full video-
               // playback package for something that can't be verified on
               // a real device this session anyway.
-              if (listing.videoUrls.isNotEmpty) ...[
+              if (listing.videos.isNotEmpty) ...[
                 const SizedBox(height: AppSpacing.lg),
                 Text(
                   t(locale, ru: 'Видео', kz: 'Видео', en: 'Video'),
                   style: Theme.of(context).textTheme.titleMedium,
                 ),
                 const SizedBox(height: AppSpacing.sm),
-                for (final url in listing.videoUrls) ...[
+                for (final video in listing.videos) ...[
                   VideoPreviewCard(
-                    videoUrl: ApiConfig.mediaUrl(url),
+                    videoUrl: ApiConfig.mediaUrl(video.url),
+                    posterUrl: video.posterUrl == null
+                        ? null
+                        : ApiConfig.mediaUrl(video.posterUrl),
                     locale: locale,
                     onOpen: () => launchUrl(
-                      Uri.parse(ApiConfig.mediaUrl(url)),
+                      Uri.parse(ApiConfig.mediaUrl(video.url)),
                       mode: LaunchMode.externalApplication,
                     ),
                   ),

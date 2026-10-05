@@ -236,6 +236,70 @@ void main() {
     );
   });
 
+  group('Listing videos', () {
+    Listing parse(Map<String, dynamic> extra) => Listing.fromJson({
+      'id': 47,
+      'category_id': 5,
+      'name_ru': 'Музарт',
+      'name_kz': 'Музарт',
+      ...extra,
+    });
+
+    test('detail "videos": url + poster_url, video_urls kept as is', () {
+      final listing = parse({
+        'video_urls': ['/uploads/1.mp4', '/uploads/2.mp4'],
+        'videos': [
+          {'url': '/uploads/1.mp4', 'poster_url': '/uploads/posters/1.jpg'},
+          {'url': '/uploads/2.mp4', 'poster_url': null},
+        ],
+      });
+      expect(listing.videoUrls, ['/uploads/1.mp4', '/uploads/2.mp4']);
+      expect(listing.videos.map((v) => v.url), [
+        '/uploads/1.mp4',
+        '/uploads/2.mp4',
+      ]);
+      expect(listing.videos[0].posterUrl, '/uploads/posters/1.jpg');
+      expect(listing.videos[1].posterUrl, isNull);
+    });
+
+    test('older API (only video_urls): one video each, no posters', () {
+      final listing = parse({
+        'video_urls': ['/uploads/1.mp4', '/uploads/2.mp4'],
+      });
+      expect(listing.videos.map((v) => v.url), [
+        '/uploads/1.mp4',
+        '/uploads/2.mp4',
+      ]);
+      expect(listing.videos.every((v) => v.posterUrl == null), isTrue);
+    });
+
+    test('empty "videos" with video_urls falls back to video_urls', () {
+      final listing = parse({
+        'video_urls': ['/uploads/1.mp4'],
+        'videos': <dynamic>[],
+      });
+      expect(listing.videos.single.url, '/uploads/1.mp4');
+    });
+
+    test('malformed entries are dropped, empty poster_url is no poster', () {
+      final listing = parse({
+        'video_urls': ['/uploads/1.mp4'],
+        'videos': [
+          'not a map',
+          {'poster_url': '/uploads/posters/x.jpg'}, // no url
+          {'url': '/uploads/1.mp4', 'poster_url': ''},
+        ],
+      });
+      expect(listing.videos.single.url, '/uploads/1.mp4');
+      expect(listing.videos.single.posterUrl, isNull);
+    });
+
+    test('no videos at all → empty', () {
+      expect(parse({}).videos, isEmpty);
+      expect(parse({'video_urls': null, 'videos': null}).videos, isEmpty);
+    });
+  });
+
   group('SiteStatistics.fromJson', () {
     test(
       'parses GET /api/site-statistics — plain integers, no "+" baked in',

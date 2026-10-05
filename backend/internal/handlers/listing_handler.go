@@ -7,6 +7,7 @@ import (
 	"github.com/gin-gonic/gin"
 	"gorm.io/gorm"
 
+	"github.com/almukhanbetov/mereytoi/backend/internal/media"
 	"github.com/almukhanbetov/mereytoi/backend/internal/middleware"
 	"github.com/almukhanbetov/mereytoi/backend/internal/models"
 )
@@ -250,6 +251,10 @@ type listingDetailOut struct {
 	// redaction (no user_id) — the full contact shape, unlike listingOut's
 	// providerBrief (see loadListingProvider).
 	Provider *providerDetailOut `json:"provider,omitempty"`
+	// Videos — video_urls (unchanged, still there for older clients) again,
+	// each paired with its poster's URL, or null while that video has no
+	// poster yet. Computed from the files on disk, nothing stored.
+	Videos []media.Video `json:"videos"`
 }
 
 type menuOut struct {
@@ -342,7 +347,10 @@ func (h *ListingHandler) Get(c *gin.Context) {
 
 	halls, menus := loadListingTree(h.DB, listing.ID)
 	provider := loadListingProvider(h.DB, listing.ID)
-	c.JSON(http.StatusOK, gin.H{"listing": listingDetailOut{Listing: listing, Halls: halls, Menus: menus, Provider: provider}})
+	c.JSON(http.StatusOK, gin.H{"listing": listingDetailOut{
+		Listing: listing, Halls: halls, Menus: menus, Provider: provider,
+		Videos: media.VideosWithPosters(listing.VideoURLs, uploadsDir),
+	}})
 }
 
 // loadListingProvider — the single-listing counterpart to

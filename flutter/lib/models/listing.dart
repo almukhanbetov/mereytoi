@@ -47,6 +47,7 @@ class Listing {
     this.myRole,
     this.priceType,
     this.provider,
+    this._videos,
   });
 
   final int id;
@@ -67,6 +68,18 @@ class Listing {
   final String colorTo;
   final List<String> imageUrls;
   final List<String> videoUrls;
+
+  /// The detail endpoint's `videos` (each video with its server-made
+  /// poster); null when the response didn't carry it (the list endpoint, an
+  /// older backend).
+  final List<ListingVideo>? _videos;
+
+  /// What the UI renders: the API's `videos` when present, otherwise
+  /// `video_urls` with no posters (older backend) — `videoUrls` itself stays
+  /// the field written back on edit.
+  List<ListingVideo> get videos => _videos != null && _videos.isNotEmpty
+      ? _videos
+      : [for (final url in videoUrls) ListingVideo(url: url)];
   final bool isActive;
 
   // ---- Restaurant/venue location fields (Listing.Address/Latitude/
@@ -131,6 +144,11 @@ class Listing {
       videoUrls:
           (json['video_urls'] as List?)?.map((e) => e.toString()).toList() ??
           const [],
+      videos: (json['videos'] as List?)
+          ?.whereType<Map>()
+          .map((e) => ListingVideo.fromJson(Map<String, dynamic>.from(e)))
+          .where((v) => v.url.isNotEmpty)
+          .toList(),
       isActive: json['is_active'] as bool? ?? true,
       address: json['address'] as String?,
       latitude: (json['latitude'] as num?)?.toDouble(),
@@ -164,6 +182,25 @@ class Listing {
   /// `hasCoords` — both present, both real numbers. Never assumed from
   /// `address`/`placeId` alone (either can exist without the other).
   bool get hasCoords => latitude != null && longitude != null;
+}
+
+/// One entry of `GET /api/listings/:id`'s `videos`: the video URL (same
+/// value as in `video_urls`) and its poster image's URL, null until the
+/// backend has made one. Both relative (`/uploads/...`), like every other
+/// media URL — resolve with `ApiConfig.mediaUrl`.
+class ListingVideo {
+  const ListingVideo({required this.url, this.posterUrl});
+
+  final String url;
+  final String? posterUrl;
+
+  factory ListingVideo.fromJson(Map<String, dynamic> json) {
+    final poster = json['poster_url'];
+    return ListingVideo(
+      url: json['url']?.toString() ?? '',
+      posterUrl: poster is String && poster.isNotEmpty ? poster : null,
+    );
+  }
 }
 
 /// The small, display-only slice of a Provider a catalog card/detail page

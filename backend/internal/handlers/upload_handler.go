@@ -2,7 +2,9 @@ package handlers
 
 import (
 	"bytes"
+	"context"
 	"fmt"
+	"log"
 	"net/http"
 	"os"
 	"os/exec"
@@ -10,6 +12,7 @@ import (
 	"strings"
 	"time"
 
+	"github.com/almukhanbetov/mereytoi/backend/internal/media"
 	"github.com/gin-gonic/gin"
 )
 
@@ -78,6 +81,13 @@ func (h *UploadHandler) Upload(c *gin.Context) {
 	c.JSON(http.StatusOK, gin.H{"urls": urls})
 }
 
+// transcodeVideo and generateVideoPoster run the real ffmpeg; they're
+// variables only so tests can stand in for it.
+var (
+	transcodeVideo      = transcodeToH264
+	generateVideoPoster = media.GeneratePoster
+)
+
 // transcodeToH264 normalizes any input video to an H.264/AAC .mp4 so every
 // browser can play it — iPhone recordings default to HEVC (H.265), which
 // most browsers (Chrome on Linux/Windows/Android in particular) can't
@@ -144,10 +154,32 @@ func (h *UploadHandler) UploadVideo(c *gin.Context) {
 
 	name := fmt.Sprintf("%d.mp4", time.Now().UnixNano())
 	dest := filepath.Join(uploadsDir, name)
-	if err := transcodeToH264(srcPath, dest); err != nil {
+	if err := transcodeVideo(srcPath, dest); err != nil {
 		c.JSON(http.StatusInternalServerError, gin.H{"error": "failed to process video"})
 		return
 	}
 
+	makeVideoPoster(dest)
+
 	c.JSON(http.StatusOK, gin.H{"url": "/uploads/" + name})
+}
+
+// makeVideoPoster writes the poster for a freshly transcoded video
+// (uploads/posters/<name>.jpg). It only ever logs: a missing poster is
+// never a reason to fail or roll back an upload whose video is already
+// saved — a later backfill can still create it. Not tied to the request
+// context, so a client disconnecting right after the transcode doesn't
+// abort it; media's own timeout bounds it instead.
+func makeVideoPoster(videoPath string) {
+	posterPath := media.PosterPathFor(videoPath)
+	name := filepath.Base(videoPath)
+	created, err := generateVideoPoster(context.Background(), videoPath, posterPath)
+	switch {
+	case err != nil:
+		log.Printf("[video-poster] FAIL %s: %v", name, err)
+	case created:
+		log.Printf("[video-poster] CREATED %s", filepath.Base(posterPath))
+	default:
+		log.Printf("[video-poster] SKIP %s: poster already exists", filepath.Base(posterPath))
+	}
 }
