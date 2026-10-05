@@ -3,9 +3,11 @@ import 'package:flutter/material.dart';
 import '../../core/theme/app_theme.dart';
 import '../../domain/restaurant/restaurant_guest_bounds.dart';
 import '../../state/locale_provider.dart';
+import '../guest_slider.dart';
 import '../numeric_stepper_field.dart';
 
-/// Brief section 5 — guest count editor, bounds coming from [GuestBounds]
+/// Brief section 5 — guest count editor (stepper + slider on one value),
+/// bounds coming from [GuestBounds]
 /// (already resolved: menu's own min/max, falling back to the listing's,
 /// with no invented cap when genuinely absent). Этап 10Б-1: type the
 /// number directly, tap a quick value, or nudge by one — see
@@ -52,6 +54,18 @@ class GuestSelector extends StatelessWidget {
             kz: 'Қонақтарды жылдам таңдау',
             en: 'Quick guest picks',
           ),
+          onChanged: onChanged,
+        ),
+        // Same value, dragged — the web calculator's range slider. Its
+        // right end is the real max, or the web's own slider-only fallback
+        // when the menu/listing has none (the stepper above still allows
+        // more).
+        const SizedBox(height: AppSpacing.xs),
+        GuestSlider(
+          value: guests,
+          min: bounds.min,
+          max: GuestSlider.sliderMaxFor(min: bounds.min, max: bounds.max),
+          suffixLabel: t(locale, ru: 'чел.', kz: 'адам', en: 'guests'),
           onChanged: onChanged,
         ),
       ],

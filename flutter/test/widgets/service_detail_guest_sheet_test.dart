@@ -63,9 +63,9 @@ void main() {
       // own state starts there and nothing has changed it yet). Exact
       // match, not textContaining — the price-per-guest label above it
       // ("5 000 ₸ / чел.") also contains "чел.".
-      expect(find.text('1 чел.'), findsOneWidget);
+      expect(find.text('10 чел.'), findsOneWidget);
 
-      await tester.tap(find.text('1 чел.'));
+      await tester.tap(find.text('10 чел.'));
       await tester.pumpAndSettle();
 
       expect(find.text('Количество гостей'), findsOneWidget);
@@ -90,7 +90,7 @@ void main() {
       );
       await tester.pumpAndSettle();
 
-      await tester.tap(find.text('1 чел.'));
+      await tester.tap(find.text('10 чел.'));
       await tester.pumpAndSettle();
 
       await tester.enterText(find.byType(TextField), '20');

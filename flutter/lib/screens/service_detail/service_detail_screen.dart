@@ -14,6 +14,7 @@ import '../../widgets/app_error_view.dart';
 import '../../widgets/app_loader.dart';
 import '../../widgets/events/add_to_event_sheet.dart';
 import '../../widgets/listing_hero_header.dart';
+import '../../widgets/guest_slider.dart';
 import '../../widgets/numeric_stepper_field.dart';
 
 /// The mobile counterpart of frontend/src/components/services/ServiceDetail.jsx —
@@ -38,7 +39,11 @@ class ServiceDetailScreen extends ConsumerStatefulWidget {
 class _ServiceDetailScreenState extends ConsumerState<ServiceDetailScreen> {
   final _pageController = PageController();
   int _activeImage = 0;
-  int _guests = 1;
+
+  /// `null` until the user picks a count — the web's own start is the
+  /// listing's `min_guests` (ServiceDetail.jsx: `useState(min_guests || 1)`),
+  /// resolved below once the listing has loaded.
+  int? _guests;
 
   @override
   void dispose() {
@@ -90,7 +95,7 @@ class _ServiceDetailScreenState extends ConsumerState<ServiceDetailScreen> {
         data: (listing) => _StickyCta(
           listing: listing,
           locale: locale,
-          guests: _guests,
+          guests: _guests ?? (listing.minGuests > 0 ? listing.minGuests : 1),
           onGuestsChanged: (g) => setState(() => _guests = g),
         ),
         orElse: () => null,
@@ -390,7 +395,12 @@ class _GuestCountChip extends StatelessWidget {
   }
 }
 
-class _GuestCountSheet extends StatelessWidget {
+/// Holds the count it's editing itself: the sheet is opened once with the
+/// screen's value, and without its own state the stepper/slider inside it
+/// would keep reading that opening value (±1 never moving past it). Every
+/// change is still reported straight up via [onChanged], so the sticky
+/// bar's total behind the sheet updates live.
+class _GuestCountSheet extends StatefulWidget {
   const _GuestCountSheet({
     required this.guests,
     required this.min,
@@ -406,7 +416,21 @@ class _GuestCountSheet extends StatelessWidget {
   final ValueChanged<int> onChanged;
 
   @override
+  State<_GuestCountSheet> createState() => _GuestCountSheetState();
+}
+
+class _GuestCountSheetState extends State<_GuestCountSheet> {
+  late int _guests = widget.guests;
+
+  void _set(int next) {
+    if (next == _guests) return;
+    setState(() => _guests = next);
+    widget.onChanged(next);
+  }
+
+  @override
   Widget build(BuildContext context) {
+    final locale = widget.locale;
     return SafeArea(
       top: false,
       child: Padding(
@@ -442,9 +466,9 @@ class _GuestCountSheet extends StatelessWidget {
             ),
             const SizedBox(height: AppSpacing.sm),
             NumericStepperField(
-              value: guests,
-              min: min,
-              max: max,
+              value: _guests,
+              min: widget.min,
+              max: widget.max,
               suffixLabel: t(locale, ru: 'чел.', kz: 'адам', en: 'guests'),
               quickPickLabel: t(
                 locale,
@@ -452,7 +476,15 @@ class _GuestCountSheet extends StatelessWidget {
                 kz: 'Қонақтарды жылдам таңдау',
                 en: 'Quick guest picks',
               ),
-              onChanged: onChanged,
+              onChanged: _set,
+            ),
+            const SizedBox(height: AppSpacing.xs),
+            GuestSlider(
+              value: _guests,
+              min: widget.min,
+              max: GuestSlider.sliderMaxFor(min: widget.min, max: widget.max),
+              suffixLabel: t(locale, ru: 'чел.', kz: 'адам', en: 'guests'),
+              onChanged: _set,
             ),
             const SizedBox(height: AppSpacing.md),
             SizedBox(
