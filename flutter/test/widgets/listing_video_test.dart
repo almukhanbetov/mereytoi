@@ -4,18 +4,28 @@ import 'package:flutter_test/flutter_test.dart';
 import 'package:mereytoi_app/core/theme/app_theme.dart';
 import 'package:mereytoi_app/models/listing.dart';
 import 'package:mereytoi_app/screens/service_detail/service_detail_screen.dart';
+import 'package:mereytoi_app/services/video_thumbnail_service.dart';
 import 'package:mereytoi_app/state/listings_provider.dart';
+import 'package:mereytoi_app/widgets/video_preview_card.dart';
 
 /// Stage 7 finding: `Listing.videoUrls` was already parsed from
 /// GET /api/listings but nothing in the UI ever rendered it — a real
 /// parity gap against `ServiceDetail.jsx`'s own "Видео" section. Fixed by
-/// adding a "Смотреть видео" row (opens externally via `url_launcher`,
-/// same as every other outbound link in this app) to the shared
-/// `listingHeroSlivers`. These tests cover: the section actually appears
+/// adding one row per video (opens externally via `url_launcher`, same as
+/// every other outbound link in this app) to the shared
+/// `listingHeroSlivers` — since replaced by a 16:9 [VideoPreviewCard] per
+/// video (a real frame + play button, no "Смотреть видео" text). These tests cover: the section actually appears
 /// when a listing has videos, stays absent when it doesn't (no dead
 /// section for the common case), and neither renders with any overflow.
 Widget _wrap(Widget child) {
   return ProviderScope(
+    // No native thumbnail plugin under test — frames simply aren't
+    // available (the card's fallback), without a hanging platform call.
+    overrides: [
+      videoThumbnailCacheProvider.overrideWithValue(
+        VideoThumbnailCache((_) async => null),
+      ),
+    ],
     child: MaterialApp(theme: AppTheme.dark, home: child),
   );
 }
@@ -62,28 +72,30 @@ final _listingWithoutVideo = Listing(
 );
 
 void main() {
-  testWidgets(
-    'a listing with video_urls shows one "Смотреть видео" row per video',
-    (tester) async {
-      await tester.pumpWidget(
-        _wrap(
-          ProviderScope(
-            overrides: [
-              listingDetailProvider(
-                42,
-              ).overrideWith((ref) => Future.value(_listingWithVideo)),
-            ],
-            child: const ServiceDetailScreen(listingId: 42),
-          ),
+  testWidgets('a listing with video_urls shows one preview card per video', (
+    tester,
+  ) async {
+    await tester.pumpWidget(
+      _wrap(
+        ProviderScope(
+          overrides: [
+            listingDetailProvider(
+              42,
+            ).overrideWith((ref) => Future.value(_listingWithVideo)),
+          ],
+          child: const ServiceDetailScreen(listingId: 42),
         ),
-      );
-      await tester.pumpAndSettle();
+      ),
+    );
+    await tester.pumpAndSettle();
 
-      expect(find.text('Видео'), findsOneWidget);
-      expect(find.text('Смотреть видео'), findsNWidgets(2));
-      expect(tester.takeException(), isNull);
-    },
-  );
+    // Section title (a card whose frame can't load here also labels
+    // itself «Видео», hence findsWidgets rather than exactly one).
+    expect(find.text('Видео'), findsWidgets);
+    expect(find.byType(VideoPreviewCard), findsNWidgets(2));
+    expect(find.text('Смотреть видео'), findsNothing);
+    expect(tester.takeException(), isNull);
+  });
 
   testWidgets('a listing with no video_urls shows no video section at all', (
     tester,

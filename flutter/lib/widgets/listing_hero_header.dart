@@ -14,6 +14,7 @@ import 'manager_chat/ask_manager_button.dart';
 import 'network_image_box.dart';
 import 'photo_viewer_screen.dart';
 import 'provider_chat/message_provider_button.dart';
+import 'video_preview_card.dart';
 
 /// The shared "top of a listing detail page" — photo gallery hero, swipe
 /// gallery + thumbnail strip, category/title/rating/city/phone, and
@@ -268,10 +269,17 @@ List<Widget> listingHeroSlivers({
                   t(locale, ru: 'Видео', kz: 'Видео', en: 'Video'),
                   style: Theme.of(context).textTheme.titleMedium,
                 ),
-                const SizedBox(height: AppSpacing.xs),
+                const SizedBox(height: AppSpacing.sm),
                 for (final url in listing.videoUrls) ...[
-                  _VideoLinkTile(url: url, locale: locale),
-                  const SizedBox(height: AppSpacing.xs),
+                  VideoPreviewCard(
+                    videoUrl: ApiConfig.mediaUrl(url),
+                    locale: locale,
+                    onOpen: () => launchUrl(
+                      Uri.parse(ApiConfig.mediaUrl(url)),
+                      mode: LaunchMode.externalApplication,
+                    ),
+                  ),
+                  const SizedBox(height: AppSpacing.sm),
                 ],
               ],
             ],
@@ -495,9 +503,7 @@ class _ProviderBlock extends StatelessWidget {
                     contactUri,
                     mode: LaunchMode.externalApplication,
                   ),
-                  style: TextButton.styleFrom(
-                    minimumSize: const Size(0, 36),
-                  ),
+                  style: TextButton.styleFrom(minimumSize: const Size(0, 36)),
                   child: Text(
                     t(
                       locale,
@@ -510,65 +516,6 @@ class _ProviderBlock extends StatelessWidget {
             ],
           ),
         ],
-      ),
-    );
-  }
-}
-
-/// One row for a listing's video (brief section 2 — "видео"): a play icon
-/// + label that opens the file in the device's own video player/browser,
-/// same destination `ApiConfig.mediaUrl` already resolves images to.
-class _VideoLinkTile extends StatelessWidget {
-  const _VideoLinkTile({required this.url, required this.locale});
-
-  final String url;
-  final AppLocale locale;
-
-  @override
-  Widget build(BuildContext context) {
-    return Material(
-      color: context.mereytoiColors.surface,
-      borderRadius: BorderRadius.circular(AppRadius.md),
-      clipBehavior: Clip.antiAlias,
-      child: InkWell(
-        onTap: () => launchUrl(
-          Uri.parse(ApiConfig.mediaUrl(url)),
-          mode: LaunchMode.externalApplication,
-        ),
-        child: Padding(
-          padding: const EdgeInsets.symmetric(
-            horizontal: AppSpacing.sm,
-            vertical: AppSpacing.sm,
-          ),
-          child: Row(
-            children: [
-              AppIconBadge(
-                icon: Icons.play_arrow_rounded,
-                size: 40,
-                iconSize: 22,
-                background: context.mereytoiColors.surfaceSoft,
-                iconColor: context.mereytoiColors.goldPrimary,
-              ),
-              const SizedBox(width: AppSpacing.sm),
-              Expanded(
-                child: Text(
-                  t(
-                    locale,
-                    ru: 'Смотреть видео',
-                    kz: 'Видеоны көру',
-                    en: 'Watch video',
-                  ),
-                  style: Theme.of(context).textTheme.bodyLarge,
-                ),
-              ),
-              Icon(
-                Icons.open_in_new_rounded,
-                size: 16,
-                color: context.mereytoiColors.textSecondary,
-              ),
-            ],
-          ),
-        ),
       ),
     );
   }
