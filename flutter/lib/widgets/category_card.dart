@@ -40,6 +40,9 @@ class CategoryCard extends StatelessWidget {
                 borderRadius: 0,
                 fallbackIcon: Icons.auto_awesome,
               ),
+              // Legibility scrim: the top of the photo stays untouched, the
+              // bottom ~45% darkens progressively so the name reads on both
+              // light and dark photos without a heavy black band.
               DecoratedBox(
                 decoration: BoxDecoration(
                   gradient: LinearGradient(
@@ -47,23 +50,37 @@ class CategoryCard extends StatelessWidget {
                     end: Alignment.bottomCenter,
                     colors: [
                       Colors.transparent,
-                      Colors.black.withValues(alpha: 0.58),
+                      Colors.black.withValues(alpha: 0.25),
+                      Colors.black.withValues(alpha: 0.74),
                     ],
-                    stops: const [0.58, 1.0],
+                    stops: const [0.45, 0.68, 1.0],
                   ),
                 ),
               ),
               Positioned(
-                left: AppSpacing.sm,
-                right: AppSpacing.sm,
-                bottom: AppSpacing.sm,
+                left: 15,
+                right: 15,
+                bottom: 16,
                 child: Text(
                   category.name(locale),
                   maxLines: 2,
                   overflow: TextOverflow.ellipsis,
-                  style: Theme.of(
-                    context,
-                  ).textTheme.titleSmall?.copyWith(fontSize: 12.5),
+                  // Always light: the name sits on the photo's dark scrim in
+                  // both themes (the theme's titleSmall colour is dark in
+                  // light mode, which made it unreadable on photos).
+                  style: Theme.of(context).textTheme.titleSmall?.copyWith(
+                    fontSize: 13,
+                    fontWeight: FontWeight.w600,
+                    height: 1.18,
+                    color: Colors.white,
+                    shadows: [
+                      Shadow(
+                        color: Colors.black.withValues(alpha: 0.6),
+                        blurRadius: 8,
+                        offset: const Offset(0, 2),
+                      ),
+                    ],
+                  ),
                 ),
               ),
             ],
