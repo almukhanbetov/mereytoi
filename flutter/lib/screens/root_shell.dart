@@ -4,6 +4,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../state/cart_provider.dart';
 import '../state/locale_provider.dart';
 import '../widgets/app_bottom_nav.dart';
+import '../widgets/chat/chat_fab.dart';
 import 'cart/cart_screen.dart';
 import 'events/events_screen.dart';
 import 'home/home_screen.dart';
@@ -13,6 +14,10 @@ import 'services/services_screen.dart';
 /// screen can switch tabs programmatically, e.g. Home's "browse services"
 /// CTA jumping straight to the Услуги tab.
 final selectedTabProvider = StateProvider<int>((ref) => 0);
+
+/// Корзина's tab index — the global chat button is hidden there, since that
+/// tab ends in the checkout CTA it would otherwise sit on top of.
+const _cartTabIndex = 3;
 
 /// The persistent app shell: bottom navigation for Главная / Услуги /
 /// Мой той / Корзина. "Мой той" (Stage 4) rides as its own tab rather than
@@ -44,6 +49,10 @@ class RootShell extends ConsumerWidget {
           ],
         ),
       ),
+      // Global entry to «Сообщения» (manager + provider chats), floated
+      // above the bottom nav on the main tabs only — screens pushed on top
+      // (chats, checkout, service pages) are separate routes without it.
+      floatingActionButton: index == _cartTabIndex ? null : const ChatFab(),
       bottomNavigationBar: AppBottomNav(
         currentIndex: index,
         onTap: (i) => ref.read(selectedTabProvider.notifier).state = i,

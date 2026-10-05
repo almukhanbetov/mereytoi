@@ -377,6 +377,7 @@ func Register(r *gin.Engine, database *gorm.DB, cfg config.Config, mailSvc ...*m
 		managerChat := api.Group("/manager-chat")
 		managerChat.Use(middleware.RequireAuth(cfg.JWTSecret))
 		{
+			managerChat.GET("", managerChatHandler.List)
 			managerChat.POST("/start", managerChatHandler.Start)
 			managerChat.GET("/:id", managerChatHandler.Get)
 			managerChat.POST("/:id/messages", managerChatHandler.AddMessage)

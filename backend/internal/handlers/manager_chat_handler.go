@@ -247,6 +247,47 @@ type conversationSummary struct {
 	UnreadCount int64                  `json:"unread_count"`
 }
 
+// List — GET /api/manager-chat (auth only). Every conversation the caller
+// owns (never anyone else's — scoped by user_id = caller, same ownership
+// rule respondDetail enforces), newest activity first, with the same
+// per-row preview AdminList gives managers: last message + unread count —
+// here counting the *manager's* unread replies, since that's what the
+// customer hasn't seen. Backs the Flutter "Сообщения" hub (the customer
+// otherwise had no way to reach a thread started from a service/event
+// page, or to know a reply was waiting there).
+func (h *ManagerChatHandler) List(c *gin.Context) {
+	userID := currentUserID(c)
+
+	var convs []models.ManagerConversation
+	if err := h.DB.Preload("Event").Preload("Listing").
+		Where("user_id = ?", userID).
+		Order("updated_at desc").Find(&convs).Error; err != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{"error": "failed to fetch conversations"})
+		return
+	}
+
+	c.JSON(http.StatusOK, gin.H{"conversations": h.summarize(convs, models.SenderManager)})
+}
+
+// summarize adds last_message/unread_count to each conversation; unread
+// counts messages from [unreadFrom] (the side the viewer hasn't read).
+func (h *ManagerChatHandler) summarize(convs []models.ManagerConversation, unreadFrom string) []conversationSummary {
+	out := make([]conversationSummary, 0, len(convs))
+	for _, conv := range convs {
+		var last models.ManagerMessage
+		var lastPtr *models.ManagerMessage
+		if h.DB.Where("conversation_id = ?", conv.ID).Order("created_at desc").First(&last).Error == nil {
+			lastPtr = &last
+		}
+		var unread int64
+		h.DB.Model(&models.ManagerMessage{}).
+			Where("conversation_id = ? AND sender_type = ? AND read_at IS NULL", conv.ID, unreadFrom).
+			Count(&unread)
+		out = append(out, conversationSummary{ManagerConversation: conv, LastMessage: lastPtr, UnreadCount: unread})
+	}
+	return out
+}
+
 // AdminList — GET /api/admin/manager-chat?status=open. Deliberately not a
 // CRM: name, event, service, last message, unread, time, status — exactly
 // the brief's own list of what a manager needs, nothing more.
@@ -262,20 +303,7 @@ func (h *ManagerChatHandler) AdminList(c *gin.Context) {
 		return
 	}
 
-	out := make([]conversationSummary, 0, len(convs))
-	for _, conv := range convs {
-		var last models.ManagerMessage
-		var lastPtr *models.ManagerMessage
-		if h.DB.Where("conversation_id = ?", conv.ID).Order("created_at desc").First(&last).Error == nil {
-			lastPtr = &last
-		}
-		var unread int64
-		h.DB.Model(&models.ManagerMessage{}).
-			Where("conversation_id = ? AND sender_type = ? AND read_at IS NULL", conv.ID, models.SenderUser).
-			Count(&unread)
-		out = append(out, conversationSummary{ManagerConversation: conv, LastMessage: lastPtr, UnreadCount: unread})
-	}
-	c.JSON(http.StatusOK, gin.H{"conversations": out})
+	c.JSON(http.StatusOK, gin.H{"conversations": h.summarize(convs, models.SenderUser)})
 }
 
 type updateConversationStatusInput struct {

@@ -9,6 +9,7 @@ import '../../core/utils/listing_navigation.dart';
 import '../../state/categories_provider.dart';
 import '../../state/listings_provider.dart';
 import '../../state/locale_provider.dart';
+import '../../widgets/chat/chat_fab.dart';
 import '../../widgets/app_back_button.dart';
 import '../../widgets/app_error_view.dart';
 import '../../widgets/app_icon_badge.dart';
@@ -173,11 +174,12 @@ class _ServicesScreenState extends ConsumerState<ServicesScreen> {
                   );
                 }
                 return ListView.separated(
+                  // Bottom: room to scroll the last card clear of the chat button.
                   padding: const EdgeInsets.fromLTRB(
                     AppSpacing.lg,
                     0,
                     AppSpacing.lg,
-                    AppSpacing.xl,
+                    kChatFabClearance,
                   ),
                   itemCount: filtered.length,
                   separatorBuilder: (_, _) =>

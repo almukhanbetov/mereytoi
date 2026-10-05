@@ -12,6 +12,7 @@ import '../../state/locale_provider.dart';
 import '../../state/notification_providers.dart';
 import '../../state/statistics_provider.dart';
 import '../../state/theme_provider.dart';
+import '../../widgets/chat/chat_fab.dart';
 import '../../widgets/app_card.dart';
 import '../../widgets/app_error_view.dart';
 import '../../widgets/app_skeleton.dart';
@@ -103,7 +104,10 @@ class HomeScreen extends ConsumerWidget {
                 ),
               ),
             ),
-            const SliverToBoxAdapter(child: SizedBox(height: AppSpacing.xxl)),
+            // Room for the last section to scroll clear of the chat button.
+            const SliverToBoxAdapter(
+              child: SizedBox(height: kChatFabClearance),
+            ),
           ],
         ),
       ),

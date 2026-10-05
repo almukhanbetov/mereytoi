@@ -63,3 +63,36 @@ class ManagerConversation {
     );
   }
 }
+
+/// One row of the customer's own `GET /api/manager-chat` list — the
+/// conversation (with its event/service context) plus the backend's
+/// cheap preview: the last message and how many manager replies are
+/// still unread. Same flattened JSON shape as [ProviderConversationSummary]
+/// (the backend embeds the conversation's own fields at the top level).
+class ManagerConversationSummary {
+  const ManagerConversationSummary({
+    required this.conversation,
+    this.lastMessageBody,
+    this.lastMessageAt,
+    required this.unreadCount,
+  });
+
+  final ManagerConversation conversation;
+  final String? lastMessageBody;
+  final DateTime? lastMessageAt;
+  final int unreadCount;
+
+  factory ManagerConversationSummary.fromJson(Map<String, dynamic> json) {
+    final last = json['last_message'] is Map
+        ? Map<String, dynamic>.from(json['last_message'] as Map)
+        : null;
+    return ManagerConversationSummary(
+      conversation: ManagerConversation.fromJson(json),
+      lastMessageBody: last?['body'] as String?,
+      lastMessageAt: last?['created_at'] != null
+          ? DateTime.tryParse(last!['created_at'] as String)
+          : null,
+      unreadCount: (json['unread_count'] as num?)?.toInt() ?? 0,
+    );
+  }
+}
