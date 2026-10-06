@@ -5,8 +5,10 @@ import '../../core/theme/app_theme.dart';
 import '../../core/utils/error_messages.dart';
 import '../../state/auth_provider.dart';
 import '../../state/locale_provider.dart';
+import '../../state/password_reset_provider.dart';
 import '../../widgets/app_password_field.dart';
 import '../../widgets/claim/claim_entry_sheet.dart';
+import 'forgot_password_screen.dart';
 import 'register_screen.dart';
 
 /// POST /api/auth/login — one "identifier" field (email or phone, same as
@@ -46,9 +48,30 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
         );
   }
 
+  /// "Forgot password?" — on success the flow hands back the phone it
+  /// reset, which goes into the identifier field (password left empty:
+  /// signing in stays the user's own step).
+  Future<void> _openForgotPassword() async {
+    final typed = _identifierController.text.trim();
+    final phone = await Navigator.of(context).push<String>(
+      MaterialPageRoute(
+        builder: (_) => ForgotPasswordScreen(
+          initialPhone: typed.contains('@') ? '' : typed,
+        ),
+      ),
+    );
+    if (!mounted || phone == null || phone.isEmpty) return;
+    _identifierController.text = phone;
+    _passwordController.clear();
+  }
+
   @override
   Widget build(BuildContext context) {
     final locale = ref.watch(localeProvider);
+    // Hidden until the backend says codes can be delivered; a failed
+    // check just keeps it hidden.
+    final resetAvailable =
+        ref.watch(passwordResetAvailableProvider).valueOrNull ?? false;
 
     // Closes this screen the moment a session actually exists — whether
     // it came from *this* form or (in principle) from something else
@@ -155,6 +178,22 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
                         )
                       : null,
                 ),
+                if (resetAvailable)
+                  Align(
+                    alignment: Alignment.centerRight,
+                    child: TextButton(
+                      key: const ValueKey('forgot-password-link'),
+                      onPressed: submitting ? null : _openForgotPassword,
+                      child: Text(
+                        t(
+                          locale,
+                          ru: 'Забыли пароль?',
+                          kz: 'Құпиясөзді ұмыттыңыз ба?',
+                          en: 'Forgot password?',
+                        ),
+                      ),
+                    ),
+                  ),
                 if (submitError != null) ...[
                   const SizedBox(height: AppSpacing.xs),
                   Text(

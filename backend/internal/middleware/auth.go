@@ -11,6 +11,40 @@ import (
 const ContextUserIDKey = "userID"
 const ContextUserRoleKey = "userRole"
 
+const contextSessionValidatorKey = "sessionValidator"
+
+// SessionValidator reports whether a signature-valid token for userID,
+// issued at issuedAt (Unix seconds, the JWT "iat"), may still be used —
+// false once the user's password has changed since (see
+// handlers.PasswordSessionValidator).
+type SessionValidator func(userID uint, issuedAt int64) bool
+
+// WithSessionValidator makes v available to RequireAuth/OptionalAuth for
+// every route below it. Installed once on the /api group, so none of the
+// individual RequireAuth call sites need to know about it; without it
+// (e.g. a test building a bare route), tokens are only signature-checked,
+// exactly as before.
+func WithSessionValidator(v SessionValidator) gin.HandlerFunc {
+	return func(c *gin.Context) {
+		c.Set(contextSessionValidatorKey, v)
+		c.Next()
+	}
+}
+
+// sessionStillValid applies the installed SessionValidator, if any.
+func sessionStillValid(c *gin.Context, userID uint, claims jwt.MapClaims) bool {
+	v, ok := c.Get(contextSessionValidatorKey)
+	if !ok {
+		return true
+	}
+	validate, ok := v.(SessionValidator)
+	if !ok || validate == nil {
+		return true
+	}
+	iat, _ := claims["iat"].(float64)
+	return validate(userID, int64(iat))
+}
+
 // RequireAuth validates the Bearer JWT and stores the user id/role in the
 // request context for downstream handlers.
 func RequireAuth(secret string) gin.HandlerFunc {
@@ -33,6 +67,10 @@ func RequireAuth(secret string) gin.HandlerFunc {
 
 		userID, _ := claims["sub"].(float64)
 		role, _ := claims["role"].(string)
+		if !sessionStillValid(c, uint(userID), claims) {
+			c.AbortWithStatusJSON(http.StatusUnauthorized, gin.H{"error": "session_expired"})
+			return
+		}
 		c.Set(ContextUserIDKey, uint(userID))
 		c.Set(ContextUserRoleKey, role)
 		c.Next()
@@ -55,11 +93,15 @@ func OptionalAuth(secret string) gin.HandlerFunc {
 		token, err := jwt.ParseWithClaims(tokenString, claims, func(t *jwt.Token) (interface{}, error) {
 			return []byte(secret), nil
 		})
+		// A token retired by a password change is treated like no token
+		// at all: the request carries on as a guest.
 		if err == nil && token.Valid {
 			userID, _ := claims["sub"].(float64)
 			role, _ := claims["role"].(string)
-			c.Set(ContextUserIDKey, uint(userID))
-			c.Set(ContextUserRoleKey, role)
+			if sessionStillValid(c, uint(userID), claims) {
+				c.Set(ContextUserIDKey, uint(userID))
+				c.Set(ContextUserRoleKey, role)
+			}
 		}
 		c.Next()
 	}

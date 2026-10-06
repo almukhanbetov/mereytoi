@@ -13,6 +13,7 @@ import (
 	"github.com/almukhanbetov/mereytoi/backend/internal/claimdelivery"
 	"github.com/almukhanbetov/mereytoi/backend/internal/middleware"
 	"github.com/almukhanbetov/mereytoi/backend/internal/models"
+	"github.com/almukhanbetov/mereytoi/backend/internal/passwordreset"
 )
 
 func normalizePhone(phone string) string {
@@ -108,6 +109,42 @@ func (h *AuthHandler) Register(c *gin.Context) {
 	c.JSON(http.StatusCreated, gin.H{"user": user, "token": token})
 }
 
+// findLoginUserByPhone resolves a phone typed at login to exactly one
+// active account, or none. Every spelling of a Kazakhstani mobile that
+// strongNormalizePhone treats as the same number ("+7 700 000 01 01",
+// "87000000101", …) finds the account by phone_normalized — the same key
+// password reset uses.
+//
+// Legacy fallback, deliberately narrow: an active account whose
+// phone_normalized is still empty (rows from before that column, and
+// non-Kazakhstani numbers, which never get one) is also a candidate — but
+// only on an exact match of its stored phone with the typed one, spaces
+// removed. That is precisely the lookup login always did, so nobody who
+// could sign in before is locked out, and nothing looser is matched.
+//
+// Both kinds of match are counted together: unless there is exactly one
+// candidate, nobody is signed in (the caller answers with the same 401 as
+// for a wrong password) — an ambiguous number never picks an account.
+func findLoginUserByPhone(db *gorm.DB, input string) (models.User, bool) {
+	normalized := strongNormalizePhone(input)
+	raw := normalizePhone(input)
+
+	q := db.Where("status = ?", models.UserStatusActive)
+	switch {
+	case normalized != "":
+		q = q.Where("phone_normalized = ? OR (phone_normalized = '' AND phone = ?)", normalized, raw)
+	case raw != "":
+		q = q.Where("phone_normalized = '' AND phone = ?", raw)
+	default:
+		return models.User{}, false
+	}
+	var users []models.User
+	if err := q.Limit(2).Find(&users).Error; err != nil || len(users) != 1 {
+		return models.User{}, false
+	}
+	return users[0], true
+}
+
 func (h *AuthHandler) Login(c *gin.Context) {
 	var in loginInput
 	if err := c.ShouldBindJSON(&in); err != nil {
@@ -123,15 +160,18 @@ func (h *AuthHandler) Login(c *gin.Context) {
 	}
 
 	var user models.User
-	var err error
 	if email != "" {
-		err = h.DB.Where("email = ?", email).First(&user).Error
+		if err := h.DB.Where("email = ?", email).First(&user).Error; err != nil {
+			c.JSON(http.StatusUnauthorized, gin.H{"error": "invalid credentials"})
+			return
+		}
 	} else {
-		err = h.DB.Where("phone = ?", phone).First(&user).Error
-	}
-	if err != nil {
-		c.JSON(http.StatusUnauthorized, gin.H{"error": "invalid credentials"})
-		return
+		found, ok := findLoginUserByPhone(passwordreset.RedactedDB(h.DB), in.Phone)
+		if !ok {
+			c.JSON(http.StatusUnauthorized, gin.H{"error": "invalid credentials"})
+			return
+		}
+		user = found
 	}
 
 	if err := bcrypt.CompareHashAndPassword([]byte(user.PasswordHash), []byte(in.Password)); err != nil {
@@ -328,6 +368,13 @@ func (h *AuthHandler) UpdateDeliveryPreference(c *gin.Context) {
 }
 
 func (h *AuthHandler) issueToken(user models.User) (string, error) {
+	return issueJWT(h.JWTSecret, user)
+}
+
+// issueJWT is the one place a session token is minted. "iat" (whole Unix
+// seconds) is what middleware.RequireAuth compares against
+// users.password_changed_at.
+func issueJWT(secret string, user models.User) (string, error) {
 	claims := jwt.MapClaims{
 		"sub":  user.ID,
 		"role": user.Role,
@@ -335,5 +382,5 @@ func (h *AuthHandler) issueToken(user models.User) (string, error) {
 		"iat":  time.Now().Unix(),
 	}
 	token := jwt.NewWithClaims(jwt.SigningMethodHS256, claims)
-	return token.SignedString([]byte(h.JWTSecret))
+	return token.SignedString([]byte(secret))
 }

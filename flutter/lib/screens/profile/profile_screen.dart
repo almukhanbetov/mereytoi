@@ -19,6 +19,7 @@ import '../../widgets/theme_mode_sheet.dart';
 import '../events/event_workspace_screen.dart';
 import '../manager_chat/manager_chat_screen.dart';
 import '../provider_chat/provider_chat_list_screen.dart';
+import 'change_password_screen.dart';
 import 'provider/my_services_screen.dart';
 import 'provider/widgets/provider_profile_form_sheet.dart';
 import 'restaurant_admin/restaurant_admin_list_screen.dart';
@@ -379,6 +380,55 @@ class _ProfileBodyState extends ConsumerState<_ProfileBody>
         ),
         const SizedBox(height: AppSpacing.lg),
 
+        // ---- Безопасность — change password (with the current one, or a
+        // code to the profile phone). Active accounts only: a pending
+        // (onboarding) account has no password of its own to change. ----
+        if (user.status == 'active') ...[
+          _SectionTitle(
+            t(locale, ru: 'Безопасность', kz: 'Қауіпсіздік', en: 'Security'),
+          ),
+          AppCard(
+            padding: EdgeInsets.zero,
+            child: InkWell(
+              key: const ValueKey('profile-change-password'),
+              borderRadius: BorderRadius.circular(AppRadius.lg),
+              onTap: () => Navigator.of(context).push(
+                MaterialPageRoute(builder: (_) => const ChangePasswordScreen()),
+              ),
+              child: Padding(
+                padding: const EdgeInsets.all(AppSpacing.md),
+                child: Row(
+                  children: [
+                    Icon(
+                      Icons.lock_outline_rounded,
+                      size: 18,
+                      color: context.mereytoiColors.textSecondary,
+                    ),
+                    const SizedBox(width: AppSpacing.xs),
+                    Expanded(
+                      child: Text(
+                        t(
+                          locale,
+                          ru: 'Изменить пароль',
+                          kz: 'Құпиясөзді өзгерту',
+                          en: 'Change password',
+                        ),
+                        style: Theme.of(context).textTheme.bodyLarge,
+                      ),
+                    ),
+                    Icon(
+                      Icons.chevron_right_rounded,
+                      size: 18,
+                      color: context.mereytoiColors.textMuted,
+                    ),
+                  ],
+                ),
+              ),
+            ),
+          ),
+          const SizedBox(height: AppSpacing.lg),
+        ],
+
         // ---- Поддержка — Этап 10Б-53: the only entry point into Manager
         // Chat that doesn't depend on already being on a specific
         // service/restaurant page (those get their own context-aware
@@ -521,8 +571,9 @@ class _ProfileBodyState extends ConsumerState<_ProfileBody>
                 orElse: () => const <int>{},
               );
               final hasOwn = myListingsAsync.maybeWhen(
-                data: (listings) =>
-                    listings.any((l) => venueCategoryIds.contains(l.categoryId)),
+                data: (listings) => listings.any(
+                  (l) => venueCategoryIds.contains(l.categoryId),
+                ),
                 orElse: () => false,
               );
               if (!hasOwn) return const SizedBox.shrink();

@@ -49,6 +49,11 @@ type User struct {
 	// ClaimDeliveryPrimary-driven default, WhatsApp first).
 	TelegramChatID           string `gorm:"size:32" json:"-"`
 	PreferredDeliveryChannel string `gorm:"size:16" json:"-"`
+	// PasswordChangedAt — set whenever the password is reset or changed
+	// (internal/passwordreset); NULL for an account whose password never
+	// has been. Every JWT issued before it (by iat, whole seconds) is
+	// rejected by middleware.RequireAuth — see SessionValidator.
+	PasswordChangedAt *time.Time `json:"-"`
 }
 
 const (
