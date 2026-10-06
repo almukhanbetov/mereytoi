@@ -26,6 +26,9 @@ typedef TelegramLinkResult = ({bool configured, String? linkUrl});
 ///   POST /api/auth/claim/resend  {phone}         -> {message} (neutral, never reveals account existence)
 ///   PUT  /api/users/me/delivery-preference {channel: whatsapp|telegram} -> {preferred_delivery_channel}
 ///   POST /api/users/me/telegram/link-token       -> {configured, link_url?}
+///   GET  /api/auth/password/config               -> {reset_available}
+///   POST /api/auth/password/forgot {phone, lang} -> {message, resend_after} (neutral, never reveals account existence)
+///   POST /api/auth/password/reset  {phone, code, new_password} -> {message}
 class AuthService {
   AuthService(this._client);
 
@@ -128,6 +131,42 @@ class AuthService {
       configured: json['configured'] as bool? ?? false,
       linkUrl: json['link_url'] as String?,
     );
+  }
+
+  /// `GET /api/auth/password/config` — whether reset codes can actually be
+  /// delivered right now (the app hides "Forgot password?" otherwise).
+  Future<bool> fetchPasswordResetConfig() async {
+    final json = await _client.getJson('/api/auth/password/config');
+    return json['reset_available'] == true;
+  }
+
+  /// `POST /api/auth/password/forgot` — the same neutral answer whether or
+  /// not the number has an account; returns how many seconds to wait before
+  /// offering a resend.
+  Future<int> requestPasswordReset({
+    required String phone,
+    required String lang,
+  }) async {
+    final json = await _client.postJson('/api/auth/password/forgot', {
+      'phone': phone,
+      'lang': lang,
+    });
+    return json['resend_after'] as int? ?? 60;
+  }
+
+  /// `POST /api/auth/password/reset` — the code and the new password
+  /// together (the backend checks both in one step). No session comes back:
+  /// the user signs in with the new password.
+  Future<void> resetPassword({
+    required String phone,
+    required String code,
+    required String newPassword,
+  }) {
+    return _client.postJson('/api/auth/password/reset', {
+      'phone': phone,
+      'code': code,
+      'new_password': newPassword,
+    });
   }
 
   AuthResult _authResultFromJson(Map<String, dynamic> json) {
