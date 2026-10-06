@@ -168,6 +168,26 @@ class AuthNotifier extends StateNotifier<AuthState> {
   /// Telegram app (linking happens async, via the bot's own webhook, so
   /// this is how the profile screen picks up `telegram_linked` flipping
   /// to `true` once the user has actually pressed Start in the bot).
+  /// Changes the password (with the current one or a code) and swaps in
+  /// the session token the backend issues with it — the old one stops
+  /// working the moment the password changes. Stored exactly like a login's
+  /// token, before anything else can use the stale one; the user stays
+  /// signed in, no logout.
+  Future<void> changePassword({
+    String? currentPassword,
+    String? code,
+    required String newPassword,
+  }) async {
+    final token = await _authService.changePassword(
+      currentPassword: currentPassword,
+      code: code,
+      newPassword: newPassword,
+    );
+    if (token.isNotEmpty) {
+      await TokenStorage.instance.saveToken(token);
+    }
+  }
+
   Future<void> refreshMe() async {
     final user = await _authService.fetchMe();
     state = AuthAuthenticated(user);

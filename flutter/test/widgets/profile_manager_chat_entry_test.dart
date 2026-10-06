@@ -92,6 +92,8 @@ void main() {
       await tester.pumpAndSettle();
 
       final entry = find.text('Написать менеджеру');
+      // The profile is a lazy list; scroll to the row like a user would.
+      await tester.scrollUntilVisible(entry, 200);
       expect(entry, findsOneWidget);
 
       await tester.tap(entry);

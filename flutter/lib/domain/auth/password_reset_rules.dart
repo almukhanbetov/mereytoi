@@ -36,14 +36,32 @@ NewPasswordProblem? newPasswordProblem(String password, String repeat) {
   return null;
 }
 
-/// How a reset call failed, from the user's point of view.
-enum PasswordResetFailure { invalidCode, weakPassword, tooManyRequests, other }
+/// How a reset/change call failed, from the user's point of view.
+enum PasswordResetFailure {
+  invalidCode,
+  weakPassword,
+  tooManyRequests,
+
+  /// Change password (signed in): the current password was wrong.
+  wrongCurrentPassword,
+
+  /// Change password by code: the account has no usable phone.
+  phoneMissing,
+
+  /// Change password by code: codes can't be delivered right now.
+  deliveryUnavailable,
+  other,
+}
 
 /// Reads the backend's error codes off an [ApiException] (a 400's
 /// `{"error": ...}` lands in `debugMessage`; see ApiClient._mapError).
 PasswordResetFailure passwordResetFailureOf(Object error) {
   if (error is! ApiException) return PasswordResetFailure.other;
   if (error.statusCode == 429) return PasswordResetFailure.tooManyRequests;
+  if (error.statusCode == 503) return PasswordResetFailure.deliveryUnavailable;
+  if (error.statusCode == 409 && error.debugMessage == 'phone_missing') {
+    return PasswordResetFailure.phoneMissing;
+  }
   if (error.statusCode == 400) {
     switch (error.debugMessage) {
       case 'invalid_code':
@@ -51,6 +69,8 @@ PasswordResetFailure passwordResetFailureOf(Object error) {
       case 'weak_password':
       case 'password_too_long':
         return PasswordResetFailure.weakPassword;
+      case 'wrong_current_password':
+        return PasswordResetFailure.wrongCurrentPassword;
     }
   }
   return PasswordResetFailure.other;

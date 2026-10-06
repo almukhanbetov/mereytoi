@@ -29,6 +29,8 @@ typedef TelegramLinkResult = ({bool configured, String? linkUrl});
 ///   GET  /api/auth/password/config               -> {reset_available}
 ///   POST /api/auth/password/forgot {phone, lang} -> {message, resend_after} (neutral, never reveals account existence)
 ///   POST /api/auth/password/reset  {phone, code, new_password} -> {message}
+///   POST /api/users/me/password/code {lang}      -> {resend_after, phone_hint}
+///   PUT  /api/users/me/password {current_password | code, new_password} -> {message, token}
 class AuthService {
   AuthService(this._client);
 
@@ -167,6 +169,38 @@ class AuthService {
       'code': code,
       'new_password': newPassword,
     });
+  }
+
+  /// `POST /api/users/me/password/code` (signed in) — a code to the
+  /// account's own phone, for changing the password without the current
+  /// one. Returns the resend wait and the masked number it went to.
+  Future<({int resendAfter, String phoneHint})> requestPasswordChangeCode({
+    required String lang,
+  }) async {
+    final json = await _client.postJson('/api/users/me/password/code', {
+      'lang': lang,
+    });
+    return (
+      resendAfter: json['resend_after'] as int? ?? 60,
+      phoneHint: json['phone_hint'] as String? ?? '',
+    );
+  }
+
+  /// `PUT /api/users/me/password` (signed in) — with exactly one of
+  /// [currentPassword] / [code]. Every session issued before this moment
+  /// stops working, so the fresh token that comes back must replace the
+  /// stored one (see AuthNotifier.changePassword).
+  Future<String> changePassword({
+    String? currentPassword,
+    String? code,
+    required String newPassword,
+  }) async {
+    final json = await _client.putJson('/api/users/me/password', {
+      'current_password': ?currentPassword,
+      'code': ?code,
+      'new_password': newPassword,
+    });
+    return json['token'] as String? ?? '';
   }
 
   AuthResult _authResultFromJson(Map<String, dynamic> json) {
