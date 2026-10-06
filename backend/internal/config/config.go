@@ -126,6 +126,45 @@ type Config struct {
 	// Chat's own 1000-char composer limit (frontend's MESSAGE_MAX) so the
 	// two features feel consistent.
 	AIAssistantMaxMessageLen int
+
+	// TrustedProxies — the only peers whose X-Forwarded-For Gin may believe
+	// when working out a client's IP (per-IP rate limits). Anything else
+	// connecting directly is taken at its socket address, so a client can't
+	// pick its own IP by sending the header. The default covers the
+	// production shape — host nginx reaching the container over loopback or
+	// the docker bridge — and nothing public. Empty means "trust nobody".
+	TrustedProxies []string
+	// OTPHMACSecret keys the HMAC that password-reset codes are stored
+	// under (internal/passwordreset). Optional while delivery is off (a key
+	// derived from JWTSecret is used); required — at least
+	// MinOTPHMACSecretLen bytes — for delivery to be switched on. Never
+	// logged.
+	OTPHMACSecret string
+
+	// PasswordResetDeliveryEnabled is the explicit on-switch for sending
+	// password codes over WhatsApp; off by default, like every other
+	// external delivery. WhatsAppOTPTemplate* name the approved Meta
+	// AUTHENTICATION template — a separate template from the claim-link
+	// one (WhatsAppTemplateName), never reused for codes.
+	PasswordResetDeliveryEnabled bool
+	WhatsAppOTPTemplateName      string
+	WhatsAppOTPTemplateLanguage  string
+}
+
+// MinOTPHMACSecretLen — OTP_HMAC_SECRET must be at least this long (bytes)
+// for password-reset delivery to count as configured.
+const MinOTPHMACSecretLen = 32
+
+// PasswordResetDeliveryReady reports whether password codes may actually
+// be sent: switched on, the WhatsApp credentials and the OTP template
+// present, and a real OTP_HMAC_SECRET. Anything less means no code ever
+// leaves the server (and the app hides "Forgot password?").
+func (c Config) PasswordResetDeliveryReady() bool {
+	return c.PasswordResetDeliveryEnabled &&
+		c.WhatsAppAccessToken != "" &&
+		c.WhatsAppPhoneNumberID != "" &&
+		c.WhatsAppOTPTemplateName != "" &&
+		len(c.OTPHMACSecret) >= MinOTPHMACSecretLen
 }
 
 func Load() Config {
@@ -138,6 +177,13 @@ func Load() Config {
 	for _, o := range strings.Split(rawOrigins, ",") {
 		if o = strings.TrimSpace(o); o != "" {
 			origins = append(origins, o)
+		}
+	}
+
+	trustedProxies := make([]string, 0)
+	for _, p := range strings.Split(getEnv("TRUSTED_PROXIES", "127.0.0.1,::1,10.0.0.0/8,172.16.0.0/12,192.168.0.0/16"), ",") {
+		if p = strings.TrimSpace(p); p != "" {
+			trustedProxies = append(trustedProxies, p)
 		}
 	}
 
@@ -198,6 +244,13 @@ func Load() Config {
 		AIAssistantModel:           getEnv("AI_ASSISTANT_MODEL", "claude-sonnet-5"),
 		AIAssistantTimeoutSeconds:  getEnvInt("AI_ASSISTANT_TIMEOUT_SECONDS", 20),
 		AIAssistantMaxMessageLen:   getEnvInt("AI_ASSISTANT_MAX_MESSAGE_LEN", 1000),
+
+		TrustedProxies: trustedProxies,
+		OTPHMACSecret:  getEnv("OTP_HMAC_SECRET", ""),
+
+		PasswordResetDeliveryEnabled: getEnv("PASSWORD_RESET_DELIVERY_ENABLED", "false") == "true",
+		WhatsAppOTPTemplateName:      getEnv("WHATSAPP_OTP_TEMPLATE_NAME", ""),
+		WhatsAppOTPTemplateLanguage:  getEnv("WHATSAPP_OTP_TEMPLATE_LANGUAGE", "ru"),
 	}
 }
 

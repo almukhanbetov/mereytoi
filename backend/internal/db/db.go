@@ -21,6 +21,8 @@ func Connect(cfg config.Config) *gorm.DB {
 
 	if err := database.AutoMigrate(
 		&models.User{}, &models.Category{}, &models.Listing{}, &models.Booking{}, &models.Comment{}, &models.Client{}, &models.SiteStatistics{},
+		// Password reset/change one-time codes — see models/password_reset_code.go.
+		&models.PasswordResetCode{},
 		// "Мой той" collaborative workspace — see models/event.go.
 		&models.Event{}, &models.EventMember{}, &models.EventInvitation{},
 		&models.EventCandidate{}, &models.EventVote{}, &models.EventComment{},

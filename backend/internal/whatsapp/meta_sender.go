@@ -88,17 +88,21 @@ func (s *MetaCloudSender) Send(ctx context.Context, msg Message) error {
 		}
 	}
 
+	return postMessage(ctx, client, base+"/"+version+"/"+s.PhoneID+"/messages", s.Token, payload)
+}
+
+// postMessage sends one Cloud API /messages request. Shared by
+// MetaCloudSender and OTPSender; never logs anything itself.
+func postMessage(ctx context.Context, client *http.Client, url, token string, payload map[string]any) error {
 	body, err := json.Marshal(payload)
 	if err != nil {
 		return err
 	}
-
-	url := base + "/" + version + "/" + s.PhoneID + "/messages"
 	req, err := http.NewRequestWithContext(ctx, http.MethodPost, url, bytes.NewReader(body))
 	if err != nil {
 		return err
 	}
-	req.Header.Set("Authorization", "Bearer "+s.Token)
+	req.Header.Set("Authorization", "Bearer "+token)
 	req.Header.Set("Content-Type", "application/json")
 
 	resp, err := client.Do(req)

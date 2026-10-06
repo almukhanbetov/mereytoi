@@ -1,6 +1,7 @@
 package routes
 
 import (
+	"log"
 	"net/http"
 
 	"github.com/gin-gonic/gin"
@@ -12,7 +13,9 @@ import (
 	"github.com/almukhanbetov/mereytoi/backend/internal/mail"
 	"github.com/almukhanbetov/mereytoi/backend/internal/middleware"
 	"github.com/almukhanbetov/mereytoi/backend/internal/models"
+	"github.com/almukhanbetov/mereytoi/backend/internal/passwordreset"
 	"github.com/almukhanbetov/mereytoi/backend/internal/telegram"
+	"github.com/almukhanbetov/mereytoi/backend/internal/whatsapp"
 )
 
 // Register wires the full route tree. mailSvc is variadic purely so
@@ -23,11 +26,38 @@ import (
 // pass their own mail.NewServiceWithSender(mockSender, cfg) instead of
 // wiring a second, parallel route tree just to reach the mail call sites.
 func Register(r *gin.Engine, database *gorm.DB, cfg config.Config, mailSvc ...*mail.Service) {
-	var mailer *mail.Service
-	if len(mailSvc) > 0 && mailSvc[0] != nil {
-		mailer = mailSvc[0]
-	} else {
+	var opts Options
+	if len(mailSvc) > 0 {
+		opts.Mail = mailSvc[0]
+	}
+	RegisterWithOptions(r, database, cfg, opts)
+}
+
+// Options are the injection seams tests need; the zero value is
+// production's wiring.
+type Options struct {
+	// Mail — nil builds a real mail.Service from cfg.
+	Mail *mail.Service
+	// PasswordReset — nil builds the production service from cfg: codes go
+	// out over the WhatsApp OTP template only when
+	// cfg.PasswordResetDeliveryReady(); otherwise nothing is ever sent.
+	PasswordReset *passwordreset.Service
+}
+
+// RegisterWithOptions is Register with explicit Options.
+func RegisterWithOptions(r *gin.Engine, database *gorm.DB, cfg config.Config, opts Options) {
+	mailer := opts.Mail
+	if mailer == nil {
 		mailer = mail.NewService(cfg)
+	}
+
+	// Only these peers may tell Gin the client's real IP via
+	// X-Forwarded-For (gin.Default() otherwise trusts every peer, letting
+	// any client pick its own IP and slip past per-IP rate limits). An
+	// empty list trusts nobody: ClientIP is the socket address.
+	if err := r.SetTrustedProxies(cfg.TrustedProxies); err != nil {
+		log.Printf("[routes] invalid TRUSTED_PROXIES, trusting no proxy: %v", err)
+		_ = r.SetTrustedProxies(nil)
 	}
 	// claimdelivery.Service has no test-injection seam through Register's
 	// own signature (unlike mailSvc above) — a second variadic parameter
@@ -53,6 +83,21 @@ func Register(r *gin.Engine, database *gorm.DB, cfg config.Config, mailSvc ...*m
 	telegramHandler := handlers.NewTelegramHandler(database, telegramSender, cfg)
 
 	authHandler := handlers.NewAuthHandler(database, cfg.JWTSecret, delivery)
+	resetSvc := opts.PasswordReset
+	if resetSvc == nil {
+		var sender passwordreset.Sender = passwordreset.NotConfiguredSender{}
+		if cfg.PasswordResetDeliveryReady() {
+			sender = passwordreset.NewWhatsAppSender(&whatsapp.OTPSender{
+				BaseURL:  cfg.WhatsAppBaseURL,
+				Token:    cfg.WhatsAppAccessToken,
+				PhoneID:  cfg.WhatsAppPhoneNumberID,
+				Template: cfg.WhatsAppOTPTemplateName,
+				Language: cfg.WhatsAppOTPTemplateLanguage,
+			})
+		}
+		resetSvc = passwordreset.New(database, sender, cfg.OTPHMACSecret, cfg.JWTSecret)
+	}
+	passwordHandler := handlers.NewPasswordHandler(database, cfg.JWTSecret, resetSvc)
 	categoryHandler := handlers.NewCategoryHandler(database)
 	listingHandler := handlers.NewListingHandler(database)
 	listingHallHandler := handlers.NewListingHallHandler(database)
@@ -82,6 +127,9 @@ func Register(r *gin.Engine, database *gorm.DB, cfg config.Config, mailSvc ...*m
 	})
 
 	api := r.Group("/api")
+	// Every RequireAuth/OptionalAuth below also rejects a token issued
+	// before the user's last password change (see PasswordSessionValidator).
+	api.Use(middleware.WithSessionValidator(handlers.PasswordSessionValidator(database)))
 	{
 		auth := api.Group("/auth")
 		{
@@ -97,6 +145,11 @@ func Register(r *gin.Engine, database *gorm.DB, cfg config.Config, mailSvc ...*m
 			// via claimdelivery.Service, same as a fresh booking's own
 			// delivery attempt.
 			auth.POST("/claim/resend", authHandler.ClaimResend)
+			// Public — forgot password: request a code (same answer for any
+			// number), then reset with it. See PasswordHandler.
+			auth.GET("/password/config", passwordHandler.PasswordConfig)
+			auth.POST("/password/forgot", passwordHandler.ForgotPassword)
+			auth.POST("/password/reset", passwordHandler.ResetPassword)
 			auth.GET("/me", middleware.RequireAuth(cfg.JWTSecret), authHandler.Me)
 			auth.PUT("/me", middleware.RequireAuth(cfg.JWTSecret), authHandler.UpdateMe)
 		}
@@ -113,6 +166,10 @@ func Register(r *gin.Engine, database *gorm.DB, cfg config.Config, mailSvc ...*m
 			users.DELETE("/me/bookings/:id", bookingHandler.DeleteMine)
 			users.POST("/me/telegram/link-token", telegramHandler.MintLinkToken)
 			users.PUT("/me/delivery-preference", authHandler.UpdateDeliveryPreference)
+			// Change password: with the current one, or with a code sent to
+			// the account's own phone (requested first via /me/password/code).
+			users.POST("/me/password/code", passwordHandler.RequestChangeCode)
+			users.PUT("/me/password", passwordHandler.ChangePassword)
 			// "Мои рестораны" — every listing (restaurant/venue) this caller
 			// may manage: all of them for a global admin, only the ones with
 			// a ListingManager row otherwise. See ListingHandler.MyListings.

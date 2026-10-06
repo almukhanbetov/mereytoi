@@ -328,6 +328,13 @@ func (h *AuthHandler) UpdateDeliveryPreference(c *gin.Context) {
 }
 
 func (h *AuthHandler) issueToken(user models.User) (string, error) {
+	return issueJWT(h.JWTSecret, user)
+}
+
+// issueJWT is the one place a session token is minted. "iat" (whole Unix
+// seconds) is what middleware.RequireAuth compares against
+// users.password_changed_at.
+func issueJWT(secret string, user models.User) (string, error) {
 	claims := jwt.MapClaims{
 		"sub":  user.ID,
 		"role": user.Role,
@@ -335,5 +342,5 @@ func (h *AuthHandler) issueToken(user models.User) (string, error) {
 		"iat":  time.Now().Unix(),
 	}
 	token := jwt.NewWithClaims(jwt.SigningMethodHS256, claims)
-	return token.SignedString([]byte(h.JWTSecret))
+	return token.SignedString([]byte(secret))
 }
