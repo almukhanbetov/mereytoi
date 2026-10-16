@@ -99,6 +99,7 @@ func RegisterWithOptions(r *gin.Engine, database *gorm.DB, cfg config.Config, op
 	}
 	passwordHandler := handlers.NewPasswordHandler(database, cfg.JWTSecret, resetSvc)
 	categoryHandler := handlers.NewCategoryHandler(database)
+	cityHandler := handlers.NewCityHandler()
 	listingHandler := handlers.NewListingHandler(database)
 	listingHallHandler := handlers.NewListingHallHandler(database)
 	listingMenuHandler := handlers.NewListingMenuHandler(database)
@@ -189,6 +190,10 @@ func RegisterWithOptions(r *gin.Engine, database *gorm.DB, cfg config.Config, op
 				admin.DELETE("/:id", categoryHandler.Delete)
 			}
 		}
+
+		// Fixed city directory (internal/cities) — the IDs GET /api/listings'
+		// `?city_id=` filter accepts.
+		api.GET("/cities", cityHandler.List)
 
 		listings := api.Group("/listings")
 		{

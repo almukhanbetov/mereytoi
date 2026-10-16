@@ -7,6 +7,7 @@ import (
 	"github.com/gin-gonic/gin"
 	"gorm.io/gorm"
 
+	"github.com/almukhanbetov/mereytoi/backend/internal/cities"
 	"github.com/almukhanbetov/mereytoi/backend/internal/media"
 	"github.com/almukhanbetov/mereytoi/backend/internal/middleware"
 	"github.com/almukhanbetov/mereytoi/backend/internal/models"
@@ -53,9 +54,29 @@ func NewListingHandler(db *gorm.DB) *ListingHandler {
 	return &ListingHandler{DB: db}
 }
 
-// List returns listings, optionally filtered by category slug/id and a
-// name search term, e.g. GET /api/listings?category=hosts&search=Ерлан
+// List returns listings, optionally filtered by category slug/id, a name
+// search term and a city from the internal/cities directory, all ANDed,
+// e.g. GET /api/listings?category=hosts&search=Ерлан&city_id=1
 func (h *ListingHandler) List(c *gin.Context) {
+	// city_id is validated before any query runs: a non-integer or unknown
+	// ID is a client bug (IDs only ever come from GET /api/cities), so it
+	// gets a 400 rather than silently widening to "all cities" or
+	// narrowing to an always-empty list. An empty `city_id=` is treated
+	// like an absent one, the same as `category=`/`search=`.
+	cityID := 0
+	if raw := c.Query("city_id"); raw != "" {
+		id, err := strconv.Atoi(raw)
+		if err != nil {
+			c.JSON(http.StatusBadRequest, gin.H{"error": "invalid_city_id"})
+			return
+		}
+		if _, ok := cities.ByID(id); !ok {
+			c.JSON(http.StatusBadRequest, gin.H{"error": "invalid_city_id"})
+			return
+		}
+		cityID = id
+	}
+
 	query := h.DB.Model(&models.Listing{}).Where("is_active = ?", true)
 
 	if slug := c.Query("category"); slug != "" {
@@ -70,6 +91,30 @@ func (h *ListingHandler) List(c *gin.Context) {
 	if search := c.Query("search"); search != "" {
 		like := "%" + search + "%"
 		query = query.Where("name_ru ILIKE ? OR name_kz ILIKE ?", like, like)
+	}
+
+	if cityID != 0 {
+		// listings.city is free text ("Алматы", "Алматы ", "Almaty"...), so
+		// the alias match runs in Go (Unicode-aware lowercasing that
+		// SQLite's LOWER() lacks) over the handful of distinct stored
+		// values, and the query then filters by those exact raw strings.
+		var stored []string
+		if err := h.DB.Model(&models.Listing{}).Where("is_active = ?", true).
+			Distinct("city").Pluck("city", &stored).Error; err != nil {
+			c.JSON(http.StatusInternalServerError, gin.H{"error": "failed to fetch listings"})
+			return
+		}
+		var matched []string
+		for _, s := range stored {
+			if cities.MatchesCity(s, cityID) {
+				matched = append(matched, s)
+			}
+		}
+		if len(matched) == 0 {
+			c.JSON(http.StatusOK, gin.H{"listings": []listingOut{}})
+			return
+		}
+		query = query.Where("city IN ?", matched)
 	}
 
 	var listings []models.Listing
