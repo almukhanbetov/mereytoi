@@ -7,6 +7,7 @@ import '../../core/utils/format.dart';
 import '../../core/utils/listing_navigation.dart';
 import '../../state/auth_provider.dart';
 import '../../state/categories_provider.dart';
+import '../../state/city_provider.dart';
 import '../../state/listings_provider.dart';
 import '../../state/locale_provider.dart';
 import '../../state/notification_providers.dart';
@@ -17,6 +18,7 @@ import '../../widgets/app_card.dart';
 import '../../widgets/app_error_view.dart';
 import '../../widgets/app_skeleton.dart';
 import '../../widgets/category_card.dart';
+import '../../widgets/city_selector.dart';
 import '../../widgets/fade_slide_in.dart';
 import '../../widgets/locale_sheet.dart';
 import '../../widgets/section_header.dart';
@@ -47,6 +49,11 @@ class HomeScreen extends ConsumerWidget {
           ref.invalidate(statisticsProvider);
           ref.invalidate(categoriesProvider);
           ref.invalidate(listingsProvider(null));
+          // The city list is cached for the session; pull-to-refresh only
+          // retries it when it actually failed.
+          if (ref.read(citiesProvider).hasError) {
+            ref.invalidate(citiesProvider);
+          }
         },
         child: CustomScrollView(
           slivers: [
@@ -65,6 +72,22 @@ class HomeScreen extends ConsumerWidget {
                 _LocaleToggle(locale: locale),
                 const SizedBox(width: AppSpacing.md),
               ],
+            ),
+            // City pill sits between the app bar and the hero — the app bar's
+            // own action row has no room left for it at 320px.
+            const SliverToBoxAdapter(
+              child: Padding(
+                padding: EdgeInsets.fromLTRB(
+                  AppSpacing.lg,
+                  AppSpacing.xxs,
+                  AppSpacing.lg,
+                  AppSpacing.xs,
+                ),
+                child: Align(
+                  alignment: Alignment.centerLeft,
+                  child: CitySelectorButton(),
+                ),
+              ),
             ),
             SliverToBoxAdapter(child: _Hero(locale: locale)),
             SliverToBoxAdapter(child: _CategoriesSection(locale: locale)),

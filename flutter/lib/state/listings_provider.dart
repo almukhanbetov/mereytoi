@@ -3,17 +3,27 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../models/listing.dart';
 import '../models/listing_hall.dart';
 import '../models/listing_menu.dart';
+import 'city_provider.dart';
 import 'providers.dart';
 
 /// `categorySlug == null` fetches every active listing — same "all" default
 /// the site's /services catalog uses before a filter chip is tapped.
+///
+/// Also scoped to the globally selected city ([selectedCityIdProvider]):
+/// the family key stays the category slug (so every existing
+/// `listingsProvider(slug)` call site/override is unchanged), and a city
+/// change refetches exactly the listing lists currently watched — nothing
+/// else on screen rebuilds. Waits for the saved city to be restored first,
+/// so app start doesn't fetch "all cities" and then refetch.
 final listingsProvider = FutureProvider.family<List<Listing>, String?>((
   ref,
   categorySlug,
-) {
+) async {
+  await ref.watch(selectedCityIdProvider.notifier).ready;
+  final cityId = ref.watch(selectedCityIdProvider);
   return ref
       .watch(listingServiceProvider)
-      .fetchListings(categorySlug: categorySlug);
+      .fetchListings(categorySlug: categorySlug, cityId: cityId);
 });
 
 final listingDetailProvider = FutureProvider.family<Listing, int>((ref, id) {

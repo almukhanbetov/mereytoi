@@ -6,7 +6,7 @@ import '../models/listing_menu.dart';
 /// Wraps every public `/api/listings*` endpoint this app uses — restaurant
 /// halls/menus included, since they're sub-resources of the same
 /// `ListingHandler` on the backend (listing_handler.go), not a separate
-/// domain: GET /api/listings (optionally `?category=<slug>&search=<term>`,
+/// domain: GET /api/listings (optionally `?category=<slug>&search=<term>&city_id=<id>`,
 /// same server-side filter the Go handler already supports),
 /// GET /api/listings/:id (full detail, halls/menus nested when present),
 /// GET /api/listings/:id/halls, GET /api/listings/:id/menus. No admin-only
@@ -17,15 +17,19 @@ class ListingService {
 
   final ApiClient _client;
 
+  /// `cityId == null` ("Все города") sends no `city_id` at all — the exact
+  /// request this method made before the city filter existed.
   Future<List<Listing>> fetchListings({
     String? categorySlug,
     String? search,
+    int? cityId,
   }) async {
     final query = <String, dynamic>{};
     if (categorySlug != null && categorySlug.isNotEmpty) {
       query['category'] = categorySlug;
     }
     if (search != null && search.isNotEmpty) query['search'] = search;
+    if (cityId != null) query['city_id'] = cityId;
 
     final json = await _client.getJson(
       '/api/listings',

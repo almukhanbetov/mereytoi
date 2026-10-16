@@ -15,6 +15,7 @@ import '../../widgets/app_error_view.dart';
 import '../../widgets/app_icon_badge.dart';
 import '../../widgets/app_skeleton.dart';
 import '../../widgets/category_filter_bar.dart';
+import '../../widgets/city_selector.dart';
 import '../../widgets/fade_slide_in.dart';
 import '../../widgets/service_card.dart';
 
@@ -85,10 +86,24 @@ class _ServicesScreenState extends ConsumerState<ServicesScreen> {
       ),
       body: Column(
         children: [
+          // Same global city as Home — changing it here refetches this list
+          // with the active category chip and search text left as they are.
+          const Padding(
+            padding: EdgeInsets.fromLTRB(
+              AppSpacing.lg,
+              AppSpacing.xxs,
+              AppSpacing.lg,
+              AppSpacing.xs,
+            ),
+            child: Align(
+              alignment: Alignment.centerLeft,
+              child: CitySelectorButton(),
+            ),
+          ),
           Padding(
             padding: const EdgeInsets.fromLTRB(
               AppSpacing.lg,
-              AppSpacing.xxs,
+              0,
               AppSpacing.lg,
               AppSpacing.sm,
             ),
