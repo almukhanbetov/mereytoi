@@ -14,14 +14,16 @@ import '../../widgets/app_back_button.dart';
 import '../../widgets/app_error_view.dart';
 import '../../widgets/app_icon_badge.dart';
 import '../../widgets/app_skeleton.dart';
-import '../../widgets/category_filter_bar.dart';
-import '../../widgets/city_selector.dart';
 import '../../widgets/fade_slide_in.dart';
 import '../../widgets/service_card.dart';
+import '../../widgets/services/services_category_grid.dart';
+import '../../widgets/services/services_city_selector.dart';
+import '../../widgets/services/services_style.dart';
 
 /// The mobile counterpart of the site's /services catalog
-/// (frontend/src/components/services/ServicesClient.jsx): a category-chip
-/// filter row plus a list of listings, both backed by the *same*
+/// (frontend/src/components/services/ServicesClient.jsx): a city card, a
+/// search field and a category grid above a list of listings, all backed by
+/// the *same*
 /// `GET /api/listings?category=<slug>&search=<term>` the Go handler
 /// already supports server-side — no client-only filtering invented here.
 ///
@@ -68,6 +70,12 @@ class _ServicesScreenState extends ConsumerState<ServicesScreen> {
     });
   }
 
+  void _clearSearch() {
+    _debounce?.cancel();
+    _searchController.clear();
+    setState(() => _search = '');
+  }
+
   @override
   Widget build(BuildContext context) {
     final locale = ref.watch(localeProvider);
@@ -83,139 +91,292 @@ class _ServicesScreenState extends ConsumerState<ServicesScreen> {
       appBar: AppBar(
         title: Text(t(locale, ru: 'Услуги', kz: 'Қызметтер', en: 'Services')),
         leading: Navigator.canPop(context) ? const AppBackButton() : null,
+        titleSpacing: Navigator.canPop(context) ? null : AppSpacing.md,
+        // A slightly shorter bar keeps the title close to the city filter.
+        toolbarHeight: 48,
       ),
-      body: Column(
-        children: [
-          // Same global city as Home — changing it here refetches this list
-          // with the active category chip and search text left as they are.
-          const Padding(
-            padding: EdgeInsets.fromLTRB(
-              AppSpacing.lg,
-              AppSpacing.xxs,
-              AppSpacing.lg,
-              AppSpacing.xs,
-            ),
-            child: Align(
-              alignment: Alignment.centerLeft,
-              child: CitySelectorButton(),
-            ),
-          ),
-          Padding(
+      // One scroll view for filters and results: the category grid is
+      // several rows tall, so pinning it above the list would leave too
+      // little room for the results on small phones.
+      body: CustomScrollView(
+        keyboardDismissBehavior: ScrollViewKeyboardDismissBehavior.onDrag,
+        slivers: [
+          SliverPadding(
             padding: const EdgeInsets.fromLTRB(
-              AppSpacing.lg,
+              AppSpacing.md,
+              AppSpacing.xxs,
+              AppSpacing.md,
               0,
-              AppSpacing.lg,
-              AppSpacing.sm,
             ),
-            child: SizedBox(
-              height: 44,
-              child: TextField(
-                controller: _searchController,
-                onChanged: _onSearchChanged,
-                style: Theme.of(context).textTheme.bodyLarge,
-                textAlignVertical: TextAlignVertical.center,
-                decoration: InputDecoration(
-                  isDense: true,
-                  hintText: t(
-                    locale,
-                    ru: 'Поиск услуг',
-                    kz: 'Қызметтерді іздеу',
-                    en: 'Search services',
-                  ),
-                  prefixIcon: Icon(
-                    Icons.search_rounded,
-                    color: context.mereytoiColors.textSecondary,
-                    size: 18,
-                  ),
-                  contentPadding: const EdgeInsets.symmetric(
-                    horizontal: AppSpacing.md,
-                    vertical: 0,
-                  ),
+            sliver: SliverList.list(
+              children: [
+                // Same global city as Home — changing it here refetches this
+                // list with the active category and search text kept.
+                const ServicesCitySelector(),
+                const SizedBox(height: AppSpacing.sm),
+                _SearchField(
+                  controller: _searchController,
+                  locale: locale,
+                  onChanged: _onSearchChanged,
+                  onClear: _clearSearch,
                 ),
-              ),
+                ...categories.when(
+                  loading: () => [
+                    const SizedBox(height: AppSpacing.lg),
+                    const _CategoryGridSkeleton(),
+                  ],
+                  error: (err, _) => const <Widget>[],
+                  data: (list) => [
+                    const SizedBox(height: AppSpacing.lg),
+                    _SectionTitle(
+                      t(
+                        locale,
+                        ru: 'Категории',
+                        kz: 'Санаттар',
+                        en: 'Categories',
+                      ),
+                    ),
+                    const SizedBox(height: AppSpacing.sm),
+                    ServicesCategoryGrid(
+                      categories: list,
+                      activeSlug: _activeSlug,
+                      locale: locale,
+                      onSelect: (slug) => setState(() => _activeSlug = slug),
+                    ),
+                  ],
+                ),
+                const SizedBox(height: AppSpacing.lg),
+              ],
             ),
           ),
-          // CategoryFilterBar owns its own horizontal padding (its lane's
-          // scroll padding needs to be asymmetric — a wider trailing edge
-          // for the "Все категории" chip) so it isn't wrapped in one here.
-          categories.when(
-            loading: () => const SizedBox.shrink(),
-            error: (err, _) => const SizedBox.shrink(),
-            data: (list) => CategoryFilterBar(
-              categories: list,
-              activeSlug: _activeSlug,
-              locale: locale,
-              onSelect: (slug) => setState(() => _activeSlug = slug),
-            ),
-          ),
-          const SizedBox(height: AppSpacing.md),
-          Expanded(
-            child: listings.when(
-              loading: () => ListView.separated(
+          ...listings.when(
+            loading: () => [
+              SliverPadding(
                 padding: const EdgeInsets.fromLTRB(
-                  AppSpacing.lg,
+                  AppSpacing.md,
                   0,
-                  AppSpacing.lg,
+                  AppSpacing.md,
                   AppSpacing.xl,
                 ),
-                itemCount: 5,
-                separatorBuilder: (_, _) =>
-                    const SizedBox(height: AppSpacing.md),
-                itemBuilder: (context, i) =>
-                    const AppSkeleton(height: 128, borderRadius: AppRadius.lg),
+                sliver: SliverList.separated(
+                  itemCount: 5,
+                  separatorBuilder: (_, _) =>
+                      const SizedBox(height: AppSpacing.sm),
+                  itemBuilder: (context, i) => const AppSkeleton(
+                    height: 128,
+                    borderRadius: AppRadius.lg,
+                  ),
+                ),
               ),
-              error: (err, _) => AppErrorView(
-                message: apiErrorMessage(locale, err),
-                locale: locale,
-                onRetry: () => ref.invalidate(listingsProvider(listingsKey)),
+            ],
+            error: (err, _) => [
+              SliverFillRemaining(
+                hasScrollBody: false,
+                child: AppErrorView(
+                  message: apiErrorMessage(locale, err),
+                  locale: locale,
+                  onRetry: () => ref.invalidate(listingsProvider(listingsKey)),
+                ),
               ),
-              data: (all) {
-                final filtered = _search.isEmpty
-                    ? all
-                    : all
-                          .where(
-                            (l) => l
-                                .name(locale)
-                                .toLowerCase()
-                                .contains(_search.toLowerCase()),
-                          )
-                          .toList();
-                final filtersActive = _activeSlug != null || _search.isNotEmpty;
-                if (filtered.isEmpty) {
-                  return _EmptyResults(
-                    locale: locale,
-                    showReset: filtersActive,
-                    onReset: _resetFilters,
-                  );
-                }
-                return ListView.separated(
-                  // Bottom: room to scroll the last card clear of the chat button.
+            ],
+            data: (all) {
+              final filtered = _search.isEmpty
+                  ? all
+                  : all
+                        .where(
+                          (l) => l
+                              .name(locale)
+                              .toLowerCase()
+                              .contains(_search.toLowerCase()),
+                        )
+                        .toList();
+              final filtersActive = _activeSlug != null || _search.isNotEmpty;
+              if (filtered.isEmpty) {
+                return [
+                  SliverFillRemaining(
+                    hasScrollBody: false,
+                    child: _EmptyResults(
+                      locale: locale,
+                      showReset: filtersActive,
+                      onReset: _resetFilters,
+                    ),
+                  ),
+                ];
+              }
+              return [
+                SliverPadding(
                   padding: const EdgeInsets.fromLTRB(
-                    AppSpacing.lg,
+                    AppSpacing.md,
                     0,
-                    AppSpacing.lg,
+                    AppSpacing.md,
+                    AppSpacing.sm,
+                  ),
+                  sliver: SliverToBoxAdapter(
+                    child: _SectionTitle(
+                      t(
+                        locale,
+                        ru: 'Найдено: ${filtered.length}',
+                        kz: 'Табылды: ${filtered.length}',
+                        en: 'Found: ${filtered.length}',
+                      ),
+                    ),
+                  ),
+                ),
+                SliverPadding(
+                  // Bottom: room to scroll the last card clear of the chat
+                  // button.
+                  padding: const EdgeInsets.fromLTRB(
+                    AppSpacing.md,
+                    0,
+                    AppSpacing.md,
                     kChatFabClearance,
                   ),
-                  itemCount: filtered.length,
-                  separatorBuilder: (_, _) =>
-                      const SizedBox(height: AppSpacing.md),
-                  itemBuilder: (context, i) {
-                    final listing = filtered[i];
-                    return FadeSlideIn(
-                      index: i,
-                      child: ServiceListTile(
-                        listing: listing,
-                        locale: locale,
-                        categoryLabel: listing.category?.name(locale),
-                        onTap: () => pushListingDetail(context, ref, listing),
-                      ),
-                    );
-                  },
-                );
-              },
-            ),
+                  sliver: SliverList.separated(
+                    itemCount: filtered.length,
+                    separatorBuilder: (_, _) =>
+                        const SizedBox(height: AppSpacing.sm),
+                    itemBuilder: (context, i) {
+                      final listing = filtered[i];
+                      return FadeSlideIn(
+                        index: i,
+                        child: ServiceListTile(
+                          listing: listing,
+                          locale: locale,
+                          categoryLabel: listing.category?.name(locale),
+                          onTap: () => pushListingDetail(context, ref, listing),
+                        ),
+                      );
+                    },
+                  ),
+                ),
+              ];
+            },
           ),
         ],
+      ),
+    );
+  }
+}
+
+class _SectionTitle extends StatelessWidget {
+  const _SectionTitle(this.text);
+
+  final String text;
+
+  @override
+  Widget build(BuildContext context) {
+    return Text(
+      text,
+      style: Theme.of(
+        context,
+      ).textTheme.titleMedium?.copyWith(fontWeight: FontWeight.w700),
+    );
+  }
+}
+
+/// A soft search field in the same card language as the city selector,
+/// with a clear button once there's text.
+class _SearchField extends StatelessWidget {
+  const _SearchField({
+    required this.controller,
+    required this.locale,
+    required this.onChanged,
+    required this.onClear,
+  });
+
+  final TextEditingController controller;
+  final AppLocale locale;
+  final ValueChanged<String> onChanged;
+  final VoidCallback onClear;
+
+  @override
+  Widget build(BuildContext context) {
+    final colors = context.mereytoiColors;
+    final border = OutlineInputBorder(
+      borderRadius: BorderRadius.circular(kServicesRadius),
+      borderSide: BorderSide(
+        color: colors.border.withValues(alpha: colors.border.a * 0.6),
+      ),
+    );
+    return SizedBox(
+      height: 50,
+      child: TextField(
+        controller: controller,
+        onChanged: onChanged,
+        textInputAction: TextInputAction.search,
+        style: Theme.of(context).textTheme.bodyLarge,
+        textAlignVertical: TextAlignVertical.center,
+        decoration: InputDecoration(
+          isDense: true,
+          filled: true,
+          // Lighter than the default input fill, so the search field never
+          // competes with the city card or a selected category.
+          fillColor: Color.lerp(colors.inputBackground, colors.surface, 0.5),
+          hintText: t(
+            locale,
+            ru: 'Поиск услуг',
+            kz: 'Қызметтерді іздеу',
+            en: 'Search services',
+          ),
+          prefixIcon: Icon(
+            Icons.search_rounded,
+            color: colors.textSecondary,
+            size: 20,
+          ),
+          suffixIcon: ValueListenableBuilder<TextEditingValue>(
+            valueListenable: controller,
+            builder: (context, value, _) => value.text.isEmpty
+                ? const SizedBox.shrink()
+                : IconButton(
+                    tooltip: t(
+                      locale,
+                      ru: 'Очистить',
+                      kz: 'Тазарту',
+                      en: 'Clear',
+                    ),
+                    icon: Icon(
+                      Icons.close_rounded,
+                      size: 20,
+                      color: colors.textSecondary,
+                    ),
+                    onPressed: onClear,
+                  ),
+          ),
+          contentPadding: const EdgeInsets.symmetric(
+            horizontal: AppSpacing.md,
+            vertical: 0,
+          ),
+          border: border,
+          enabledBorder: border,
+          focusedBorder: border.copyWith(
+            borderSide: BorderSide(color: colors.goldPrimary, width: 1.4),
+          ),
+        ),
+      ),
+    );
+  }
+}
+
+/// Placeholder tiles while categories load — same 2-column rhythm as the
+/// real grid so nothing jumps when it arrives.
+class _CategoryGridSkeleton extends StatelessWidget {
+  const _CategoryGridSkeleton();
+
+  @override
+  Widget build(BuildContext context) {
+    return GridView(
+      shrinkWrap: true,
+      physics: const NeverScrollableScrollPhysics(),
+      padding: EdgeInsets.zero,
+      gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
+        crossAxisCount: 2,
+        mainAxisExtent: 76,
+        mainAxisSpacing: AppSpacing.xs,
+        crossAxisSpacing: AppSpacing.xs,
+      ),
+      children: List.generate(
+        6,
+        (_) => const AppSkeleton(height: 76, borderRadius: kServicesRadius),
       ),
     );
   }

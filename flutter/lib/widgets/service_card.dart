@@ -217,8 +217,7 @@ class ServiceListTile extends StatelessWidget {
               return Row(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
-                  ClipRRect(
-                    borderRadius: BorderRadius.circular(AppRadius.md),
+                  _PhotoFrame(
                     child: SizedBox(
                       width: imageSize,
                       height: _height,
@@ -314,7 +313,9 @@ class ServiceListTile extends StatelessWidget {
                                       Flexible(
                                         child: Text(
                                           [
-                                            if (listing.provider?.displayName
+                                            if (listing
+                                                    .provider
+                                                    ?.displayName
                                                     .isNotEmpty ==
                                                 true)
                                               listing.provider!.displayName,
@@ -402,6 +403,48 @@ class _RatingBadge extends StatelessWidget {
             ),
           ),
         ],
+      ),
+    );
+  }
+}
+
+/// The list tile's photo (or its placeholder) in a soft frame: clipped to
+/// [AppRadius.md], a 1px warm-beige border drawn over the image so the
+/// corners stay clean, and a faint shadow that lifts it off the card
+/// without a dark smudge. The border colour is mixed from the theme's own
+/// surface and gold, so it stays a quiet line in dark mode too.
+class _PhotoFrame extends StatelessWidget {
+  const _PhotoFrame({required this.child});
+
+  final Widget child;
+
+  @override
+  Widget build(BuildContext context) {
+    final colors = context.mereytoiColors;
+    final radius = BorderRadius.circular(AppRadius.md);
+    return DecoratedBox(
+      decoration: BoxDecoration(
+        borderRadius: radius,
+        boxShadow: const [
+          BoxShadow(
+            color: Color(0x141A1611),
+            blurRadius: 12,
+            offset: Offset(0, 3),
+          ),
+        ],
+      ),
+      position: DecorationPosition.background,
+      child: Container(
+        foregroundDecoration: BoxDecoration(
+          borderRadius: radius,
+          border: Border.all(
+            color: Color.alphaBlend(
+              colors.goldPrimary.withValues(alpha: 0.15),
+              colors.surfaceSoft,
+            ),
+          ),
+        ),
+        child: ClipRRect(borderRadius: radius, child: child),
       ),
     );
   }

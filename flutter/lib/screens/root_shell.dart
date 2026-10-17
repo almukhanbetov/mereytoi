@@ -19,6 +19,9 @@ final selectedTabProvider = StateProvider<int>((ref) => 0);
 /// tab ends in the checkout CTA it would otherwise sit on top of.
 const _cartTabIndex = 3;
 
+/// Услуги's tab index.
+const _servicesTabIndex = 1;
+
 /// The persistent app shell: bottom navigation for Главная / Услуги /
 /// Мой той / Корзина. "Мой той" (Stage 4) rides as its own tab rather than
 /// tucked under Profile — there's no Profile tab yet at all (auth isn't
@@ -27,11 +30,34 @@ const _cartTabIndex = 3;
 /// badge on it: unlike Корзина's real local item count, there's no
 /// equally real "pending" number to show here yet (Notifications are a
 /// later stage) — never inventing one just to fill the slot.
-class RootShell extends ConsumerWidget {
+class RootShell extends ConsumerStatefulWidget {
   const RootShell({super.key});
 
   @override
-  Widget build(BuildContext context, WidgetRef ref) {
+  ConsumerState<RootShell> createState() => _RootShellState();
+}
+
+class _RootShellState extends ConsumerState<RootShell> {
+  // Услуги keeps the chat button hidden at the very top: its first service
+  // card sits exactly under the button there. Home deliberately doesn't —
+  // the button is the chat's main entry point on the first screen.
+  late final _chatFabVisibility = ChatFabVisibility(
+    hiddenAtTopTabs: const {_servicesTabIndex},
+    initialTab: ref.read(selectedTabProvider),
+  );
+
+  @override
+  void dispose() {
+    _chatFabVisibility.dispose();
+    super.dispose();
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    ref.listen(
+      selectedTabProvider,
+      (_, tab) => _chatFabVisibility.selectTab(tab),
+    );
     final index = ref.watch(selectedTabProvider);
     final locale = ref.watch(localeProvider);
     final cartCount = ref.watch(cartCountProvider);
@@ -41,18 +67,32 @@ class RootShell extends ConsumerWidget {
         bottom: false,
         child: IndexedStack(
           index: index,
-          children: const [
-            HomeScreen(),
-            ServicesScreen(),
-            EventsScreen(),
-            CartScreen(),
+          children: [
+            for (final (i, tab) in const [
+              HomeScreen(),
+              ServicesScreen(),
+              EventsScreen(),
+              CartScreen(),
+            ].indexed)
+              // Each tab's own vertical scrolling drives the chat button's
+              // hide-on-scroll-down / show-on-scroll-up behaviour.
+              NotificationListener<ScrollNotification>(
+                onNotification: (n) => _chatFabVisibility.handleScroll(i, n),
+                child: tab,
+              ),
           ],
         ),
       ),
       // Global entry to «Сообщения» (manager + provider chats), floated
       // above the bottom nav on the main tabs only — screens pushed on top
       // (chats, checkout, service pages) are separate routes without it.
-      floatingActionButton: index == _cartTabIndex ? null : const ChatFab(),
+      // Every tab's scroll view ends with [kChatFabClearance] so its last
+      // item can scroll fully above the button; it hides while content
+      // scrolls down so it never sits on the cards passing underneath.
+      floatingActionButton: index == _cartTabIndex
+          ? null
+          : AutoHideChatFab(visibility: _chatFabVisibility),
+      floatingActionButtonLocation: kChatFabLocation,
       bottomNavigationBar: AppBottomNav(
         currentIndex: index,
         onTap: (i) => ref.read(selectedTabProvider.notifier).state = i,

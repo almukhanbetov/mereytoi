@@ -12,35 +12,42 @@ import '../state/locale_provider.dart';
 String allCitiesLabel(AppLocale locale) =>
     t(locale, ru: 'Все города', kz: 'Барлық қалалар', en: 'All cities');
 
+/// Drops a saved city the backend directory no longer has, once the list
+/// arrives ([SelectedCityNotifier.retainOnly]). Called from every widget
+/// that shows the current city, so whichever is mounted when the list
+/// loads does the check.
+void listenForCityValidation(WidgetRef ref) {
+  ref.listen<AsyncValue<List<City>>>(citiesProvider, (_, next) {
+    final cities = next.valueOrNull;
+    if (cities != null) {
+      ref.read(selectedCityIdProvider.notifier).retainOnly(cities);
+    }
+  });
+}
+
+/// The current city's display name, or «Все города». A saved ID whose list
+/// hasn't loaded yet shows the generic "Город" — never a stale or wrong
+/// name.
+String watchCityLabel(WidgetRef ref, AppLocale locale) {
+  final selectedId = ref.watch(selectedCityIdProvider);
+  if (selectedId == null) return allCitiesLabel(locale);
+  return ref.watch(selectedCityProvider)?.name(locale) ??
+      t(locale, ru: 'Город', kz: 'Қала', en: 'City');
+}
+
 /// "📍 Алматы ▾" — the compact, rounded city pill shown on Home (under the
-/// app bar) and the services catalog. Tapping it opens [CitySheet].
-///
-/// It is also where a saved city ID gets checked against the backend's
-/// directory once the list arrives ([SelectedCityNotifier.retainOnly]):
-/// this pill is on the first screen, so it's mounted whenever the city
-/// list loads.
+/// app bar). Tapping it opens [CitySheet]. The services catalog uses the
+/// larger `ServicesCitySelector` card instead.
 class CitySelectorButton extends ConsumerWidget {
   const CitySelectorButton({super.key});
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
-    ref.listen<AsyncValue<List<City>>>(citiesProvider, (_, next) {
-      final cities = next.valueOrNull;
-      if (cities != null) {
-        ref.read(selectedCityIdProvider.notifier).retainOnly(cities);
-      }
-    });
+    listenForCityValidation(ref);
 
     final locale = ref.watch(localeProvider);
-    final selectedId = ref.watch(selectedCityIdProvider);
-    final city = ref.watch(selectedCityProvider);
+    final label = watchCityLabel(ref, locale);
     final colors = context.mereytoiColors;
-
-    final label = selectedId == null
-        ? allCitiesLabel(locale)
-        // A saved ID whose list hasn't loaded yet — never show a stale or
-        // wrong name, just the generic "Город".
-        : city?.name(locale) ?? t(locale, ru: 'Город', kz: 'Қала', en: 'City');
 
     return Semantics(
       button: true,
