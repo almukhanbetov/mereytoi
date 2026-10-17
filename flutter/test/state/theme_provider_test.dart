@@ -15,16 +15,17 @@ void main() {
   });
 
   test(
-    '1. default — with nothing saved yet, the provider starts on ThemeMode.system',
+    '1. default — with nothing saved yet (fresh install), the provider starts on ThemeMode.light',
     () async {
       final container = ProviderContainer();
       addTearDown(container.dispose);
 
-      expect(container.read(themeModeProvider), ThemeMode.system);
+      expect(container.read(themeModeProvider), ThemeMode.light);
       await container.read(themeModeProvider.notifier).ready;
-      // Still system — an empty store must never be misread as an explicit
-      // choice for one specific mode.
-      expect(container.read(themeModeProvider), ThemeMode.system);
+      // Still light — and nothing gets written just by starting up, so a
+      // fresh install never looks like an explicit choice.
+      expect(container.read(themeModeProvider), ThemeMode.light);
+      expect(await ThemeStorage.instance.read(), isNull);
     },
   );
 
@@ -80,14 +81,14 @@ void main() {
       // fresh app process reading shared_preferences on cold start.
       final second = ProviderContainer();
       addTearDown(second.dispose);
-      expect(second.read(themeModeProvider), ThemeMode.system); // pre-restore
+      expect(second.read(themeModeProvider), ThemeMode.light); // pre-restore
       await second.read(themeModeProvider.notifier).ready;
       expect(second.read(themeModeProvider), ThemeMode.dark);
     },
   );
 
   test(
-    'an unreadable/corrupted stored value falls back to system, never crashes',
+    'an unreadable/corrupted stored value falls back to light, never crashes',
     () async {
       SharedPreferences.setMockInitialValues({
         'theme_mode_v1': 'not-a-real-mode',
@@ -96,7 +97,48 @@ void main() {
       addTearDown(container.dispose);
 
       await container.read(themeModeProvider.notifier).ready;
-      expect(container.read(themeModeProvider), ThemeMode.system);
+      expect(container.read(themeModeProvider), ThemeMode.light);
+    },
+  );
+
+  // An explicit earlier choice always wins over the new light default.
+  for (final saved in ThemeMode.values) {
+    test('a previously saved "${saved.name}" is restored as is', () async {
+      SharedPreferences.setMockInitialValues({'theme_mode_v1': saved.name});
+      final container = ProviderContainer();
+      addTearDown(container.dispose);
+
+      await container.read(themeModeProvider.notifier).ready;
+      expect(container.read(themeModeProvider), saved);
+    });
+  }
+
+  test(
+    'fresh install → Light; Dark survives a restart; back to Light survives a restart',
+    () async {
+      Future<ProviderContainer> start() async {
+        final c = ProviderContainer();
+        await c.read(themeModeProvider.notifier).ready;
+        return c;
+      }
+
+      final first = await start();
+      expect(first.read(themeModeProvider), ThemeMode.light);
+      first.read(themeModeProvider.notifier).setMode(ThemeMode.dark);
+      await first.read(themeModeProvider.notifier).debugPersisted;
+      expect(first.read(themeModeProvider), ThemeMode.dark);
+      first.dispose();
+
+      final second = await start();
+      expect(second.read(themeModeProvider), ThemeMode.dark);
+      second.read(themeModeProvider.notifier).setMode(ThemeMode.light);
+      await second.read(themeModeProvider.notifier).debugPersisted;
+      second.dispose();
+
+      final third = await start();
+      addTearDown(third.dispose);
+      expect(third.read(themeModeProvider), ThemeMode.light);
+      expect(await ThemeStorage.instance.read(), ThemeMode.light);
     },
   );
 }

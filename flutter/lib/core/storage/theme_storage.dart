@@ -17,7 +17,7 @@ class ThemeStorage {
   /// value can never crash app startup. `null` (not a default `ThemeMode`)
   /// is the actual return type here on purpose: the caller decides what
   /// "nothing saved yet" means (this app's own answer is
-  /// `ThemeMode.system`), not this storage layer.
+  /// `ThemeMode.light`), not this storage layer.
   Future<ThemeMode?> read() async {
     try {
       final prefs = await SharedPreferences.getInstance();

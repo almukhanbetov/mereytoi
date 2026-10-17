@@ -3,13 +3,13 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../core/storage/theme_storage.dart';
 
-/// The user's chosen appearance — `system` (the default, before any
-/// explicit choice is ever made) / `light` / `dark`. Restored from
+/// The user's chosen appearance — `light` (the default, before any
+/// explicit choice is ever made) / `dark` / `system`. Restored from
 /// `ThemeStorage` on construction and persisted on every change, the same
 /// restore-on-start/persist-on-write shape `CartNotifier` already
 /// established for its own local state.
 class ThemeModeNotifier extends StateNotifier<ThemeMode> {
-  ThemeModeNotifier(this._storage) : super(ThemeMode.system) {
+  ThemeModeNotifier(this._storage) : super(ThemeMode.light) {
     _readyCompleter = _restore();
   }
 
@@ -33,8 +33,8 @@ class ThemeModeNotifier extends StateNotifier<ThemeMode> {
     final saved = await _storage.read();
     if (!mounted) return;
     // `null` means "nothing saved yet" — leaves the constructor's own
-    // `ThemeMode.system` default in place, exactly the brief's own "если
-    // нет сохранённой — использовать ThemeMode.system".
+    // `ThemeMode.light` default in place: a fresh install starts light,
+    // while any explicit choice (light/dark/system) is restored as saved.
     if (saved != null) state = saved;
   }
 
