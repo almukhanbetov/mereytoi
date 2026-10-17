@@ -14,6 +14,7 @@ import '../../widgets/app_error_view.dart';
 import '../../widgets/app_icon_badge.dart';
 import '../../widgets/app_loader.dart';
 import '../../widgets/app_skeleton.dart';
+import '../../widgets/chat/chat_fab.dart';
 import '../../widgets/events/create_event_sheet.dart';
 import '../auth/login_screen.dart';
 import 'event_workspace_screen.dart';
@@ -134,11 +135,12 @@ class _EventsList extends ConsumerWidget {
             );
           }
           return ListView.separated(
+            // Ends above RootShell's floating chat button.
             padding: const EdgeInsets.fromLTRB(
               AppSpacing.lg,
               AppSpacing.sm,
               AppSpacing.lg,
-              100,
+              kChatFabClearance,
             ),
             itemCount: events.length,
             separatorBuilder: (_, _) => const SizedBox(height: AppSpacing.sm),
