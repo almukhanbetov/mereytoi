@@ -7,7 +7,7 @@ import '../state/locale_provider.dart';
 import 'network_image_box.dart';
 
 /// A photo tile for a category — image, a soft gradient for legibility, and
-/// the name pinned to the bottom. Kept photo-forward (this is the one place
+/// the name pinned to the bottom, in a 1px warm frame with a faint shadow. Kept photo-forward (this is the one place
 /// in the redesign that's still "image card", intentionally) but tightened
 /// radius/typography/spacing to match the rest of the new system.
 class CategoryCard extends StatelessWidget {
@@ -24,6 +24,39 @@ class CategoryCard extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final colors = context.mereytoiColors;
+    final radius = BorderRadius.circular(AppRadius.lg);
+    // Same quiet frame as the service list photos: a faint shadow under
+    // the card, and a 1px warm-beige border drawn *over* the photo so the
+    // clipped corners stay clean (mixed from the theme's own surface and
+    // gold, so it stays a quiet line in dark mode too).
+    return DecoratedBox(
+      decoration: BoxDecoration(
+        borderRadius: radius,
+        boxShadow: const [
+          BoxShadow(
+            color: Color(0x141A1611),
+            blurRadius: 12,
+            offset: Offset(0, 3),
+          ),
+        ],
+      ),
+      child: Container(
+        foregroundDecoration: BoxDecoration(
+          borderRadius: radius,
+          border: Border.all(
+            color: Color.alphaBlend(
+              colors.goldPrimary.withValues(alpha: 0.15),
+              colors.surfaceSoft,
+            ),
+          ),
+        ),
+        child: _buildCard(context),
+      ),
+    );
+  }
+
+  Widget _buildCard(BuildContext context) {
     return Material(
       color: context.mereytoiColors.surface,
       borderRadius: BorderRadius.circular(AppRadius.lg),
