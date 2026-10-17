@@ -16,6 +16,7 @@ import 'package:mereytoi_app/state/locale_provider.dart';
 import 'package:mereytoi_app/state/providers.dart';
 import 'package:mereytoi_app/state/statistics_provider.dart';
 import 'package:mereytoi_app/widgets/city_selector.dart';
+import 'package:mereytoi_app/widgets/services/services_city_selector.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 
 import '../helpers/city_fake_api.dart';
@@ -404,7 +405,7 @@ void main() {
   });
 
   testWidgets(
-    'ServicesScreen: changing city keeps the category chip and search text',
+    'ServicesScreen: changing city keeps the category tile and search text',
     (tester) async {
       SharedPreferences.setMockInitialValues({});
       setScreen(tester, const Size(390, 800));
@@ -442,7 +443,8 @@ void main() {
         'category': 'venues',
       });
 
-      await openSheet(tester);
+      await tester.tap(find.byType(ServicesCitySelector));
+      await tester.pumpAndSettle();
       await tester.tap(inSheet(find.text('Астана')));
       await tester.pumpAndSettle();
 
@@ -453,7 +455,8 @@ void main() {
       expect(find.text('той'), findsOneWidget); // search text kept
       expect(tester.takeException(), isNull);
 
-      await openSheet(tester);
+      await tester.tap(find.byType(ServicesCitySelector));
+      await tester.pumpAndSettle();
       await tester.tap(inSheet(find.text('Все города')));
       await tester.pumpAndSettle();
       expect(adapter.listingRequests.last.queryParameters, {
