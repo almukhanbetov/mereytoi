@@ -4,6 +4,7 @@ import '../core/network/api_client.dart';
 import '../services/auth_service.dart';
 import '../services/booking_service.dart';
 import '../services/category_service.dart';
+import '../services/city_service.dart';
 import '../services/event_service.dart';
 import '../services/listing_management_service.dart';
 import '../services/listing_service.dart';
@@ -22,6 +23,9 @@ final apiClientProvider = Provider<ApiClient>((ref) => ApiClient.instance);
 
 final categoryServiceProvider = Provider<CategoryService>(
   (ref) => CategoryService(ref.watch(apiClientProvider)),
+);
+final cityServiceProvider = Provider<CityService>(
+  (ref) => CityService(ref.watch(apiClientProvider)),
 );
 final listingServiceProvider = Provider<ListingService>(
   (ref) => ListingService(ref.watch(apiClientProvider)),

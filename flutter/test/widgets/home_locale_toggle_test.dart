@@ -254,7 +254,7 @@ void main() {
 
         expect(tester.takeException(), isNull);
         expect(find.byIcon(Icons.language_rounded), findsOneWidget);
-        expect(find.byIcon(Icons.brightness_auto_rounded), findsOneWidget);
+        expect(find.byIcon(Icons.light_mode_rounded), findsOneWidget);
         expect(find.byIcon(Icons.notifications_outlined), findsOneWidget);
       },
     );

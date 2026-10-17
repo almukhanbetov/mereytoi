@@ -119,9 +119,9 @@ void main() {
       await tester.pumpAndSettle();
 
       expect(container.read(authProvider), isA<AuthUnauthenticated>());
-      expect(find.byIcon(Icons.brightness_auto_rounded), findsOneWidget);
+      expect(find.byIcon(Icons.light_mode_rounded), findsOneWidget);
 
-      await tester.tap(find.byIcon(Icons.brightness_auto_rounded));
+      await tester.tap(find.byIcon(Icons.light_mode_rounded));
       await tester.pumpAndSettle();
 
       expect(find.text('Оформление'), findsOneWidget);
@@ -131,39 +131,44 @@ void main() {
     },
   );
 
-  testWidgets('a guest can switch Light → Dark → System from the app bar', (
-    tester,
-  ) async {
-    final container = await _guestContainer();
-    addTearDown(container.dispose);
+  testWidgets(
+    'a guest starts on Light (the default) and can switch Dark → System → Light from the app bar',
+    (tester) async {
+      final container = await _guestContainer();
+      addTearDown(container.dispose);
 
-    await tester.pumpWidget(_appFor(container));
-    await tester.pumpAndSettle();
+      await tester.pumpWidget(_appFor(container));
+      await tester.pumpAndSettle();
 
-    // → Light
-    await tester.tap(find.byIcon(Icons.brightness_auto_rounded));
-    await tester.pumpAndSettle();
-    await tester.tap(find.text('Светлая'));
-    await tester.pumpAndSettle();
-    expect(container.read(themeModeProvider), ThemeMode.light);
-    expect(find.byIcon(Icons.light_mode_rounded), findsOneWidget);
+      // Nothing saved yet → Light.
+      expect(container.read(themeModeProvider), ThemeMode.light);
+      expect(find.byIcon(Icons.light_mode_rounded), findsOneWidget);
 
-    // → Dark
-    await tester.tap(find.byIcon(Icons.light_mode_rounded));
-    await tester.pumpAndSettle();
-    await tester.tap(find.text('Тёмная'));
-    await tester.pumpAndSettle();
-    expect(container.read(themeModeProvider), ThemeMode.dark);
-    expect(find.byIcon(Icons.dark_mode_rounded), findsOneWidget);
+      // → Dark
+      await tester.tap(find.byIcon(Icons.light_mode_rounded));
+      await tester.pumpAndSettle();
+      await tester.tap(find.text('Тёмная'));
+      await tester.pumpAndSettle();
+      expect(container.read(themeModeProvider), ThemeMode.dark);
+      expect(find.byIcon(Icons.dark_mode_rounded), findsOneWidget);
 
-    // → System
-    await tester.tap(find.byIcon(Icons.dark_mode_rounded));
-    await tester.pumpAndSettle();
-    await tester.tap(find.text('Системная'));
-    await tester.pumpAndSettle();
-    expect(container.read(themeModeProvider), ThemeMode.system);
-    expect(find.byIcon(Icons.brightness_auto_rounded), findsOneWidget);
-  });
+      // → System
+      await tester.tap(find.byIcon(Icons.dark_mode_rounded));
+      await tester.pumpAndSettle();
+      await tester.tap(find.text('Системная'));
+      await tester.pumpAndSettle();
+      expect(container.read(themeModeProvider), ThemeMode.system);
+      expect(find.byIcon(Icons.brightness_auto_rounded), findsOneWidget);
+
+      // → Light
+      await tester.tap(find.byIcon(Icons.brightness_auto_rounded));
+      await tester.pumpAndSettle();
+      await tester.tap(find.text('Светлая'));
+      await tester.pumpAndSettle();
+      expect(container.read(themeModeProvider), ThemeMode.light);
+      expect(find.byIcon(Icons.light_mode_rounded), findsOneWidget);
+    },
+  );
 
   testWidgets(
     'the choice made from Home persists to ThemeStorage and survives a simulated restart',
@@ -174,7 +179,7 @@ void main() {
       await tester.pumpWidget(_appFor(container));
       await tester.pumpAndSettle();
 
-      await tester.tap(find.byIcon(Icons.brightness_auto_rounded));
+      await tester.tap(find.byIcon(Icons.light_mode_rounded));
       await tester.pumpAndSettle();
       await tester.tap(find.text('Тёмная'));
       await tester.pumpAndSettle();
@@ -234,7 +239,7 @@ void main() {
     await tester.pumpWidget(_appFor(container));
     await tester.pumpAndSettle();
 
-    await tester.tap(find.byIcon(Icons.brightness_auto_rounded));
+    await tester.tap(find.byIcon(Icons.light_mode_rounded));
     await tester.pumpAndSettle();
     await tester.tap(find.text('Тёмная'));
     await tester.pumpAndSettle();
@@ -268,7 +273,7 @@ void main() {
       expect(tester.takeException(), isNull);
       // The four action buttons (notifications/account/theme/locale) all
       // present — the brand mark got squeezed, not the buttons dropped.
-      expect(find.byIcon(Icons.brightness_auto_rounded), findsOneWidget);
+      expect(find.byIcon(Icons.light_mode_rounded), findsOneWidget);
       expect(find.byIcon(Icons.notifications_outlined), findsOneWidget);
     },
   );
