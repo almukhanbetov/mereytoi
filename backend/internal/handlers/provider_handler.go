@@ -1,6 +1,7 @@
 package handlers
 
 import (
+	"encoding/json"
 	"net/http"
 	"strings"
 
@@ -21,14 +22,54 @@ func NewProviderHandler(db *gorm.DB) *ProviderHandler {
 	return &ProviderHandler{DB: db}
 }
 
+// newProviderStatus is the status a self-serve profile starts with. It is
+// active because no moderation flow exists yet; a later moderation stage
+// switches this one constant to ProviderStatusPending (the enum and column
+// already exist) without touching the create flow itself.
+const newProviderStatus = models.ProviderStatusActive
+
+// maxExperienceYears bounds experience_years to a plausible range.
+const maxExperienceYears = 80
+
+// providerInput is everything a caller may set on their own profile. It
+// deliberately has no user_id, id or status: the owner is always the
+// authenticated user and the status is server-controlled, so those keys in
+// a request body are simply ignored.
 type providerInput struct {
-	DisplayName string `json:"display_name" binding:"required"`
-	City        string `json:"city"`
-	Description string `json:"description"`
-	Phone       string `json:"phone"`
-	WhatsApp    string `json:"whatsapp"`
-	Telegram    string `json:"telegram"`
-	AvatarURL   string `json:"avatar_url"`
+	DisplayName     string      `json:"display_name" binding:"required"`
+	City            string      `json:"city"`
+	Description     string      `json:"description"`
+	Phone           string      `json:"phone"`
+	WhatsApp        string      `json:"whatsapp"`
+	Telegram        string      `json:"telegram"`
+	AvatarURL       string      `json:"avatar_url"`
+	ExperienceYears optionalInt `json:"experience_years"`
+}
+
+// optionalInt tells a missing JSON key apart from an explicit null: on
+// update, a client that doesn't know about experience_years (older app
+// builds) must not wipe it, while one that sends null clears it.
+type optionalInt struct {
+	Set   bool
+	Value *int
+}
+
+func (o *optionalInt) UnmarshalJSON(b []byte) error {
+	o.Set = true
+	if string(b) == "null" {
+		o.Value = nil
+		return nil
+	}
+	var v int
+	if err := json.Unmarshal(b, &v); err != nil {
+		return err
+	}
+	o.Value = &v
+	return nil
+}
+
+func validExperience(o optionalInt) bool {
+	return o.Value == nil || (*o.Value >= 0 && *o.Value <= maxExperienceYears)
 }
 
 // Me — GET /api/provider/me. 404 when the caller has no provider profile
@@ -66,6 +107,10 @@ func (h *ProviderHandler) Create(c *gin.Context) {
 		c.JSON(http.StatusBadRequest, gin.H{"error": "display_name is required"})
 		return
 	}
+	if !validExperience(in.ExperienceYears) {
+		c.JSON(http.StatusBadRequest, gin.H{"error": "invalid experience_years"})
+		return
+	}
 
 	provider := models.Provider{
 		UserID:      userID,
@@ -76,9 +121,9 @@ func (h *ProviderHandler) Create(c *gin.Context) {
 		WhatsApp:    in.WhatsApp,
 		Telegram:    in.Telegram,
 		AvatarURL:   in.AvatarURL,
-		// Straight to active — see models/provider.go's own doc comment on
-		// why (no moderation UI exists this stage).
-		Status: models.ProviderStatusActive,
+		// Owner always comes from the JWT (UserID above), never the body.
+		ExperienceYears: in.ExperienceYears.Value,
+		Status:          newProviderStatus,
 	}
 	if err := h.DB.Create(&provider).Error; err != nil {
 		c.JSON(http.StatusInternalServerError, gin.H{"error": "failed to create provider profile"})
@@ -108,6 +153,10 @@ func (h *ProviderHandler) UpdateMe(c *gin.Context) {
 		c.JSON(http.StatusBadRequest, gin.H{"error": "display_name is required"})
 		return
 	}
+	if !validExperience(in.ExperienceYears) {
+		c.JSON(http.StatusBadRequest, gin.H{"error": "invalid experience_years"})
+		return
+	}
 
 	provider.DisplayName = displayName
 	provider.City = in.City
@@ -116,6 +165,9 @@ func (h *ProviderHandler) UpdateMe(c *gin.Context) {
 	provider.WhatsApp = in.WhatsApp
 	provider.Telegram = in.Telegram
 	provider.AvatarURL = in.AvatarURL
+	if in.ExperienceYears.Set {
+		provider.ExperienceYears = in.ExperienceYears.Value
+	}
 
 	if err := h.DB.Save(&provider).Error; err != nil {
 		c.JSON(http.StatusInternalServerError, gin.H{"error": "failed to update provider profile"})
