@@ -30,6 +30,10 @@ type Provider struct {
 	WhatsApp    string `gorm:"size:30" json:"whatsapp,omitempty"`
 	Telegram    string `gorm:"size:60" json:"telegram,omitempty"`
 	AvatarURL   string `gorm:"size:500" json:"avatar_url,omitempty"`
+	// ExperienceYears — "опыт" from the provider onboarding. Nullable and
+	// additive: rows created before this column existed stay NULL ("not
+	// specified"), which is distinct from 0 ("less than a year").
+	ExperienceYears *int `gorm:"type:integer" json:"experience_years"`
 
 	// Status — see the ProviderStatus* consts below. New profiles are
 	// created directly as ProviderStatusActive: this stage explicitly

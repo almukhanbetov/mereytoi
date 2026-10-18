@@ -2,6 +2,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../core/network/api_exception.dart';
 import '../models/listing.dart';
+import '../models/provider_booking.dart';
 import '../models/provider_profile.dart';
 import 'listings_provider.dart';
 import 'providers.dart';
@@ -13,13 +14,27 @@ import 'providers.dart';
 /// (and any other error) is rethrown so a real failure still shows the
 /// screen's own error/retry UI rather than silently looking like "not a
 /// provider yet".
-final providerProfileProvider = FutureProvider<ProviderProfile?>((
-  ref,
-) async {
+final providerProfileProvider = FutureProvider<ProviderProfile?>((ref) async {
   try {
     return await ref.watch(providerServiceProvider).me();
   } on ApiException catch (e) {
     if (e.type == ApiErrorType.notFound) return null;
+    rethrow;
+  }
+});
+
+/// The caller's booking requests for their own services
+/// (GET /api/provider/me/bookings). Like [providerProfileProvider], reset
+/// by the app whenever the signed-in account changes (see app.dart). Not a
+/// provider yet (404) → no requests, not an error: an error state would
+/// keep the previous account's list as its stale value.
+final providerBookingsProvider = FutureProvider<List<ProviderBooking>>((
+  ref,
+) async {
+  try {
+    return await ref.watch(providerServiceProvider).myBookings();
+  } on ApiException catch (e) {
+    if (e.type == ApiErrorType.notFound) return const [];
     rethrow;
   }
 });
@@ -48,6 +63,7 @@ class ProviderActions {
     String whatsapp = '',
     String telegram = '',
     String avatarUrl = '',
+    int? experienceYears,
   }) async {
     final provider = await _ref
         .read(providerServiceProvider)
@@ -59,8 +75,10 @@ class ProviderActions {
           whatsapp: whatsapp,
           telegram: telegram,
           avatarUrl: avatarUrl,
+          experienceYears: experienceYears,
         );
     _ref.invalidate(providerProfileProvider);
+    _ref.invalidate(providerBookingsProvider);
     return provider;
   }
 
@@ -72,6 +90,8 @@ class ProviderActions {
     String whatsapp = '',
     String telegram = '',
     String avatarUrl = '',
+    bool includeExperience = false,
+    int? experienceYears,
   }) async {
     final provider = await _ref
         .read(providerServiceProvider)
@@ -83,6 +103,8 @@ class ProviderActions {
           whatsapp: whatsapp,
           telegram: telegram,
           avatarUrl: avatarUrl,
+          includeExperience: includeExperience,
+          experienceYears: experienceYears,
         );
     _ref.invalidate(providerProfileProvider);
     return provider;
@@ -127,11 +149,13 @@ class ProviderActions {
     String priceType = 'fixed',
     List<String>? imageUrls,
     bool? isActive,
+    int? categoryId,
   }) async {
     final listing = await _ref
         .read(listingManagementServiceProvider)
         .updateListing(
           current,
+          categoryId: categoryId,
           nameRu: nameRu,
           nameKz: nameKz,
           descriptionRu: descriptionRu,

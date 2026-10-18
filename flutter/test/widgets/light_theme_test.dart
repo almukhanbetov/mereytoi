@@ -133,6 +133,11 @@ void main() {
     );
     await tester.pumpAndSettle();
 
+    await tester.scrollUntilVisible(
+      find.text('Популярные услуги'),
+      300,
+      scrollable: find.byType(Scrollable).first,
+    );
     expect(find.text('AURORA QUINTET'), findsWidgets);
     expect(tester.takeException(), isNull);
   });

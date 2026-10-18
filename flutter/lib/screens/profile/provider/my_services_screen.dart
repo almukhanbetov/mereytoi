@@ -38,31 +38,31 @@ class MyServicesScreen extends ConsumerWidget {
     return Scaffold(
       appBar: AppBar(
         title: Text(
-          t(locale, ru: 'Мои услуги', kz: 'Менің қызметтерім', en: 'My services'),
+          t(
+            locale,
+            ru: 'Мои услуги',
+            kz: 'Менің қызметтерім',
+            en: 'My services',
+          ),
         ),
       ),
-      floatingActionButton: categoriesAsync.maybeWhen(
-        data: (categories) => FloatingActionButton.extended(
-          onPressed: () => openProviderServiceFormSheet(
-            context,
-            categories: categories,
-          ),
-          // Этап 11E QA finding: without an explicit color this rendered
-          // as Material 3's default purple FAB — jarring against the
-          // site's own gold/dark theme everywhere else.
-          backgroundColor: context.mereytoiColors.goldPrimary,
-          foregroundColor: context.mereytoiColors.onGold,
-          icon: const Icon(Icons.add_rounded),
-          label: Text(
-            t(
-              locale,
-              ru: 'Добавить услугу',
-              kz: 'Қызмет қосу',
-              en: 'Add service',
-            ),
+      floatingActionButton: FloatingActionButton.extended(
+        key: const ValueKey('my-services-add'),
+        onPressed: () => openProviderServiceForm(context),
+        // Этап 11E QA finding: without an explicit color this rendered
+        // as Material 3's default purple FAB — jarring against the
+        // site's own gold/dark theme everywhere else.
+        backgroundColor: context.mereytoiColors.goldPrimary,
+        foregroundColor: context.mereytoiColors.onGold,
+        icon: const Icon(Icons.add_rounded),
+        label: Text(
+          t(
+            locale,
+            ru: 'Добавить услугу',
+            kz: 'Қызмет қосу',
+            en: 'Add service',
           ),
         ),
-        orElse: () => null,
       ),
       body: listingsAsync.when(
         loading: () => ListView(
@@ -161,9 +161,9 @@ class _ServiceRow extends ConsumerWidget {
           );
     } catch (err) {
       if (context.mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text(apiErrorMessage(locale, err))),
-        );
+        ScaffoldMessenger.of(
+          context,
+        ).showSnackBar(SnackBar(content: Text(apiErrorMessage(locale, err))));
       }
     }
   }
@@ -186,9 +186,9 @@ class _ServiceRow extends ConsumerWidget {
       await ref.read(providerActionsProvider).deleteListing(listing.id);
     } catch (err) {
       if (context.mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text(apiErrorMessage(locale, err))),
-        );
+        ScaffoldMessenger.of(
+          context,
+        ).showSnackBar(SnackBar(content: Text(apiErrorMessage(locale, err))));
       }
     }
   }
@@ -196,83 +196,89 @@ class _ServiceRow extends ConsumerWidget {
   @override
   Widget build(BuildContext context, WidgetRef ref) {
     final locale = ref.watch(localeProvider);
-    final categoriesAsync = ref.watch(categoriesProvider);
 
     return AppCard(
       padding: const EdgeInsets.all(AppSpacing.xs),
       child: Row(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          ClipRRect(
-            borderRadius: BorderRadius.circular(AppRadius.sm),
-            child: SizedBox(
-              width: 52,
-              height: 52,
-              child: NetworkImageBox(
-                url: ApiConfig.mediaUrl(listing.coverImage),
-                fallbackIcon: Icons.design_services_outlined,
-              ),
-            ),
-          ),
-          const SizedBox(width: AppSpacing.sm),
           Expanded(
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Text(
-                  listing.name(locale),
-                  maxLines: 1,
-                  overflow: TextOverflow.ellipsis,
-                  style: Theme.of(context).textTheme.titleSmall,
-                ),
-                Text(
-                  listing.price > 0
-                      ? formatPrice(listing.price)
-                      : t(
-                          locale,
-                          ru: 'По запросу',
-                          kz: 'Сұраныс бойынша',
-                          en: 'On request',
-                        ),
-                  style: Theme.of(context).textTheme.bodySmall,
-                ),
-                const SizedBox(height: AppSpacing.xxs),
-                Wrap(
-                  spacing: AppSpacing.xs,
-                  children: [
-                    ActionChip(
-                      label: Text(
-                        listing.isActive
-                            ? t(
-                                locale,
-                                ru: 'Опубликовано',
-                                kz: 'Жарияланды',
-                                en: 'Published',
-                              )
-                            : t(
-                                locale,
-                                ru: 'Скрыто',
-                                kz: 'Жасырын',
-                                en: 'Hidden',
-                              ),
+            child: InkWell(
+              key: ValueKey('my-service-${listing.id}'),
+              borderRadius: BorderRadius.circular(AppRadius.md),
+              // Tapping the service opens it for editing.
+              onTap: () => openProviderServiceForm(context, existing: listing),
+              child: Row(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  ClipRRect(
+                    borderRadius: BorderRadius.circular(AppRadius.sm),
+                    child: SizedBox(
+                      width: 52,
+                      height: 52,
+                      child: NetworkImageBox(
+                        url: ApiConfig.mediaUrl(listing.coverImage),
+                        fallbackIcon: Icons.design_services_outlined,
                       ),
-                      onPressed: () => _toggleActive(context, ref),
                     ),
-                  ],
-                ),
-              ],
+                  ),
+                  const SizedBox(width: AppSpacing.sm),
+                  Expanded(
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Text(
+                          listing.name(locale),
+                          maxLines: 1,
+                          overflow: TextOverflow.ellipsis,
+                          style: Theme.of(context).textTheme.titleSmall,
+                        ),
+                        Text(
+                          listing.price > 0
+                              ? formatPrice(listing.price)
+                              : t(
+                                  locale,
+                                  ru: 'По запросу',
+                                  kz: 'Сұраныс бойынша',
+                                  en: 'On request',
+                                ),
+                          style: Theme.of(context).textTheme.bodySmall,
+                        ),
+                        const SizedBox(height: AppSpacing.xxs),
+                        Wrap(
+                          spacing: AppSpacing.xs,
+                          children: [
+                            ActionChip(
+                              label: Text(
+                                listing.isActive
+                                    ? t(
+                                        locale,
+                                        ru: 'Опубликовано',
+                                        kz: 'Жарияланды',
+                                        en: 'Published',
+                                      )
+                                    : t(
+                                        locale,
+                                        ru: 'Скрыто',
+                                        kz: 'Жасырын',
+                                        en: 'Hidden',
+                                      ),
+                              ),
+                              onPressed: () => _toggleActive(context, ref),
+                            ),
+                          ],
+                        ),
+                      ],
+                    ),
+                  ),
+                ],
+              ),
             ),
           ),
           PopupMenuButton<String>(
             onSelected: (value) {
               if (value == 'edit') {
-                categoriesAsync.whenData(
-                  (categories) => openProviderServiceFormSheet(
-                    context,
-                    categories: categories,
-                    existing: listing,
-                  ),
-                );
+                openProviderServiceForm(context, existing: listing);
               } else if (value == 'delete') {
                 _delete(context, ref);
               }
@@ -286,9 +292,7 @@ class _ServiceRow extends ConsumerWidget {
               ),
               PopupMenuItem(
                 value: 'delete',
-                child: Text(
-                  t(locale, ru: 'Удалить', kz: 'Жою', en: 'Delete'),
-                ),
+                child: Text(t(locale, ru: 'Удалить', kz: 'Жою', en: 'Delete')),
               ),
             ],
           ),

@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:image_picker/image_picker.dart';
 
@@ -7,6 +8,7 @@ import '../../../../core/theme/app_theme.dart';
 import '../../../../core/utils/error_messages.dart';
 import '../../../../models/provider_profile.dart';
 import '../../../../state/locale_provider.dart';
+import '../../../../state/provider_onboarding.dart' show kMaxExperienceYears;
 import '../../../../state/provider_provider.dart';
 import '../../../../state/providers.dart';
 import '../../../../widgets/admin/form_sheet_scaffold.dart';
@@ -44,6 +46,7 @@ class _ProviderProfileFormSheetState
   late final TextEditingController _displayName;
   late final TextEditingController _city;
   late final TextEditingController _description;
+  late final TextEditingController _experience;
   late final TextEditingController _phone;
   late final TextEditingController _whatsapp;
   late final TextEditingController _telegram;
@@ -59,6 +62,9 @@ class _ProviderProfileFormSheetState
     _displayName = TextEditingController(text: e?.displayName ?? '');
     _city = TextEditingController(text: e?.city ?? '');
     _description = TextEditingController(text: e?.description ?? '');
+    _experience = TextEditingController(
+      text: e?.experienceYears == null ? '' : '${e!.experienceYears}',
+    );
     _phone = TextEditingController(text: e?.phone ?? '');
     _whatsapp = TextEditingController(text: e?.whatsapp ?? '');
     _telegram = TextEditingController(text: e?.telegram ?? '');
@@ -77,9 +83,7 @@ class _ProviderProfileFormSheetState
       // surfaces here rather than crashing the sheet — the rest of the
       // form the user already filled in stays exactly as it was.
       if (mounted) {
-        setState(
-          () => _error = apiErrorMessage(ref.read(localeProvider), err),
-        );
+        setState(() => _error = apiErrorMessage(ref.read(localeProvider), err));
       }
       return;
     }
@@ -90,9 +94,9 @@ class _ProviderProfileFormSheetState
       _error = null;
     });
     try {
-      final urls = await ref
-          .read(uploadServiceProvider)
-          .uploadImages([picked.path]);
+      final urls = await ref.read(uploadServiceProvider).uploadImages([
+        picked.path,
+      ]);
       if (mounted && urls.isNotEmpty) {
         setState(() => _avatarUrl = urls.first);
       }
@@ -110,6 +114,7 @@ class _ProviderProfileFormSheetState
     _displayName.dispose();
     _city.dispose();
     _description.dispose();
+    _experience.dispose();
     _phone.dispose();
     _whatsapp.dispose();
     _telegram.dispose();
@@ -134,6 +139,7 @@ class _ProviderProfileFormSheetState
           whatsapp: _whatsapp.text.trim(),
           telegram: _telegram.text.trim(),
           avatarUrl: _avatarUrl,
+          experienceYears: int.tryParse(_experience.text.trim()),
         );
       } else {
         await actions.updateProfile(
@@ -144,6 +150,8 @@ class _ProviderProfileFormSheetState
           whatsapp: _whatsapp.text.trim(),
           telegram: _telegram.text.trim(),
           avatarUrl: _avatarUrl,
+          includeExperience: true,
+          experienceYears: int.tryParse(_experience.text.trim()),
         );
       }
       if (mounted) Navigator.of(context).pop();
@@ -282,6 +290,37 @@ class _ProviderProfileFormSheetState
               en: 'Short description (optional)',
             ),
           ),
+        ),
+        const SizedBox(height: AppSpacing.sm),
+        TextFormField(
+          key: const ValueKey('provider-profile-experience'),
+          controller: _experience,
+          keyboardType: TextInputType.number,
+          inputFormatters: [FilteringTextInputFormatter.digitsOnly],
+          maxLength: 2,
+          decoration: InputDecoration(
+            counterText: '',
+            labelText: t(
+              locale,
+              ru: 'Опыт, лет',
+              kz: 'Тәжірибе, жыл',
+              en: 'Experience, years',
+            ),
+            hintText: '0–$kMaxExperienceYears',
+          ),
+          validator: (v) {
+            final text = v?.trim() ?? '';
+            if (text.isEmpty) return null;
+            final years = int.tryParse(text);
+            return years != null && years <= kMaxExperienceYears
+                ? null
+                : t(
+                    locale,
+                    ru: 'От 0 до $kMaxExperienceYears',
+                    kz: '0-ден $kMaxExperienceYears-ге дейін',
+                    en: 'From 0 to $kMaxExperienceYears',
+                  );
+          },
         ),
         const SizedBox(height: AppSpacing.sm),
         TextFormField(

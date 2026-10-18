@@ -476,6 +476,9 @@ func RegisterWithOptions(r *gin.Engine, database *gorm.DB, cfg config.Config, op
 			provider.POST("", providerHandler.Create)
 			provider.PUT("/me", providerHandler.UpdateMe)
 			provider.POST("/me/listings", listingHandler.CreateOwn)
+			// Booking requests that include the caller's own services —
+			// scoped by the JWT, see ProviderHandler.MyBookings.
+			provider.GET("/me/bookings", providerHandler.MyBookings)
 		}
 
 		// Public provider profile — Этап 11G brief section 1. Plural

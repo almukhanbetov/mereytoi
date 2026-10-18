@@ -13,6 +13,7 @@ class ProviderProfile {
     required this.telegram,
     required this.avatarUrl,
     required this.status,
+    this.experienceYears,
   });
 
   final int id;
@@ -26,6 +27,10 @@ class ProviderProfile {
   final String avatarUrl;
   final String status;
 
+  /// Years of experience; null when the provider never said (rows created
+  /// before Stage A, or left blank).
+  final int? experienceYears;
+
   factory ProviderProfile.fromJson(Map<String, dynamic> json) {
     return ProviderProfile(
       id: json['id'] as int,
@@ -38,6 +43,7 @@ class ProviderProfile {
       telegram: json['telegram'] as String? ?? '',
       avatarUrl: json['avatar_url'] as String? ?? '',
       status: json['status'] as String? ?? '',
+      experienceYears: json['experience_years'] as int?,
     );
   }
 }

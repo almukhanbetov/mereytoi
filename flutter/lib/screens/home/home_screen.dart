@@ -11,6 +11,7 @@ import '../../state/city_provider.dart';
 import '../../state/listings_provider.dart';
 import '../../state/locale_provider.dart';
 import '../../state/notification_providers.dart';
+import '../../state/provider_provider.dart';
 import '../../state/statistics_provider.dart';
 import '../../state/theme_provider.dart';
 import '../../widgets/chat/chat_fab.dart';
@@ -21,6 +22,7 @@ import '../../widgets/category_card.dart';
 import '../../widgets/city_selector.dart';
 import '../../widgets/fade_slide_in.dart';
 import '../../widgets/locale_sheet.dart';
+import '../../widgets/provider/provider_business_card.dart';
 import '../../widgets/section_header.dart';
 import '../../widgets/service_card.dart';
 import '../../widgets/theme_mode_sheet.dart';
@@ -49,6 +51,9 @@ class HomeScreen extends ConsumerWidget {
           ref.invalidate(statisticsProvider);
           ref.invalidate(categoriesProvider);
           ref.invalidate(listingsProvider(null));
+          // A provider's «Мой бизнес» counts.
+          ref.invalidate(providerBookingsProvider);
+          ref.invalidate(myListingsProvider);
           // The city list is cached for the session; pull-to-refresh only
           // retries it when it actually failed.
           if (ref.read(citiesProvider).hasError) {
@@ -90,6 +95,11 @@ class HomeScreen extends ConsumerWidget {
               ),
             ),
             SliverToBoxAdapter(child: _Hero(locale: locale)),
+            // Provider marketplace entry: «Стать услугодателем» promo, or
+            // «Мой бизнес» for a provider. Above the categories grid (which
+            // lists every category as a large photo tile) so it's seen on
+            // the first scroll.
+            const SliverToBoxAdapter(child: ProviderBusinessCard()),
             SliverToBoxAdapter(child: _CategoriesSection(locale: locale)),
             SliverToBoxAdapter(
               child: _ListingCarouselSection(

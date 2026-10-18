@@ -553,6 +553,10 @@ func listingFromInput(in listingInput) models.Listing {
 	}
 }
 
+// newOwnListingIsActive is whether a provider's self-created service is
+// public right away. True while there's no moderation; see CreateOwn.
+const newOwnListingIsActive = true
+
 // CreateOwn — POST /api/provider/me/listings (auth only, no RequireAdmin).
 // Этап 11's self-serve "Добавить услугу": requires an existing Provider
 // profile (brief section 4 — "После сохранения provider profile
@@ -584,6 +588,12 @@ func (h *ListingHandler) CreateOwn(c *gin.Context) {
 	}
 
 	listing := listingFromInput(in)
+	// Rating is earned, never self-declared: a provider's new service
+	// always starts unrated whatever the body says.
+	listing.Rating = 0
+	// Published immediately (no moderation flow yet) — the one place a
+	// later moderation stage flips to start new services hidden.
+	listing.IsActive = newOwnListingIsActive
 	err := h.DB.Transaction(func(tx *gorm.DB) error {
 		if err := tx.Create(&listing).Error; err != nil {
 			return err
@@ -628,7 +638,12 @@ func (h *ListingHandler) Update(c *gin.Context) {
 	listing.Price = in.Price
 	listing.MinGuests = in.MinGuests
 	listing.MaxGuests = in.MaxGuests
-	listing.Rating = in.Rating
+	// Only an admin may change a rating. An owner/manager editing their
+	// own listing keeps the stored one — whether their body carries a
+	// rating or omits it (which used to reset it to 0).
+	if isAdminCtx(c) {
+		listing.Rating = in.Rating
+	}
 	listing.Emoji = in.Emoji
 	listing.ColorFrom = in.ColorFrom
 	listing.ColorTo = in.ColorTo

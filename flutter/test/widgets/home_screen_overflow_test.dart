@@ -123,6 +123,13 @@ void main() {
           restaurants: [_longListing(2, 'venues')],
         );
 
+        // The provider promo card sits above the rails now — scroll to
+        // them like a user would.
+        await tester.scrollUntilVisible(
+          find.text('Популярные услуги'),
+          300,
+          scrollable: find.byType(Scrollable).first,
+        );
         expect(find.text('Популярные услуги'), findsOneWidget);
 
         // The restaurants rail sits below the fold at this viewport height —
@@ -149,6 +156,13 @@ void main() {
         restaurants: const [],
       );
 
+      // The provider promo card sits above the rails now — scroll to
+      // them like a user would.
+      await tester.scrollUntilVisible(
+        find.text('Популярные услуги'),
+        300,
+        scrollable: find.byType(Scrollable).first,
+      );
       expect(find.text('Популярные услуги'), findsOneWidget);
 
       // Scroll all the way past where the rail would be, to confirm its
