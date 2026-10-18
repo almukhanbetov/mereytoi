@@ -72,9 +72,10 @@ class ListingManagementService {
     List<String>? imageUrls,
     String? priceType,
     bool? isActive,
+    int? categoryId,
   }) async {
     final json = await _client.putJson('/api/listings/${current.id}', {
-      'category_id': current.categoryId,
+      'category_id': categoryId ?? current.categoryId,
       'name_ru': nameRu ?? current.nameRu,
       'name_kz': nameKz ?? current.nameKz,
       'description_ru': descriptionRu ?? current.descriptionRu,

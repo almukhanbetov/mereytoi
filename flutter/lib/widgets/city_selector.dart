@@ -114,12 +114,33 @@ Future<void> showCitySheet(BuildContext context) {
   );
 }
 
+/// The same city sheet as a plain picker: returns the tapped [City] (or
+/// null when dismissed) without touching the global city filter, and
+/// without the «Все города» row — for forms that need one concrete city,
+/// like the provider onboarding.
+Future<City?> showCityPicker(BuildContext context, {int? selectedId}) {
+  return showModalBottomSheet<City>(
+    context: context,
+    isScrollControlled: true,
+    useSafeArea: true,
+    backgroundColor: Colors.transparent,
+    builder: (_) => CitySheet(pickMode: true, pickedId: selectedId),
+  );
+}
+
 /// "Выберите город": drag handle, title, local search, "Все города" first,
 /// then the backend's cities. Search filters the already-loaded list
 /// (RU/KZ/EN names) — no request per keystroke. Picking a row saves it and
 /// closes the sheet.
 class CitySheet extends ConsumerStatefulWidget {
-  const CitySheet({super.key});
+  const CitySheet({super.key, this.pickMode = false, this.pickedId});
+
+  /// Picker mode ([showCityPicker]): pops with the chosen [City] instead of
+  /// changing the global selection, and hides «Все города».
+  final bool pickMode;
+
+  /// The city to show as selected in picker mode.
+  final int? pickedId;
 
   @override
   ConsumerState<CitySheet> createState() => _CitySheetState();
@@ -135,15 +156,21 @@ class _CitySheetState extends ConsumerState<CitySheet> {
     super.dispose();
   }
 
-  void _select(int? cityId) {
-    ref.read(selectedCityIdProvider.notifier).selectCity(cityId);
+  void _select(City? city) {
+    if (widget.pickMode) {
+      Navigator.of(context).pop(city);
+      return;
+    }
+    ref.read(selectedCityIdProvider.notifier).selectCity(city?.id);
     Navigator.of(context).pop();
   }
 
   @override
   Widget build(BuildContext context) {
     final locale = ref.watch(localeProvider);
-    final selectedId = ref.watch(selectedCityIdProvider);
+    final selectedId = widget.pickMode
+        ? widget.pickedId
+        : ref.watch(selectedCityIdProvider);
     final cities = ref.watch(citiesProvider);
     final colors = context.mereytoiColors;
     final mq = MediaQuery.of(context);
@@ -262,7 +289,7 @@ class _CitySheetState extends ConsumerState<CitySheet> {
     final children = <Widget>[
       // "Все города" is a reset, not a search result — shown only while
       // the search box is empty.
-      if (!searching)
+      if (!searching && !widget.pickMode)
         _CityTile(
           label: allCitiesLabel(locale),
           icon: Icons.public_rounded,
@@ -303,7 +330,7 @@ class _CitySheetState extends ConsumerState<CitySheet> {
               label: city.name(locale),
               icon: Icons.location_on_outlined,
               selected: city.id == selectedId,
-              onTap: () => _select(city.id),
+              onTap: () => _select(city),
             ),
         ],
       ),
