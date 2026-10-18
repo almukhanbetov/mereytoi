@@ -5,6 +5,8 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'core/deeplink/deep_link_service.dart';
 import 'core/theme/app_theme.dart';
 import 'screens/splash/splash_screen.dart';
+import 'state/auth_provider.dart';
+import 'state/provider_provider.dart';
 import 'state/theme_provider.dart';
 
 /// The app's single root [Navigator] key — [DeepLinkService] pushes
@@ -39,6 +41,17 @@ class _MereytoiAppState extends ConsumerState<MereytoiApp> {
 
   @override
   Widget build(BuildContext context) {
+    // A provider profile (and its requests) belongs to one account: drop
+    // the cached ones whenever the signed-in account changes, so the next
+    // account never sees the previous one's «Мой бизнес».
+    ref.listen<int?>(
+      authProvider.select((s) => s is AuthAuthenticated ? s.user.id : null),
+      (previous, next) {
+        if (previous == next) return;
+        ref.invalidate(providerProfileProvider);
+        ref.invalidate(providerBookingsProvider);
+      },
+    );
     final themeMode = ref.watch(themeModeProvider);
     // Этап 10Б-А — one global status-bar/Android-nav-bar style, resolved
     // from the same two inputs `MaterialApp` itself uses to pick

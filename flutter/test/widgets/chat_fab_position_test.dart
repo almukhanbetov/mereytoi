@@ -366,6 +366,13 @@ void main() {
         size: const Size(393, 800),
         theme: () => AppTheme.light,
       );
+      // The carousels sit below the provider promo card.
+      await tester.scrollUntilVisible(
+        find.text('Популярные услуги'),
+        300,
+        scrollable: find.byType(Scrollable).first,
+      );
+      await tester.pumpAndSettle();
       final carousel = find.byWidgetPredicate(
         (w) => w is Scrollable && w.axisDirection == AxisDirection.right,
       );

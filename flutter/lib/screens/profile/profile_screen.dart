@@ -18,10 +18,10 @@ import '../../widgets/app_card.dart';
 import '../../widgets/theme_mode_sheet.dart';
 import '../events/event_workspace_screen.dart';
 import '../manager_chat/manager_chat_screen.dart';
+import '../provider/business/my_business_screen.dart';
+import '../provider/onboarding/provider_onboarding_screen.dart';
 import '../provider_chat/provider_chat_list_screen.dart';
 import 'change_password_screen.dart';
-import 'provider/my_services_screen.dart';
-import 'provider/widgets/provider_profile_form_sheet.dart';
 import 'restaurant_admin/restaurant_admin_list_screen.dart';
 
 /// Brief section 3 — the account screen: identity, messenger/delivery
@@ -813,7 +813,11 @@ class _ProviderEntrySection extends ConsumerWidget {
                     ),
                     const SizedBox(height: AppSpacing.sm),
                     ElevatedButton(
-                      onPressed: () => openProviderProfileFormSheet(context),
+                      onPressed: () => Navigator.of(context).push(
+                        MaterialPageRoute(
+                          builder: (_) => const ProviderOnboardingScreen(),
+                        ),
+                      ),
                       child: Text(
                         t(
                           locale,
@@ -831,128 +835,51 @@ class _ProviderEntrySection extends ConsumerWidget {
           );
         }
 
+        // A provider gets one entry — «Мой бизнес» — which holds services,
+        // requests, messages, profile and statistics.
         return Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
             _SectionTitle(provider.displayName),
             AppCard(
               padding: EdgeInsets.zero,
-              child: Column(
-                children: [
-                  InkWell(
-                    borderRadius: const BorderRadius.vertical(
-                      top: Radius.circular(AppRadius.lg),
-                    ),
-                    onTap: () => openProviderProfileFormSheet(
-                      context,
-                      existing: provider,
-                    ),
-                    child: Padding(
-                      padding: const EdgeInsets.all(AppSpacing.md),
-                      child: Row(
-                        children: [
-                          Icon(
-                            Icons.storefront_outlined,
-                            color: context.mereytoiColors.goldPrimary,
-                          ),
-                          const SizedBox(width: AppSpacing.xs),
-                          Expanded(
-                            child: Text(
-                              t(
-                                locale,
-                                ru: 'Профиль услугодателя',
-                                kz: 'Қызмет көрсетуші профилі',
-                                en: 'Provider profile',
-                              ),
-                              style: Theme.of(context).textTheme.bodyLarge,
+              child: InkWell(
+                key: const ValueKey('profile-my-business'),
+                borderRadius: BorderRadius.circular(AppRadius.lg),
+                onTap: () => Navigator.of(context).push(
+                  MaterialPageRoute(builder: (_) => const MyBusinessScreen()),
+                ),
+                child: ConstrainedBox(
+                  constraints: const BoxConstraints(minHeight: 56),
+                  child: Padding(
+                    padding: const EdgeInsets.all(AppSpacing.md),
+                    child: Row(
+                      children: [
+                        Icon(
+                          Icons.business_center_outlined,
+                          color: context.mereytoiColors.goldPrimary,
+                        ),
+                        const SizedBox(width: AppSpacing.xs),
+                        Expanded(
+                          child: Text(
+                            t(
+                              locale,
+                              ru: 'Мой бизнес',
+                              kz: 'Менің бизнесім',
+                              en: 'My business',
                             ),
+                            style: Theme.of(context).textTheme.bodyLarge,
                           ),
-                          Icon(
-                            Icons.chevron_right_rounded,
-                            size: 18,
-                            color: context.mereytoiColors.textMuted,
-                          ),
-                        ],
-                      ),
+                        ),
+                        Icon(
+                          Icons.chevron_right_rounded,
+                          size: 18,
+                          color: context.mereytoiColors.textMuted,
+                        ),
+                      ],
                     ),
                   ),
-                  Divider(height: 1, color: context.mereytoiColors.divider),
-                  InkWell(
-                    onTap: () => Navigator.of(context).push(
-                      MaterialPageRoute(
-                        builder: (_) => const MyServicesScreen(),
-                      ),
-                    ),
-                    child: Padding(
-                      padding: const EdgeInsets.all(AppSpacing.md),
-                      child: Row(
-                        children: [
-                          Icon(
-                            Icons.design_services_outlined,
-                            color: context.mereytoiColors.goldPrimary,
-                          ),
-                          const SizedBox(width: AppSpacing.xs),
-                          Expanded(
-                            child: Text(
-                              t(
-                                locale,
-                                ru: 'Мои услуги',
-                                kz: 'Менің қызметтерім',
-                                en: 'My services',
-                              ),
-                              style: Theme.of(context).textTheme.bodyLarge,
-                            ),
-                          ),
-                          Icon(
-                            Icons.chevron_right_rounded,
-                            size: 18,
-                            color: context.mereytoiColors.textMuted,
-                          ),
-                        ],
-                      ),
-                    ),
-                  ),
-                  Divider(height: 1, color: context.mereytoiColors.divider),
-                  // Этап 11G brief section 6 — "Сообщения от клиентов".
-                  InkWell(
-                    borderRadius: const BorderRadius.vertical(
-                      bottom: Radius.circular(AppRadius.lg),
-                    ),
-                    onTap: () => Navigator.of(context).push(
-                      MaterialPageRoute(
-                        builder: (_) => const ProviderChatListScreen(),
-                      ),
-                    ),
-                    child: Padding(
-                      padding: const EdgeInsets.all(AppSpacing.md),
-                      child: Row(
-                        children: [
-                          Icon(
-                            Icons.chat_bubble_outline_rounded,
-                            color: context.mereytoiColors.goldPrimary,
-                          ),
-                          const SizedBox(width: AppSpacing.xs),
-                          Expanded(
-                            child: Text(
-                              t(
-                                locale,
-                                ru: 'Сообщения от клиентов',
-                                kz: 'Клиенттерден хабарламалар',
-                                en: 'Messages from customers',
-                              ),
-                              style: Theme.of(context).textTheme.bodyLarge,
-                            ),
-                          ),
-                          Icon(
-                            Icons.chevron_right_rounded,
-                            size: 18,
-                            color: context.mereytoiColors.textMuted,
-                          ),
-                        ],
-                      ),
-                    ),
-                  ),
-                ],
+                ),
               ),
             ),
             const SizedBox(height: AppSpacing.lg),
