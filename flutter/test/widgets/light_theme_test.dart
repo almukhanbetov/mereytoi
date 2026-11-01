@@ -134,7 +134,7 @@ void main() {
     await tester.pumpAndSettle();
 
     await tester.scrollUntilVisible(
-      find.text('Популярные услуги'),
+      find.text('Популярное'),
       300,
       scrollable: find.byType(Scrollable).first,
     );

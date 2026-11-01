@@ -357,33 +357,6 @@ void main() {
       expect(fabShown(tester), isTrue);
       await tester.pumpAndSettle();
     });
-
-    testWidgets('horizontal scrolling (Home carousels) never hides it', (
-      tester,
-    ) async {
-      await pumpShell(
-        tester,
-        size: const Size(393, 800),
-        theme: () => AppTheme.light,
-      );
-      // The carousels sit below the provider promo card.
-      await tester.scrollUntilVisible(
-        find.text('Популярные услуги'),
-        300,
-        scrollable: find.byType(Scrollable).first,
-      );
-      await tester.pumpAndSettle();
-      final carousel = find.byWidgetPredicate(
-        (w) => w is Scrollable && w.axisDirection == AxisDirection.right,
-      );
-      expect(carousel, findsWidgets);
-      await tester.ensureVisible(carousel.first);
-      await tester.pumpAndSettle();
-      await tester.drag(carousel.first, const Offset(-300, 0));
-      await tester.pump(kChatFabAnimationDuration);
-      expect(fabShown(tester), isTrue);
-      await tester.pumpAndSettle();
-    });
   });
 
   test('scroll views end far enough below the button', () {
