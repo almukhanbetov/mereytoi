@@ -4,13 +4,18 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../../core/theme/app_theme.dart';
 import '../../../state/locale_provider.dart';
 import '../../profile/provider/my_services_screen.dart';
+import '../business/my_business_screen.dart';
 import '../../profile/provider/widgets/provider_service_form_sheet.dart';
 
 /// "✓ Профиль создан" — shown once the onboarding published. Both buttons
 /// lead to the existing provider screens: «Мои услуги», or «Мои услуги»
 /// with the existing add-service form opened on top.
 class ProviderOnboardingSuccessScreen extends ConsumerWidget {
-  const ProviderOnboardingSuccessScreen({super.key});
+  const ProviderOnboardingSuccessScreen({super.key, this.openBusiness = false});
+
+  /// Reached from the «Для бизнеса» mode: the main button opens
+  /// «Мой бизнес» instead of «Мои услуги».
+  final bool openBusiness;
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
@@ -90,18 +95,36 @@ class ProviderOnboardingSuccessScreen extends ConsumerWidget {
                   const SizedBox(height: AppSpacing.xxl),
                   SizedBox(
                     height: 52,
-                    child: ElevatedButton(
-                      key: const ValueKey('success-my-services'),
-                      onPressed: openMyServices,
-                      child: Text(
-                        t(
-                          locale,
-                          ru: 'Мои услуги',
-                          kz: 'Менің қызметтерім',
-                          en: 'My services',
-                        ),
-                      ),
-                    ),
+                    child: openBusiness
+                        ? ElevatedButton(
+                            key: const ValueKey('success-my-business'),
+                            onPressed: () =>
+                                Navigator.of(context).pushReplacement(
+                                  MaterialPageRoute(
+                                    builder: (_) => const MyBusinessScreen(),
+                                  ),
+                                ),
+                            child: Text(
+                              t(
+                                locale,
+                                ru: 'Открыть мой бизнес',
+                                kz: 'Менің бизнесімді ашу',
+                                en: 'Open my business',
+                              ),
+                            ),
+                          )
+                        : ElevatedButton(
+                            key: const ValueKey('success-my-services'),
+                            onPressed: openMyServices,
+                            child: Text(
+                              t(
+                                locale,
+                                ru: 'Мои услуги',
+                                kz: 'Менің қызметтерім',
+                                en: 'My services',
+                              ),
+                            ),
+                          ),
                   ),
                   const SizedBox(height: AppSpacing.sm),
                   SizedBox(

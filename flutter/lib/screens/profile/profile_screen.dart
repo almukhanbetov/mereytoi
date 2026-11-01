@@ -6,6 +6,7 @@ import '../../core/theme/app_theme.dart';
 import '../../core/utils/error_messages.dart';
 import '../../domain/event/event_status.dart';
 import '../../models/user.dart';
+import '../../state/app_mode_provider.dart';
 import '../../state/auth_provider.dart';
 import '../../state/categories_provider.dart';
 import '../../state/event_providers.dart';
@@ -18,9 +19,9 @@ import '../../widgets/app_card.dart';
 import '../../widgets/theme_mode_sheet.dart';
 import '../events/event_workspace_screen.dart';
 import '../manager_chat/manager_chat_screen.dart';
-import '../provider/business/my_business_screen.dart';
-import '../provider/onboarding/provider_onboarding_screen.dart';
 import '../provider_chat/provider_chat_list_screen.dart';
+import '../role_choice/role_choice_screen.dart';
+import '../root_shell.dart';
 import 'change_password_screen.dart';
 import 'restaurant_admin/restaurant_admin_list_screen.dart';
 
@@ -600,7 +601,7 @@ class _ProfileBodyState extends ConsumerState<_ProfileBody>
         // for a global admin — admin already manages every listing
         // regardless, "стать услугодателем" has no meaning for that
         // account. ----
-        if (!user.isAdmin) const _ProviderEntrySection(),
+        if (!user.isAdmin) const _AppModeSection(),
 
         // ---- Мои мероприятия ----
         _SectionTitle(
@@ -758,134 +759,190 @@ class _RestaurantsEntrySection extends StatelessWidget {
   }
 }
 
-/// "Стать услугодателем" (no profile yet) → "Профиль услугодателя" + "Мои
-/// услуги" (profile exists) — Этап 11 brief section 3. Silently collapses
-/// on loading/error rather than blocking the rest of the profile screen —
-/// this is an optional, secondary section, same "don't gate the whole
-/// screen on it" treatment the Мои мероприятия block above already gives
-/// its own eventsAsync.
-class _ProviderEntrySection extends ConsumerWidget {
-  const _ProviderEntrySection();
+/// «Режим приложения»: the same account for an event or for business.
+/// The business option reads «Мой бизнес» for a provider and «Стать
+/// услугодателем» otherwise, and opens «Мой бизнес» or the provider
+/// onboarding; the event option returns to the client Home. The chosen
+/// mode is only remembered as a UI preference (see [appModeProvider]).
+class _AppModeSection extends ConsumerWidget {
+  const _AppModeSection();
+
+  Future<void> _openBusiness(BuildContext context, WidgetRef ref) async {
+    final navigator = Navigator.of(context);
+    final messenger = ScaffoldMessenger.of(context);
+    final locale = ref.read(localeProvider);
+    try {
+      final provider = await ref.read(providerProfileProvider.future);
+      ref.read(appModeProvider.notifier).set(AppMode.business);
+      navigator
+        ..popUntil((route) => route.isFirst)
+        ..push(businessRoute(provider));
+    } catch (_) {
+      messenger.showSnackBar(
+        SnackBar(
+          content: Text(
+            t(
+              locale,
+              ru: 'Не удалось загрузить. Попробуйте ещё раз',
+              kz: 'Жүктеу мүмкін болмады. Қайталап көріңіз',
+              en: 'Couldn’t load. Please try again',
+            ),
+          ),
+        ),
+      );
+    }
+  }
+
+  void _openClient(BuildContext context, WidgetRef ref) {
+    ref.read(appModeProvider.notifier).set(AppMode.client);
+    ref.read(selectedTabProvider.notifier).state = 0;
+    Navigator.of(context).popUntil((route) => route.isFirst);
+  }
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
     final locale = ref.watch(localeProvider);
-    final providerAsync = ref.watch(providerProfileProvider);
+    final mode = ref.watch(appModeProvider) ?? AppMode.client;
+    final provider = ref.watch(providerProfileProvider);
+    final isProvider = provider.valueOrNull != null;
 
-    return providerAsync.when(
-      loading: () => const SizedBox.shrink(),
-      error: (_, _) => const SizedBox.shrink(),
-      data: (provider) {
-        if (provider == null) {
-          return Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        _SectionTitle(
+          t(
+            locale,
+            ru: 'Режим приложения',
+            kz: 'Қолданба режимі',
+            en: 'App mode',
+          ),
+        ),
+        // One account, two roles: say which one is on now.
+        Padding(
+          padding: const EdgeInsets.only(bottom: AppSpacing.sm),
+          child: Text.rich(
+            key: const ValueKey('profile-current-mode'),
+            TextSpan(
+              text: t(
+                locale,
+                ru: 'Текущий режим: ',
+                kz: 'Қазіргі режим: ',
+                en: 'Current mode: ',
+              ),
+              children: [
+                TextSpan(
+                  text: switch ((mode, isProvider)) {
+                    (AppMode.client, _) => t(
+                      locale,
+                      ru: 'Для мероприятия',
+                      kz: 'Іс-шара үшін',
+                      en: 'For an event',
+                    ),
+                    (AppMode.business, true) => t(
+                      locale,
+                      ru: 'Мой бизнес',
+                      kz: 'Менің бизнесім',
+                      en: 'My business',
+                    ),
+                    (AppMode.business, false) => t(
+                      locale,
+                      ru: 'Для бизнеса',
+                      kz: 'Бизнес үшін',
+                      en: 'For business',
+                    ),
+                  },
+                  style: TextStyle(
+                    fontWeight: FontWeight.w700,
+                    color: context.mereytoiColors.textPrimary,
+                  ),
+                ),
+              ],
+            ),
+            style: Theme.of(context).textTheme.bodyMedium?.copyWith(
+              color: context.mereytoiColors.textSecondary,
+            ),
+          ),
+        ),
+        IntrinsicHeight(
+          child: Row(
+            crossAxisAlignment: CrossAxisAlignment.stretch,
             children: [
-              _SectionTitle(
-                t(
-                  locale,
-                  ru: 'Услугодатель',
-                  kz: 'Қызмет көрсетуші',
-                  en: 'Provider',
+              Expanded(
+                child: ModeChoiceCard(
+                  key: const ValueKey('profile-mode-client'),
+                  compact: true,
+                  icon: Icons.celebration_rounded,
+                  eyebrow: t(
+                    locale,
+                    ru: 'Для мероприятия',
+                    kz: 'Іс-шара үшін',
+                    en: 'For an event',
+                  ),
+                  title: t(
+                    locale,
+                    ru: 'Ищу услуги',
+                    kz: 'Қызмет іздеймін',
+                    en: 'Looking for services',
+                  ),
+                  cta: t(
+                    locale,
+                    ru: 'На главную',
+                    kz: 'Басты бетке',
+                    en: 'Go to Home',
+                  ),
+                  selected: mode == AppMode.client,
+                  onTap: () => _openClient(context, ref),
                 ),
               ),
-              AppCard(
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    Text(
-                      t(
-                        locale,
-                        ru: 'Предлагаете услуги для тоев?',
-                        kz: 'Той қызметтерін ұсынасыз ба?',
-                        en: 'Do you offer event services?',
-                      ),
-                      style: Theme.of(context).textTheme.titleSmall,
-                    ),
-                    const SizedBox(height: AppSpacing.xxs),
-                    Text(
-                      t(
-                        locale,
-                        ru: 'Заполните короткий профиль и добавьте свою услугу в каталог MEREYTOI.',
-                        kz: 'Қысқаша профильді толтырып, қызметіңізді MEREYTOI каталогына қосыңыз.',
-                        en: 'Fill in a short profile and add your service to the MEREYTOI catalog.',
-                      ),
-                      style: Theme.of(context).textTheme.bodySmall,
-                    ),
-                    const SizedBox(height: AppSpacing.sm),
-                    ElevatedButton(
-                      onPressed: () => Navigator.of(context).push(
-                        MaterialPageRoute(
-                          builder: (_) => const ProviderOnboardingScreen(),
+              const SizedBox(width: AppSpacing.sm),
+              Expanded(
+                child: ModeChoiceCard(
+                  key: ValueKey(
+                    isProvider
+                        ? 'profile-my-business'
+                        : 'profile-become-provider',
+                  ),
+                  compact: true,
+                  icon: Icons.business_center_rounded,
+                  eyebrow: t(
+                    locale,
+                    ru: 'Для бизнеса',
+                    kz: 'Бизнес үшін',
+                    en: 'For business',
+                  ),
+                  goldAccent: true,
+                  title: isProvider
+                      ? t(
+                          locale,
+                          ru: 'Мой бизнес',
+                          kz: 'Менің бизнесім',
+                          en: 'My business',
+                        )
+                      : t(
+                          locale,
+                          ru: 'Предлагаю услуги',
+                          kz: 'Қызмет ұсынамын',
+                          en: 'Offering services',
                         ),
-                      ),
-                      child: Text(
-                        t(
+                  // The role is the same; the action depends on whether
+                  // the account already has a provider profile.
+                  cta: isProvider
+                      ? t(locale, ru: 'Открыть', kz: 'Ашу', en: 'Open')
+                      : t(
                           locale,
                           ru: 'Стать услугодателем',
                           kz: 'Қызмет көрсетуші болу',
                           en: 'Become a provider',
                         ),
-                      ),
-                    ),
-                  ],
+                  selected: mode == AppMode.business,
+                  onTap: () => _openBusiness(context, ref),
                 ),
               ),
-              const SizedBox(height: AppSpacing.lg),
             ],
-          );
-        }
-
-        // A provider gets one entry — «Мой бизнес» — which holds services,
-        // requests, messages, profile and statistics.
-        return Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            _SectionTitle(provider.displayName),
-            AppCard(
-              padding: EdgeInsets.zero,
-              child: InkWell(
-                key: const ValueKey('profile-my-business'),
-                borderRadius: BorderRadius.circular(AppRadius.lg),
-                onTap: () => Navigator.of(context).push(
-                  MaterialPageRoute(builder: (_) => const MyBusinessScreen()),
-                ),
-                child: ConstrainedBox(
-                  constraints: const BoxConstraints(minHeight: 56),
-                  child: Padding(
-                    padding: const EdgeInsets.all(AppSpacing.md),
-                    child: Row(
-                      children: [
-                        Icon(
-                          Icons.business_center_outlined,
-                          color: context.mereytoiColors.goldPrimary,
-                        ),
-                        const SizedBox(width: AppSpacing.xs),
-                        Expanded(
-                          child: Text(
-                            t(
-                              locale,
-                              ru: 'Мой бизнес',
-                              kz: 'Менің бизнесім',
-                              en: 'My business',
-                            ),
-                            style: Theme.of(context).textTheme.bodyLarge,
-                          ),
-                        ),
-                        Icon(
-                          Icons.chevron_right_rounded,
-                          size: 18,
-                          color: context.mereytoiColors.textMuted,
-                        ),
-                      ],
-                    ),
-                  ),
-                ),
-              ),
-            ),
-            const SizedBox(height: AppSpacing.lg),
-          ],
-        );
-      },
+          ),
+        ),
+        const SizedBox(height: AppSpacing.lg),
+      ],
     );
   }
 }

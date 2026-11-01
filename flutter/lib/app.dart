@@ -5,6 +5,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'core/deeplink/deep_link_service.dart';
 import 'core/theme/app_theme.dart';
 import 'screens/splash/splash_screen.dart';
+import 'state/app_mode_provider.dart';
 import 'state/auth_provider.dart';
 import 'state/provider_provider.dart';
 import 'state/theme_provider.dart';
@@ -52,6 +53,13 @@ class _MereytoiAppState extends ConsumerState<MereytoiApp> {
         ref.invalidate(providerBookingsProvider);
       },
     );
+    // Signing out returns the app to the client mode, so the next person
+    // to sign in on this device never lands in someone's business side.
+    ref.listen<AuthState>(authProvider, (previous, next) {
+      if (previous is AuthAuthenticated && next is AuthUnauthenticated) {
+        ref.read(appModeProvider.notifier).set(AppMode.client);
+      }
+    });
     final themeMode = ref.watch(themeModeProvider);
     // Этап 10Б-А — one global status-bar/Android-nav-bar style, resolved
     // from the same two inputs `MaterialApp` itself uses to pick
