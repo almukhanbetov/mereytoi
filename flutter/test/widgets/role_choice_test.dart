@@ -466,17 +466,33 @@ void main() {
     final sub = container.listen(providerProfileProvider, (_, _) {});
     addTearDown(sub.close);
     expect((await settled(providerProfileProvider)).valueOrNull, isNotNull);
+    // The first account's own services, as «Мой бизнес» counts them.
+    api.listings.add({
+      'id': 101,
+      'category_id': 2,
+      'name_ru': 'Проведение тоя',
+      'name_kz': 'Той жүргізу',
+      'price': 150000,
+      'city': 'Алматы',
+      'rating': 0,
+      'is_active': true,
+    });
+    final listingsSub = container.listen(myListingsProvider, (_, _) {});
+    addTearDown(listingsSub.close);
+    expect((await settled(myListingsProvider)).valueOrNull, hasLength(1));
 
     container.read(authProvider.notifier).state = const AuthUnauthenticated();
     await tester.pump();
     expect(container.read(appModeProvider), AppMode.client);
 
     // Another account on the same device: no provider of its own, and the
-    // previous one's profile is gone from the cache.
+    // previous one's profile and services are gone from the cache.
     api.provider = null;
+    api.listings.clear();
     container.read(authProvider.notifier).state = AuthAuthenticated(_user(10));
     await tester.pump();
     expect((await settled(providerProfileProvider)).valueOrNull, isNull);
+    expect((await settled(myListingsProvider)).valueOrNull, isEmpty);
 
     // Let the splash finish so no timers outlive the test.
     await tester.pump(const Duration(milliseconds: 1500));
