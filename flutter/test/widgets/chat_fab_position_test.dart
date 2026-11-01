@@ -176,7 +176,7 @@ void main() {
           );
           await tester.pumpAndSettle();
           final card = tester.getRect(
-            find.ancestor(of: lastCard, matching: find.byType(ServiceListTile)),
+            find.ancestor(of: lastCard, matching: find.byType(ServiceGridCard)),
           );
           expect(card.bottom, lessThanOrEqualTo(fab.top));
           expect(tester.takeException(), isNull);
