@@ -27,10 +27,9 @@ import '../../widgets/services/services_style.dart';
 /// `GET /api/listings?category=<slug>&search=<term>` the Go handler
 /// already supports server-side — no client-only filtering invented here.
 ///
-/// The list uses a single column of horizontal cards ([ServiceListTile])
-/// rather than a 2-column grid: listing names/cities vary a lot in length,
-/// and a full-width row gives text room to wrap/ellipsis cleanly instead of
-/// fighting a narrow, fixed-height grid tile.
+/// Results are a 2-column grid of [ServiceGridCard]s, marketplace style.
+/// Names vary a lot in length, so every card reserves two lines for the
+/// name and the grid gives all cards one computed height.
 class ServicesScreen extends ConsumerStatefulWidget {
   const ServicesScreen({super.key, this.initialCategorySlug});
 
@@ -158,13 +157,17 @@ class _ServicesScreenState extends ConsumerState<ServicesScreen> {
                   AppSpacing.md,
                   AppSpacing.xl,
                 ),
-                sliver: SliverList.separated(
-                  itemCount: 5,
-                  separatorBuilder: (_, _) =>
-                      const SizedBox(height: AppSpacing.sm),
-                  itemBuilder: (context, i) => const AppSkeleton(
-                    height: 128,
-                    borderRadius: AppRadius.lg,
+                // The same 2-column geometry as the loaded grid, so the
+                // first load doesn't flash a one-per-row list.
+                sliver: SliverLayoutBuilder(
+                  builder: (context, constraints) => SliverGrid.builder(
+                    gridDelegate: _gridDelegate(
+                      context,
+                      constraints.crossAxisExtent,
+                    ),
+                    itemCount: 6,
+                    itemBuilder: (context, i) =>
+                        const AppSkeleton(borderRadius: 16),
                   ),
                 ),
               ),
@@ -231,20 +234,27 @@ class _ServicesScreenState extends ConsumerState<ServicesScreen> {
                     AppSpacing.md,
                     kChatFabClearance,
                   ),
-                  sliver: SliverList.separated(
-                    itemCount: filtered.length,
-                    separatorBuilder: (_, _) =>
-                        const SizedBox(height: AppSpacing.sm),
-                    itemBuilder: (context, i) {
-                      final listing = filtered[i];
-                      return FadeSlideIn(
-                        index: i,
-                        child: ServiceListTile(
-                          listing: listing,
-                          locale: locale,
-                          categoryLabel: listing.category?.name(locale),
-                          onTap: () => pushListingDetail(context, ref, listing),
+                  sliver: SliverLayoutBuilder(
+                    builder: (context, constraints) {
+                      return SliverGrid.builder(
+                        gridDelegate: _gridDelegate(
+                          context,
+                          constraints.crossAxisExtent,
                         ),
+                        itemCount: filtered.length,
+                        itemBuilder: (context, i) {
+                          final listing = filtered[i];
+                          return FadeSlideIn(
+                            index: i,
+                            child: ServiceGridCard(
+                              key: ValueKey('service-grid-${listing.id}'),
+                              listing: listing,
+                              locale: locale,
+                              onTap: () =>
+                                  pushListingDetail(context, ref, listing),
+                            ),
+                          );
+                        },
                       );
                     },
                   ),
@@ -256,6 +266,24 @@ class _ServicesScreenState extends ConsumerState<ServicesScreen> {
       ),
     );
   }
+}
+
+/// The gap between the two columns of service cards.
+const _gridColumnGap = AppSpacing.sm;
+
+/// Two columns at every phone width; one fixed card height (from the
+/// column width and font scale) keeps the rows even.
+SliverGridDelegate _gridDelegate(BuildContext context, double width) {
+  final cardWidth = (width - _gridColumnGap) / 2;
+  return SliverGridDelegateWithFixedCrossAxisCount(
+    crossAxisCount: 2,
+    crossAxisSpacing: _gridColumnGap,
+    mainAxisSpacing: AppSpacing.md,
+    mainAxisExtent: ServiceGridCard.mainAxisExtent(
+      cardWidth,
+      MediaQuery.textScalerOf(context),
+    ),
+  );
 }
 
 class _SectionTitle extends StatelessWidget {

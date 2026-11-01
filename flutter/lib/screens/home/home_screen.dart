@@ -27,15 +27,15 @@ import '../../widgets/section_header.dart';
 import '../../widgets/service_card.dart';
 import '../../widgets/theme_mode_sheet.dart';
 import '../auth/login_screen.dart';
-import '../categories/categories_screen.dart';
 import '../notifications/notifications_screen.dart';
 import '../profile/profile_screen.dart';
 import '../root_shell.dart';
 import '../services/services_screen.dart';
 
-/// The mobile counterpart of frontend/src/app/page.js — Hero, Statistics
-/// (GET /api/site-statistics), Categories (GET /api/categories) and a
-/// Featured-services strip built from GET /api/listings, all on one screen.
+/// The app's showcase — Hero, Statistics (GET /api/site-statistics), city,
+/// a few key categories (GET /api/categories), a few popular services
+/// (GET /api/listings) and the provider entry. Every way into the full
+/// list opens the services catalog ([ServicesScreen]).
 class HomeScreen extends ConsumerWidget {
   const HomeScreen({super.key});
 
@@ -78,15 +78,17 @@ class HomeScreen extends ConsumerWidget {
                 const SizedBox(width: AppSpacing.md),
               ],
             ),
-            // City pill sits between the app bar and the hero — the app bar's
-            // own action row has no room left for it at 320px.
+            // A short showcase, not a second catalog: hero, city, a few key
+            // categories, a few popular offers, then the provider entry.
+            // Finding a specific service is the «Услуги» tab's job.
+            SliverToBoxAdapter(child: _Hero(locale: locale)),
             const SliverToBoxAdapter(
               child: Padding(
                 padding: EdgeInsets.fromLTRB(
                   AppSpacing.lg,
-                  AppSpacing.xxs,
-                  AppSpacing.lg,
                   AppSpacing.xs,
+                  AppSpacing.lg,
+                  0,
                 ),
                 child: Align(
                   alignment: Alignment.centerLeft,
@@ -94,47 +96,14 @@ class HomeScreen extends ConsumerWidget {
                 ),
               ),
             ),
-            SliverToBoxAdapter(child: _Hero(locale: locale)),
-            // Provider marketplace entry: «Стать услугодателем» promo, or
-            // «Мой бизнес» for a provider. Above the categories grid (which
-            // lists every category as a large photo tile) so it's seen on
-            // the first scroll.
-            const SliverToBoxAdapter(child: ProviderBusinessCard()),
             SliverToBoxAdapter(child: _CategoriesSection(locale: locale)),
-            SliverToBoxAdapter(
-              child: _ListingCarouselSection(
-                locale: locale,
-                categorySlug: null,
-                eyebrow: t(
-                  locale,
-                  ru: 'Рекомендуем',
-                  kz: 'Ұсынамыз',
-                  en: 'Recommended',
-                ),
-                title: t(
-                  locale,
-                  ru: 'Популярные услуги',
-                  kz: 'Танымал қызметтер',
-                  en: 'Popular services',
-                ),
-              ),
-            ),
-            SliverToBoxAdapter(
-              child: _ListingCarouselSection(
-                locale: locale,
-                categorySlug: 'venues',
-                eyebrow: t(
-                  locale,
-                  ru: 'Для торжества',
-                  kz: 'Той үшін',
-                  en: 'For your celebration',
-                ),
-                title: t(
-                  locale,
-                  ru: 'Рестораны',
-                  kz: 'Мейрамханалар',
-                  en: 'Restaurants',
-                ),
+            SliverToBoxAdapter(child: _PopularSection(locale: locale)),
+            // Provider marketplace entry — secondary, after the client
+            // showcase: «Стать услугодателем» promo, or «Мой бизнес».
+            const SliverToBoxAdapter(
+              child: Padding(
+                padding: EdgeInsets.only(top: AppSpacing.md),
+                child: ProviderBusinessCard(),
               ),
             ),
             // Room for the last section to scroll clear of the chat button.
@@ -570,37 +539,21 @@ class _CategoriesSection extends ConsumerWidget {
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          Row(
-            crossAxisAlignment: CrossAxisAlignment.center,
-            children: [
-              Expanded(
-                child: SectionHeader(
-                  eyebrow: t(
-                    locale,
-                    ru: 'Что мы предлагаем',
-                    kz: 'Не ұсынамыз',
-                    en: 'What we offer',
-                  ),
-                  title: t(
-                    locale,
-                    ru: 'Услуги',
-                    kz: 'Қызметтер',
-                    en: 'Services',
-                  ),
-                ),
-              ),
-              TextButton(
-                onPressed: () => Navigator.of(context).push(
-                  MaterialPageRoute(builder: (_) => const CategoriesScreen()),
-                ),
-                child: Text(t(locale, ru: 'Все', kz: 'Барлығы', en: 'All')),
-              ),
-            ],
+          SectionHeader(
+            eyebrow: t(
+              locale,
+              ru: 'Что мы предлагаем',
+              kz: 'Не ұсынамыз',
+              en: 'What we offer',
+            ),
+            title: t(locale, ru: 'Услуги', kz: 'Қызметтер', en: 'Services'),
           ),
           const SizedBox(height: AppSpacing.sm),
           categories.when(
-            loading: () =>
-                const AppGridSkeleton(itemCount: 4, aspectRatio: 0.92),
+            loading: () => const AppGridSkeleton(
+              itemCount: _homeCategoryLimit,
+              aspectRatio: 0.92,
+            ),
             error: (err, _) => AppErrorView(
               message: apiErrorMessage(locale, err),
               locale: locale,
@@ -621,10 +574,13 @@ class _CategoriesSection extends ConsumerWidget {
                   ),
                 );
               }
+              // Only the first few, in the catalog's own order — the rest
+              // are one tap away in «Все услуги».
+              final shown = list.take(_homeCategoryLimit).toList();
               return GridView.builder(
                 shrinkWrap: true,
                 physics: const NeverScrollableScrollPhysics(),
-                itemCount: list.length,
+                itemCount: shown.length,
                 gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
                   crossAxisCount: 2,
                   mainAxisSpacing: AppSpacing.md,
@@ -632,24 +588,37 @@ class _CategoriesSection extends ConsumerWidget {
                   childAspectRatio: 0.92,
                 ),
                 itemBuilder: (context, i) {
-                  final category = list[i];
+                  final category = shown[i];
                   return FadeSlideIn(
                     index: i,
                     child: CategoryCard(
                       category: category,
                       locale: locale,
-                      onTap: () => Navigator.of(context).push(
-                        MaterialPageRoute(
-                          builder: (_) => ServicesScreen(
-                            initialCategorySlug: category.slug,
-                          ),
-                        ),
-                      ),
+                      onTap: () =>
+                          _openCatalog(context, categorySlug: category.slug),
                     ),
                   );
                 },
               );
             },
+          ),
+          const SizedBox(height: AppSpacing.sm),
+          SizedBox(
+            width: double.infinity,
+            child: OutlinedButton.icon(
+              key: const ValueKey('home-all-services'),
+              onPressed: () => _openCatalog(context),
+              iconAlignment: IconAlignment.end,
+              icon: const Icon(Icons.arrow_forward_rounded, size: 18),
+              label: Text(
+                t(
+                  locale,
+                  ru: 'Все услуги',
+                  kz: 'Барлық қызметтер',
+                  en: 'All services',
+                ),
+              ),
+            ),
           ),
         ],
       ),
@@ -657,99 +626,115 @@ class _CategoriesSection extends ConsumerWidget {
   }
 }
 
-/// A horizontally-scrolling listing rail with its own section header —
-/// shared by "Популярные услуги" (`categorySlug: null`) and "Рестораны"
-/// (`categorySlug: 'venues'`, the same real category slug
-/// `RestaurantDetailScreen` already keys off of) so the loading/error/
-/// empty handling for a card carousel is written once, not duplicated per
-/// rail (Stage 8 — "унифицировать", "не плодить inline styles").
-class _ListingCarouselSection extends ConsumerWidget {
-  const _ListingCarouselSection({
-    required this.locale,
-    required this.categorySlug,
-    required this.eyebrow,
-    required this.title,
-  });
+/// How many categories and popular services Home shows — a glimpse, not
+/// the catalog.
+const _homeCategoryLimit = 4;
+const _homePopularLimit = 4;
+
+/// Opens the services catalog — filtered to [categorySlug], or showing
+/// everything. Pushed, so Back returns to Home where it was.
+void _openCatalog(BuildContext context, {String? categorySlug}) {
+  Navigator.of(context).push(
+    MaterialPageRoute(
+      builder: (_) => ServicesScreen(initialCategorySlug: categorySlug),
+    ),
+  );
+}
+
+/// «Популярное»: a 2×2 block of the catalog's own cards, with «Все →» to
+/// the full catalog. Hidden when there's nothing to show.
+class _PopularSection extends ConsumerWidget {
+  const _PopularSection({required this.locale});
 
   final AppLocale locale;
-  final String? categorySlug;
-  final String eyebrow;
-  final String title;
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
-    final listings = ref.watch(listingsProvider(categorySlug));
-
-    // A genuinely empty rail (no venues yet, say) hides *itself* — header
-    // included — rather than leaving a title sitting over blank space.
-    // Loading/error still show the header, exactly as before: that's
-    // useful feedback, unlike an empty result which has nothing to say.
+    final listings = ref.watch(listingsProvider(null));
     if (listings case AsyncData(:final value) when value.isEmpty) {
       return const SizedBox.shrink();
     }
 
     return Padding(
-      padding: const EdgeInsets.only(top: AppSpacing.xl),
+      padding: const EdgeInsets.fromLTRB(
+        AppSpacing.lg,
+        AppSpacing.xl,
+        AppSpacing.lg,
+        0,
+      ),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          Padding(
-            padding: const EdgeInsets.symmetric(horizontal: AppSpacing.lg),
-            child: SectionHeader(eyebrow: eyebrow, title: title),
+          Row(
+            children: [
+              Expanded(
+                child: SectionHeader(
+                  eyebrow: t(
+                    locale,
+                    ru: 'Рекомендуем',
+                    kz: 'Ұсынамыз',
+                    en: 'Recommended',
+                  ),
+                  title: t(
+                    locale,
+                    ru: 'Популярное',
+                    kz: 'Танымал',
+                    en: 'Popular',
+                  ),
+                ),
+              ),
+              TextButton(
+                key: const ValueKey('home-popular-all'),
+                onPressed: () => _openCatalog(context),
+                child: Text(t(locale, ru: 'Все', kz: 'Барлығы', en: 'All')),
+              ),
+            ],
           ),
           const SizedBox(height: AppSpacing.sm),
-          listings.when(
-            loading: () => SizedBox(
-              height: 284,
-              child: ListView.separated(
-                scrollDirection: Axis.horizontal,
-                padding: const EdgeInsets.symmetric(horizontal: AppSpacing.lg),
-                itemCount: 3,
-                separatorBuilder: (_, _) =>
-                    const SizedBox(width: AppSpacing.md),
-                itemBuilder: (context, i) =>
-                    const SizedBox(width: 168, child: AppCardSkeleton()),
-              ),
-            ),
-            error: (err, _) => Padding(
-              padding: const EdgeInsets.symmetric(horizontal: AppSpacing.lg),
-              child: AppErrorView(
-                message: apiErrorMessage(locale, err),
-                locale: locale,
-                onRetry: () => ref.invalidate(listingsProvider(categorySlug)),
-              ),
-            ),
-            data: (list) {
-              // The empty case is already handled above (hides the whole
-              // section, header included) before this `when` is even
-              // reached — this branch only ever runs with a real list.
-              final featured = list.take(6).toList();
-              return SizedBox(
-                height: 284,
-                child: ListView.separated(
-                  scrollDirection: Axis.horizontal,
-                  padding: const EdgeInsets.symmetric(
-                    horizontal: AppSpacing.lg,
-                  ),
-                  itemCount: featured.length,
-                  separatorBuilder: (_, _) =>
-                      const SizedBox(width: AppSpacing.md),
-                  itemBuilder: (context, i) {
-                    final listing = featured[i];
-                    return FadeSlideIn(
-                      index: i,
-                      child: SizedBox(
-                        width: 168,
-                        child: ServiceCard(
-                          listing: listing,
-                          locale: locale,
-                          categoryLabel: listing.category?.name(locale),
-                          onTap: () => pushListingDetail(context, ref, listing),
-                        ),
+          LayoutBuilder(
+            builder: (context, constraints) {
+              Widget grid(int count, Widget Function(int) item) =>
+                  GridView.builder(
+                    shrinkWrap: true,
+                    physics: const NeverScrollableScrollPhysics(),
+                    padding: EdgeInsets.zero,
+                    itemCount: count,
+                    gridDelegate: SliverGridDelegateWithFixedCrossAxisCount(
+                      crossAxisCount: 2,
+                      crossAxisSpacing: AppSpacing.sm,
+                      mainAxisSpacing: AppSpacing.md,
+                      mainAxisExtent: ServiceGridCard.mainAxisExtent(
+                        (constraints.maxWidth - AppSpacing.sm) / 2,
+                        MediaQuery.textScalerOf(context),
                       ),
-                    );
-                  },
+                    ),
+                    itemBuilder: (context, i) => item(i),
+                  );
+              return listings.when(
+                loading: () => grid(
+                  _homePopularLimit,
+                  (_) => const AppSkeleton(borderRadius: 16),
                 ),
+                error: (err, _) => AppErrorView(
+                  message: apiErrorMessage(locale, err),
+                  locale: locale,
+                  onRetry: () => ref.invalidate(listingsProvider(null)),
+                ),
+                data: (list) {
+                  final shown = list.take(_homePopularLimit).toList();
+                  return grid(
+                    shown.length,
+                    (i) => FadeSlideIn(
+                      index: i,
+                      child: ServiceGridCard(
+                        key: ValueKey('home-popular-${shown[i].id}'),
+                        listing: shown[i],
+                        locale: locale,
+                        onTap: () => pushListingDetail(context, ref, shown[i]),
+                      ),
+                    ),
+                  );
+                },
               );
             },
           ),

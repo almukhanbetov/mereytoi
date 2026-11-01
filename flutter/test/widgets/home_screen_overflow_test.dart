@@ -10,6 +10,7 @@ import 'package:mereytoi_app/screens/home/home_screen.dart';
 import 'package:mereytoi_app/state/categories_provider.dart';
 import 'package:mereytoi_app/state/listings_provider.dart';
 import 'package:mereytoi_app/state/statistics_provider.dart';
+import 'package:mereytoi_app/widgets/service_card.dart';
 
 /// Same empty in-memory secure storage other widget tests in this suite
 /// use — `HomeScreen`'s own account button reads `authProvider`, whose
@@ -114,63 +115,55 @@ void main() {
 
   for (final size in [Size(320, 700), Size(360, 800)]) {
     testWidgets(
-      'HomeScreen renders both the services and restaurants rails with long content, no overflow, at ${size.width.toInt()}px',
+      'HomeScreen shows a short «Популярное» block with long content, no overflow, at ${size.width.toInt()}px',
       (tester) async {
         await pumpHome(
           tester,
           size: size,
-          services: [_longListing(1, 'hosts')],
-          restaurants: [_longListing(2, 'venues')],
+          services: [for (var i = 1; i <= 8; i++) _longListing(i, 'hosts')],
+          restaurants: [_longListing(20, 'venues')],
         );
 
-        // The provider promo card sits above the rails now — scroll to
-        // them like a user would.
+        // The block sits below the hero and categories — scroll to it
+        // like a user would.
         await tester.scrollUntilVisible(
-          find.text('Популярные услуги'),
+          find.text('Популярное'),
           300,
           scrollable: find.byType(Scrollable).first,
         );
-        expect(find.text('Популярные услуги'), findsOneWidget);
-
-        // The restaurants rail sits below the fold at this viewport height —
-        // scroll it into view the same way a real user would, rather than
-        // asserting on off-screen (unbuilt) sliver content.
-        await tester.scrollUntilVisible(
-          find.text('Рестораны'),
-          300,
-          scrollable: find.byType(Scrollable).first,
+        expect(find.text('Популярное'), findsOneWidget);
+        await tester.drag(
+          find.byType(Scrollable).first,
+          const Offset(0, -3000),
         );
-        expect(find.text('Рестораны'), findsOneWidget);
+        await tester.pumpAndSettle();
+
+        // A glimpse, not the catalog: at most four cards, and no separate
+        // restaurants rail.
+        expect(find.byType(ServiceGridCard), findsNWidgets(4));
+        expect(find.text('Рестораны'), findsNothing);
         expect(tester.takeException(), isNull);
       },
     );
   }
 
   testWidgets(
-    'HomeScreen hides the restaurants rail entirely when there are no venues (no dead empty state)',
+    'HomeScreen hides «Популярное» entirely when there are no services (no dead empty state)',
     (tester) async {
       await pumpHome(
         tester,
         size: const Size(360, 800),
-        services: [_longListing(1, 'hosts')],
+        services: const [],
         restaurants: const [],
       );
 
-      // The provider promo card sits above the rails now — scroll to
-      // them like a user would.
-      await tester.scrollUntilVisible(
-        find.text('Популярные услуги'),
-        300,
-        scrollable: find.byType(Scrollable).first,
-      );
-      expect(find.text('Популярные услуги'), findsOneWidget);
-
-      // Scroll all the way past where the rail would be, to confirm its
-      // absence is real (the empty-data branch), not just off-screen.
-      await tester.drag(find.byType(Scrollable).first, const Offset(0, -2000));
+      // Scroll all the way down, to confirm its absence is real (the
+      // empty-data branch), not just off-screen.
+      await tester.drag(find.byType(Scrollable).first, const Offset(0, -3000));
       await tester.pumpAndSettle();
 
-      expect(find.text('Рестораны'), findsNothing);
+      expect(find.text('Популярное'), findsNothing);
+      expect(find.byType(ServiceGridCard), findsNothing);
       expect(tester.takeException(), isNull);
     },
   );

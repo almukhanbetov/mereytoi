@@ -372,6 +372,177 @@ class ServiceListTile extends StatelessWidget {
   }
 }
 
+/// The services catalog's 2-column grid card: square photo on top (rating
+/// badge over it), then the name (always room for 2 lines), city and
+/// price pinned to the bottom. Every card in a grid gets the same height
+/// from [mainAxisExtent], so long names never make the rows jump.
+class ServiceGridCard extends StatelessWidget {
+  const ServiceGridCard({
+    super.key,
+    required this.listing,
+    required this.locale,
+    required this.onTap,
+  });
+
+  final Listing listing;
+  final AppLocale locale;
+  final VoidCallback onTap;
+
+  static const _titleSize = 14.0;
+  static const _titleHeight = 1.25;
+  static const _metaSize = 12.0;
+  static const _metaHeight = 1.3;
+  static const _priceSize = 15.0;
+  static const _priceHeight = 1.25;
+
+  /// Text in the card scales with the system font, up to this factor.
+  static const maxTextScale = 1.3;
+
+  /// Tighter inner padding on a narrow card (a 320dp phone).
+  static double _padding(double width) => width < 160 ? 10 : 12;
+
+  /// The card height for a [width]-wide grid column: the square photo plus
+  /// the text block at the given [textScaler].
+  static double mainAxisExtent(double width, TextScaler textScaler) {
+    final scaler = textScaler.clamp(maxScaleFactor: maxTextScale);
+    double line(double size, double height) => scaler.scale(size) * height;
+    return width +
+        _padding(width) * 2 +
+        line(_titleSize, _titleHeight) * 2 +
+        4 +
+        line(_metaSize, _metaHeight) +
+        6 +
+        line(_priceSize, _priceHeight) +
+        2; // rounding slack
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final colors = context.mereytoiColors;
+    final radius = BorderRadius.circular(16);
+    final meta = [
+      if (listing.city.isNotEmpty) listing.city,
+      if (listing.provider?.displayName.isNotEmpty == true)
+        listing.provider!.displayName,
+      if (listing.capacity > 0) '${listing.capacity}',
+    ].join(' · ');
+
+    return MediaQuery.withClampedTextScaling(
+      maxScaleFactor: maxTextScale,
+      child: DecoratedBox(
+        decoration: BoxDecoration(
+          borderRadius: radius,
+          boxShadow: const [
+            BoxShadow(
+              color: Color(0x0F1A1611),
+              blurRadius: 12,
+              offset: Offset(0, 3),
+            ),
+          ],
+        ),
+        child: Material(
+          color: colors.surface,
+          borderRadius: radius,
+          clipBehavior: Clip.antiAlias,
+          child: InkWell(
+            onTap: onTap,
+            child: LayoutBuilder(
+              builder: (context, constraints) {
+                final padding = _padding(constraints.maxWidth);
+                return Column(
+                  crossAxisAlignment: CrossAxisAlignment.stretch,
+                  children: [
+                    AspectRatio(
+                      aspectRatio: 1,
+                      child: Stack(
+                        fit: StackFit.expand,
+                        children: [
+                          NetworkImageBox(
+                            url: ApiConfig.mediaUrl(listing.coverImage),
+                            borderRadius: 0,
+                            fallbackIcon: Icons.celebration_outlined,
+                          ),
+                          if (listing.rating > 0)
+                            Positioned(
+                              top: AppSpacing.xs,
+                              left: AppSpacing.xs,
+                              child: _RatingBadge(rating: listing.rating),
+                            ),
+                        ],
+                      ),
+                    ),
+                    Expanded(
+                      child: Padding(
+                        padding: EdgeInsets.all(padding),
+                        child: Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            Text(
+                              listing.name(locale),
+                              maxLines: 2,
+                              overflow: TextOverflow.ellipsis,
+                              style: TextStyle(
+                                fontSize: _titleSize,
+                                height: _titleHeight,
+                                fontWeight: FontWeight.w600,
+                                color: colors.textPrimary,
+                              ),
+                            ),
+                            const SizedBox(height: 4),
+                            if (meta.isNotEmpty)
+                              Row(
+                                children: [
+                                  Icon(
+                                    Icons.place_outlined,
+                                    size: 13,
+                                    color: colors.textMuted,
+                                  ),
+                                  const SizedBox(width: 2),
+                                  Expanded(
+                                    child: Text(
+                                      meta,
+                                      maxLines: 1,
+                                      overflow: TextOverflow.ellipsis,
+                                      style: TextStyle(
+                                        fontSize: _metaSize,
+                                        height: _metaHeight,
+                                        color: colors.textSecondary,
+                                      ),
+                                    ),
+                                  ),
+                                ],
+                              ),
+                            const Spacer(),
+                            FittedBox(
+                              fit: BoxFit.scaleDown,
+                              alignment: Alignment.centerLeft,
+                              child: Text(
+                                formatPrice(listing.price),
+                                key: const ValueKey('service-grid-price'),
+                                maxLines: 1,
+                                style: TextStyle(
+                                  fontSize: _priceSize,
+                                  height: _priceHeight,
+                                  fontWeight: FontWeight.w700,
+                                  color: colors.goldSoft,
+                                ),
+                              ),
+                            ),
+                          ],
+                        ),
+                      ),
+                    ),
+                  ],
+                );
+              },
+            ),
+          ),
+        ),
+      ),
+    );
+  }
+}
+
 class _RatingBadge extends StatelessWidget {
   const _RatingBadge({required this.rating});
 

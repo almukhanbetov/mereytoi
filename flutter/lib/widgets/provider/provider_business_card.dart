@@ -12,7 +12,7 @@ import '../../state/provider_business.dart';
 import '../../state/provider_provider.dart';
 
 /// Home's entry to the provider marketplace. For guests and users without
-/// a provider profile it's the «Зарабатывайте вместе с MEREYTOI» promo
+/// a provider profile it's the «Оказываете услуги?» promo
 /// (→ onboarding, or sign-in first for a guest); for a provider it becomes
 /// «Мой бизнес» (→ [MyBusinessScreen]) with real service/request counts
 /// when they're loaded. Provider status comes only from the provider API
@@ -82,15 +82,15 @@ class _PromoCard extends StatelessWidget {
       icon: Icons.storefront_rounded,
       title: t(
         locale,
-        ru: 'Зарабатывайте вместе с MEREYTOI',
-        kz: 'MEREYTOI-мен бірге табыс табыңыз',
-        en: 'Earn with MEREYTOI',
+        ru: 'Оказываете услуги?',
+        kz: 'Қызмет көрсетесіз бе?',
+        en: 'Do you provide services?',
       ),
       subtitle: t(
         locale,
-        ru: 'Размещайте свои услуги и находите новых клиентов',
-        kz: 'Қызметтеріңізді орналастырып, жаңа клиенттер табыңыз',
-        en: 'List your services and find new clients',
+        ru: 'Разместите услуги и получайте заявки',
+        kz: 'Қызметтеріңізді орналастырып, өтінім алыңыз',
+        en: 'List your services and get requests',
       ),
       cta: t(
         locale,

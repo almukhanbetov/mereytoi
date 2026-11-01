@@ -467,7 +467,7 @@ void main() {
 
   for (final width in [320.0, 390.0]) {
     testWidgets(
-      'HomeScreen at ${width.toInt()}px: pill under the app bar, city change refetches both rails',
+      'HomeScreen at ${width.toInt()}px: pill under the hero, city change refetches the popular block',
       (tester) async {
         FlutterSecureStoragePlatform.instance = _EmptySecureStoragePlatform();
         SharedPreferences.setMockInitialValues({});
@@ -501,13 +501,11 @@ void main() {
           find.descendant(of: pill(), matching: find.text('Все города')),
           findsOneWidget,
         );
-        expect(
-          adapter.listingRequests.map((r) => r.queryParameters),
-          containsAll([
-            <String, dynamic>{},
-            {'category': 'venues'},
-          ]),
-        );
+        // Home shows one listing block now («Популярное»), no
+        // restaurants rail.
+        expect(adapter.listingRequests.map((r) => r.queryParameters).toList(), [
+          <String, dynamic>{},
+        ]);
 
         await openSheet(tester);
         await tester.tap(inSheet(find.text('Алматы')));
@@ -515,17 +513,12 @@ void main() {
         expect(tester.takeException(), isNull);
 
         final afterChange = adapter.listingRequests
-            .skip(2)
+            .skip(1)
             .map((r) => r.queryParameters)
             .toList();
-        expect(
-          afterChange,
-          containsAll([
-            {'city_id': 1},
-            {'category': 'venues', 'city_id': 1},
-          ]),
-        );
-        expect(afterChange, hasLength(2));
+        expect(afterChange, [
+          {'city_id': 1},
+        ]);
       },
     );
   }

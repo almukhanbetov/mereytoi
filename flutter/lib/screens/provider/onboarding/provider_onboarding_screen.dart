@@ -43,7 +43,14 @@ String _yearsLabel(AppLocale locale, int years) {
 /// profile is prefilled and updated, never duplicated. See
 /// [ProviderOnboardingController] for the publish/retry logic.
 class ProviderOnboardingScreen extends ConsumerStatefulWidget {
-  const ProviderOnboardingScreen({super.key});
+  const ProviderOnboardingScreen({
+    super.key,
+    this.openBusinessWhenDone = false,
+  });
+
+  /// Opened from the «Для бизнеса» mode: the success screen then leads to
+  /// «Мой бизнес» rather than «Мои услуги».
+  final bool openBusinessWhenDone;
 
   @override
   ConsumerState<ProviderOnboardingScreen> createState() =>
@@ -112,7 +119,9 @@ class _ProviderOnboardingScreenState
     if (ok) {
       await Navigator.of(context).pushReplacement(
         MaterialPageRoute(
-          builder: (_) => const ProviderOnboardingSuccessScreen(),
+          builder: (_) => ProviderOnboardingSuccessScreen(
+            openBusiness: widget.openBusinessWhenDone,
+          ),
         ),
       );
     }

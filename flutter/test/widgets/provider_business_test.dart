@@ -227,7 +227,7 @@ void main() {
       final cta = find.byKey(const ValueKey('provider-card-cta'));
       await scrollTo(tester, cta);
       expect(find.byKey(const ValueKey('provider-promo-card')), findsOneWidget);
-      expect(find.text('Зарабатывайте вместе с MEREYTOI'), findsOneWidget);
+      expect(find.text('Оказываете услуги?'), findsOneWidget);
       await tester.tap(cta);
       await tester.pumpAndSettle();
       expect(find.byType(LoginScreen), findsOneWidget);
