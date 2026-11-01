@@ -78,34 +78,30 @@ class HomeScreen extends ConsumerWidget {
                 const SizedBox(width: AppSpacing.md),
               ],
             ),
-            // A short showcase, not a second catalog: hero, city, a few key
-            // categories, a few popular offers, then the provider entry.
+            // A short showcase, not a second catalog: hero, city, the
+            // provider entry, a few key categories and popular offers.
             // Finding a specific service is the «Услуги» tab's job.
             SliverToBoxAdapter(child: _Hero(locale: locale)),
+            // The hero's own bottom padding (16) is the gap above the city.
             const SliverToBoxAdapter(
               child: Padding(
-                padding: EdgeInsets.fromLTRB(
-                  AppSpacing.lg,
-                  AppSpacing.xs,
-                  AppSpacing.lg,
-                  0,
-                ),
+                padding: EdgeInsets.symmetric(horizontal: AppSpacing.lg),
                 child: Align(
                   alignment: Alignment.centerLeft,
                   child: CitySelectorButton(),
                 ),
               ),
             ),
-            SliverToBoxAdapter(child: _CategoriesSection(locale: locale)),
-            SliverToBoxAdapter(child: _PopularSection(locale: locale)),
-            // Provider marketplace entry — secondary, after the client
-            // showcase: «Стать услугодателем» promo, or «Мой бизнес».
+            // The app's second scenario, seen early but secondary to the
+            // hero: «Оказываете услуги?» promo, or «Мой бизнес».
             const SliverToBoxAdapter(
               child: Padding(
                 padding: EdgeInsets.only(top: AppSpacing.md),
                 child: ProviderBusinessCard(),
               ),
             ),
+            SliverToBoxAdapter(child: _CategoriesSection(locale: locale)),
+            SliverToBoxAdapter(child: _PopularSection(locale: locale)),
             // Room for the last section to scroll clear of the chat button.
             const SliverToBoxAdapter(
               child: SizedBox(height: kChatFabClearance),

@@ -184,8 +184,8 @@ void main() {
   ServicesScreen catalog(WidgetTester tester) =>
       tester.widget<ServicesScreen>(find.byType(ServicesScreen));
 
-  testWidgets('a short showcase: hero → city → 4 categories → «Все услуги» '
-      '→ 4 popular → provider card', (tester) async {
+  testWidgets('a short showcase: hero → city → provider card → 4 categories '
+      '→ «Все услуги» → 4 popular', (tester) async {
     await pumpHome(tester);
     double top(Finder f) => tester.getTopLeft(f).dy;
     final hero = find.text('Той вашей мечты');
@@ -198,10 +198,17 @@ void main() {
       expect(f, findsOneWidget);
     }
     expect(top(hero), lessThan(top(city)));
-    expect(top(city), lessThan(top(categories)));
+    expect(top(city), lessThan(top(provider)));
+    expect(top(provider), lessThan(top(categories)));
     expect(top(categories), lessThan(top(allServices)));
     expect(top(allServices), lessThan(top(popular)));
-    expect(top(popular), lessThan(top(provider)));
+
+    // Seen early, but secondary: much lower than the hero block.
+    final heroBlock = find.ancestor(of: hero, matching: find.byType(Container));
+    expect(
+      tester.getSize(provider).height,
+      lessThan(tester.getSize(heroBlock.first).height / 2),
+    );
 
     // Not a second catalog: 4 of 6 categories, 4 of 10 services, and no
     // restaurants rail.
