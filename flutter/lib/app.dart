@@ -7,6 +7,7 @@ import 'core/theme/app_theme.dart';
 import 'screens/splash/splash_screen.dart';
 import 'state/app_mode_provider.dart';
 import 'state/auth_provider.dart';
+import 'state/listings_provider.dart';
 import 'state/provider_provider.dart';
 import 'state/theme_provider.dart';
 
@@ -42,15 +43,17 @@ class _MereytoiAppState extends ConsumerState<MereytoiApp> {
 
   @override
   Widget build(BuildContext context) {
-    // A provider profile (and its requests) belongs to one account: drop
-    // the cached ones whenever the signed-in account changes, so the next
-    // account never sees the previous one's «Мой бизнес».
+    // A provider profile, its requests and the account's own services
+    // belong to one account: drop the cached ones whenever the signed-in
+    // account changes, so the next account never sees the previous one's
+    // «Мой бизнес» or its service count.
     ref.listen<int?>(
       authProvider.select((s) => s is AuthAuthenticated ? s.user.id : null),
       (previous, next) {
         if (previous == next) return;
         ref.invalidate(providerProfileProvider);
         ref.invalidate(providerBookingsProvider);
+        ref.invalidate(myListingsProvider);
       },
     );
     // Signing out returns the app to the client mode, so the next person
