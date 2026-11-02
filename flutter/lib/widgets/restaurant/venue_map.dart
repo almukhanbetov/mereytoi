@@ -53,9 +53,10 @@ class VenueMapData {
 
 /// The embedded Google Map of one venue (google_maps_flutter; key from
 /// android/local.properties / ios/Flutter/Secrets.xcconfig). Sits inside
-/// scrolling lists, so it claims only pinch and drag gestures: a vertical
-/// swipe that starts on the map still scrolls the page, a
-/// sideways/diagonal drag moves the map. Renders nothing for an invalid
+/// scrolling lists and swipeable tabs, so it claims only pinch and
+/// horizontal drag ([gestureRecognizers]): a vertical swipe that starts on
+/// the map still scrolls the page, a sideways/diagonal drag moves the map
+/// instead of switching the tab. Renders nothing for an invalid
 /// point — never an empty map.
 class VenueMap extends StatefulWidget {
   const VenueMap({
@@ -81,9 +82,38 @@ class VenueMap extends StatefulWidget {
   );
 
   /// Widget tests can't host the native map view; they swap it for a
-  /// placeholder and assert on [VenueMapData] instead.
+  /// placeholder and assert on [VenueMapData] and on the gestures the map
+  /// would claim instead.
   @visibleForTesting
-  static Widget Function(VenueMapData data)? debugMapBuilder;
+  static Widget Function(
+    VenueMapData data,
+    Set<Factory<OneSequenceGestureRecognizer>> gestures,
+  )?
+  debugMapBuilder;
+
+  /// The gestures the map claims: pinch and horizontal/diagonal drag, no
+  /// vertical drag (that keeps scrolling the page).
+  ///
+  /// The horizontal drag uses the device's touch slop ([settings], from
+  /// MediaQuery) — the same slop the enclosing TabBarView's PageView uses.
+  /// With Flutter's default 18px slop the map lost every horizontal drag
+  /// to the tab swipe (which claims it at the device's smaller slop, ~8dp
+  /// on Android) in release builds; at equal slop both reach it on the
+  /// same pointer event and the map, deeper in the tree and so asked
+  /// first, wins.
+  ///
+  /// Pinch keeps Flutter's default slop on purpose: given the device slop
+  /// too, its lower pan slop made the map win vertical drags as well on a
+  /// real device (POCO X3 Pro, release), so the page stopped scrolling
+  /// from the map.
+  static Set<Factory<OneSequenceGestureRecognizer>> gestureRecognizers(
+    DeviceGestureSettings? settings,
+  ) => {
+    Factory<ScaleGestureRecognizer>(ScaleGestureRecognizer.new),
+    Factory<HorizontalDragGestureRecognizer>(
+      () => HorizontalDragGestureRecognizer()..gestureSettings = settings,
+    ),
+  };
 
   @override
   State<VenueMap> createState() => _VenueMapState();
@@ -92,12 +122,19 @@ class VenueMap extends StatefulWidget {
 class _VenueMapState extends State<VenueMap> {
   GoogleMapController? _controller;
 
-  static final _gestures = <Factory<OneSequenceGestureRecognizer>>{
-    Factory<ScaleGestureRecognizer>(ScaleGestureRecognizer.new),
-    Factory<HorizontalDragGestureRecognizer>(
-      HorizontalDragGestureRecognizer.new,
-    ),
-  };
+  DeviceGestureSettings? _gestureSettings;
+  Set<Factory<OneSequenceGestureRecognizer>> _gestures =
+      VenueMap.gestureRecognizers(null);
+
+  @override
+  void didChangeDependencies() {
+    super.didChangeDependencies();
+    final settings = MediaQuery.maybeGestureSettingsOf(context);
+    if (settings != _gestureSettings) {
+      _gestureSettings = settings;
+      _gestures = VenueMap.gestureRecognizers(settings);
+    }
+  }
 
   @override
   void didUpdateWidget(VenueMap old) {
@@ -127,7 +164,7 @@ class _VenueMapState extends State<VenueMap> {
         height: widget.height,
         color: context.mereytoiColors.surfaceSoft,
         child: builder != null
-            ? builder(data)
+            ? builder(data, _gestures)
             : GoogleMap(
                 initialCameraPosition: CameraPosition(
                   target: data.target,

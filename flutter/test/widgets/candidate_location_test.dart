@@ -107,7 +107,7 @@ void main() {
     FlutterSecureStoragePlatform.instance = _EmptySecureStoragePlatform();
     // The native map view can't run in a widget test: stand in a
     // placeholder that shows what the map was told to display.
-    VenueMap.debugMapBuilder = (data) => Text(
+    VenueMap.debugMapBuilder = (data, _) => Text(
       'map ${data.target.latitude},${data.target.longitude} '
       '${data.marker.infoWindow.title} · ${data.marker.infoWindow.snippet}',
     );
