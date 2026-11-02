@@ -3,10 +3,12 @@ import 'dart:async';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
+import '../../core/storage/intro_storage.dart';
 import '../../core/theme/app_theme.dart';
 import '../../state/app_mode_provider.dart';
 import '../../state/auth_provider.dart';
 import '../../state/provider_provider.dart';
+import '../intro/intro_screen.dart';
 import '../role_choice/role_choice_screen.dart';
 
 /// Brand moment before the app shell loads — a soft fade/scale-in of the
@@ -43,7 +45,7 @@ class _SplashScreenState extends ConsumerState<SplashScreen>
     _launch();
   }
 
-  /// First launch: the role choice. Later launches: the last chosen mode —
+  /// First launch: the intro, then the role choice. Later launches: the last chosen mode —
   /// the client app, with «Мой бизнес» opened on top when that was the
   /// mode and the account still has a provider profile.
   Future<void> _launch() async {
@@ -53,12 +55,15 @@ class _SplashScreenState extends ConsumerState<SplashScreen>
     if (!mounted) return;
     final mode = ref.read(appModeProvider);
     if (mode == null) {
+      // The intro first (once), then the mode choice.
+      final introSeen = await IntroStorage.instance.read();
+      if (!mounted) return;
       Navigator.of(context).pushReplacement(
         PageRouteBuilder(
           transitionDuration: const Duration(milliseconds: 500),
           pageBuilder: (context, animation, _) => FadeTransition(
             opacity: animation,
-            child: const RoleChoiceScreen(),
+            child: introSeen ? const RoleChoiceScreen() : const IntroScreen(),
           ),
         ),
       );
