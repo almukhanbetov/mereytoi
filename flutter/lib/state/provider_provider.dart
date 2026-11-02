@@ -49,10 +49,11 @@ class ProviderActions {
 
   void _invalidateMyListings() {
     _ref.invalidate(myListingsProvider);
-    // The public catalog should pick up a new/edited/deleted service too,
-    // same "no app restart needed" guarantee ListingManagementActions
-    // already gives restaurant edits.
-    _ref.invalidate(listingsProvider(null));
+    // The public catalog should pick up a new/edited/hidden/deleted
+    // service too — every cached variant of it (all services and each
+    // category), not only the unfiltered list, or a catalog opened on a
+    // category keeps showing the old list.
+    _ref.invalidate(listingsProvider);
   }
 
   Future<ProviderProfile> become({
