@@ -179,9 +179,11 @@ class Listing {
   String? get coverImage => imageUrls.isNotEmpty ? imageUrls.first : null;
 
   /// Same rule as frontend/src/components/services/RestaurantLocation.jsx's
-  /// `hasCoords` — both present, both real numbers. Never assumed from
+  /// `hasCoords` — both present, both real numbers — plus a sanity check:
+  /// finite, within -90..90 / -180..180, and not the 0,0 "unset" default
+  /// (a point in the Atlantic, never a real venue). Never assumed from
   /// `address`/`placeId` alone (either can exist without the other).
-  bool get hasCoords => latitude != null && longitude != null;
+  bool get hasCoords => isValidCoordinate(latitude, longitude);
 }
 
 /// One entry of `GET /api/listings/:id`'s `videos`: the video URL (same
@@ -242,4 +244,14 @@ class ListingProviderBrief {
       telegram: json['telegram'] as String?,
     );
   }
+}
+
+/// Whether [latitude]/[longitude] are a real, plottable point: both present,
+/// finite, in range, and not 0,0.
+bool isValidCoordinate(double? latitude, double? longitude) {
+  if (latitude == null || longitude == null) return false;
+  if (!latitude.isFinite || !longitude.isFinite) return false;
+  if (latitude < -90 || latitude > 90) return false;
+  if (longitude < -180 || longitude > 180) return false;
+  return !(latitude == 0 && longitude == 0);
 }

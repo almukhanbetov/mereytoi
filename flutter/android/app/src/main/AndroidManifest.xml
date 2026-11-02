@@ -1,12 +1,19 @@
 <manifest xmlns:android="http://schemas.android.com/apk/res/android">
-    <!-- Talks only to the existing public MEREYTOI API over HTTPS — no
-         other permission is needed (no location, camera, storage, etc). -->
+    <!-- Talks only to the existing public MEREYTOI API over HTTPS (and
+         Google Maps for the venue map) — no other permission is needed (no
+         location, camera, storage, etc): the map shows the venue, never the
+         user's own position. -->
     <uses-permission android:name="android.permission.INTERNET"/>
 
     <application
         android:label="MEREYTOI"
         android:name="${applicationName}"
         android:icon="@mipmap/ic_launcher">
+        <!-- Google Maps SDK key, injected from android/local.properties
+             (MAPS_API_KEY) by app/build.gradle.kts — never committed. -->
+        <meta-data
+            android:name="com.google.android.geo.API_KEY"
+            android:value="${MAPS_API_KEY}" />
         <activity
             android:name=".MainActivity"
             android:exported="true"
