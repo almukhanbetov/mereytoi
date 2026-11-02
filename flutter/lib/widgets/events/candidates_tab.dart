@@ -5,6 +5,7 @@ import '../../core/theme/app_theme.dart';
 import '../../core/utils/error_messages.dart';
 import '../../core/utils/format.dart';
 import '../../domain/event/event_status.dart';
+import '../../domain/restaurant/restaurant_category.dart';
 import '../../models/event_candidate.dart';
 import '../../state/auth_provider.dart';
 import '../../state/event_actions.dart';
@@ -14,6 +15,7 @@ import '../app_card.dart';
 import '../app_error_view.dart';
 import '../app_loader.dart';
 import 'candidate_comments_sheet.dart';
+import 'candidate_location_row.dart';
 
 /// Brief section 9 — the shortlist, the key tab. Only the actions the real
 /// API actually allows: select/reject/back-to-shortlist (`UpdateStatus`),
@@ -230,6 +232,15 @@ class _CandidateCardState extends ConsumerState<_CandidateCard> {
                     ),
                 ],
               ),
+            ],
+            // Restaurants only: where the venue is, or that it isn't
+            // known yet.
+            if (listing != null &&
+                (isRestaurantCategory(listing.category?.slug) ||
+                    candidate.hallId != null ||
+                    candidate.menuId != null)) ...[
+              const SizedBox(height: 4),
+              CandidateLocationRow(listing: listing, locale: locale),
             ],
             if (price != null) ...[
               const SizedBox(height: 4),

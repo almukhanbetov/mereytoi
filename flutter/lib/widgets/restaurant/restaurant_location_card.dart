@@ -8,11 +8,12 @@ import '../../state/locale_provider.dart';
 import '../app_card.dart';
 
 /// Brief section 9 — address text + a "Построить маршрут" button that opens
-/// the device's own map app via `url_launcher`. No Google Maps SDK, no
-/// embedded map preview (that's a key-less `<iframe>` on the web, which
-/// has no mobile equivalent worth adding here) — same constraint the brief
-/// states explicitly. Renders nothing at all when the listing has neither
+/// the device's own map app via `url_launcher`. No embedded map preview
+/// on this card (the embedded `VenueMap` lives in the «Мой той» candidate
+/// card). Renders nothing at all when the listing has neither
 /// an address/city nor coordinates, matching `RestaurantLocation.jsx`.
+/// With only a city it says the location isn't specified yet rather than
+/// offering a route to the city centre.
 class RestaurantLocationCard extends StatelessWidget {
   const RestaurantLocationCard({
     super.key,
@@ -31,6 +32,8 @@ class RestaurantLocationCard extends StatelessWidget {
     final addressText = (listing.address != null && listing.address!.isNotEmpty)
         ? listing.address!
         : listing.city;
+    // Only a city: a route to it would show the whole city, not the venue.
+    final known = hasVenueLocation(listing);
 
     return AppCard(
       child: Column(
@@ -59,20 +62,39 @@ class RestaurantLocationCard extends StatelessWidget {
               ],
             ),
           ],
-          const SizedBox(height: AppSpacing.sm),
-          OutlinedButton.icon(
-            onPressed: () =>
-                launchUrl(Uri.parse(url), mode: LaunchMode.externalApplication),
-            icon: const Icon(Icons.directions_outlined, size: 18),
-            label: Text(
+          if (!known) ...[
+            const SizedBox(height: AppSpacing.xxs),
+            Text(
               t(
                 locale,
-                ru: 'Построить маршрут',
-                kz: 'Бағыт салу',
-                en: 'Get directions',
+                ru: 'Местоположение пока не указано',
+                kz: 'Орналасқан жері әзірге көрсетілмеген',
+                en: 'Location not provided yet',
+              ),
+              key: const ValueKey('restaurant-location-unknown'),
+              style: Theme.of(context).textTheme.bodyMedium?.copyWith(
+                color: context.mereytoiColors.textSecondary,
               ),
             ),
-          ),
+          ],
+          if (known) ...[
+            const SizedBox(height: AppSpacing.sm),
+            OutlinedButton.icon(
+              onPressed: () => launchUrl(
+                Uri.parse(url),
+                mode: LaunchMode.externalApplication,
+              ),
+              icon: const Icon(Icons.directions_outlined, size: 18),
+              label: Text(
+                t(
+                  locale,
+                  ru: 'Построить маршрут',
+                  kz: 'Бағыт салу',
+                  en: 'Get directions',
+                ),
+              ),
+            ),
+          ],
         ],
       ),
     );

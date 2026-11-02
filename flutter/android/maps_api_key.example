@@ -1,0 +1,19 @@
+# Google Maps SDK for Android key for the embedded venue map.
+#
+# Put the real key into android/local.properties (untracked, see .gitignore):
+#
+#   MAPS_API_KEY=AIza...your-key...
+#
+# or export MAPS_API_KEY in the build environment (CI secret).
+#
+# Google Cloud console → APIs & Services:
+#   1. Enable "Maps SDK for Android" (billing must be active on the project).
+#   2. Credentials → the key → Application restrictions: Android apps:
+#        package name: kz.mereytoi.mereytoi_app
+#        SHA-1:        the certificate that signs the APK you install
+#                      (keytool -list -v -keystore <keystore>; for a Play
+#                      release also add the Play App Signing SHA-1).
+#   3. API restrictions: Maps SDK for Android only.
+#
+# Without a key the app still builds and runs; the map area stays blank.
+MAPS_API_KEY=

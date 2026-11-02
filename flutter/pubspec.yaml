@@ -53,6 +53,7 @@ dependencies:
   printing: ^5.13.4
   app_links: ^6.3.3
   image_picker: ^1.2.3
+  google_maps_flutter: ^2.18.1
 
 dev_dependencies:
   flutter_test:
