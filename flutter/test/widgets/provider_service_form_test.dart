@@ -6,13 +6,16 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:mereytoi_app/core/theme/app_theme.dart';
 import 'package:mereytoi_app/models/category.dart';
+import 'package:mereytoi_app/models/listing.dart';
 import 'package:mereytoi_app/screens/profile/provider/my_services_screen.dart';
 import 'package:mereytoi_app/screens/profile/provider/widgets/provider_service_form_sheet.dart';
 import 'package:mereytoi_app/services/upload_service.dart';
 import 'package:mereytoi_app/state/categories_provider.dart';
 import 'package:mereytoi_app/state/city_provider.dart';
+import 'package:mereytoi_app/state/listings_provider.dart';
 import 'package:mereytoi_app/state/locale_provider.dart';
 import 'package:mereytoi_app/state/provider_onboarding.dart';
+import 'package:mereytoi_app/state/provider_provider.dart';
 import 'package:mereytoi_app/state/providers.dart';
 import 'package:mereytoi_app/widgets/city_selector.dart';
 import 'package:mereytoi_app/widgets/services/services_category_grid.dart';
@@ -521,4 +524,98 @@ void main() {
       }
     }
   });
+
+  group('visibility in the catalog', () {
+    Finder status() => find.byKey(const ValueKey('service-status-101'));
+
+    testWidgets('hiding asks first; Cancel keeps the service public', (
+      tester,
+    ) async {
+      final (api, _, _) = await pump(tester);
+      expect(find.text('Опубликовано'), findsOneWidget);
+      await tester.tap(status());
+      await settle(tester);
+      expect(find.text('Скрыть услугу?'), findsOneWidget);
+      await tester.tap(find.text('Отмена'));
+      await settle(tester);
+      expect(api.count('PUT /api/listings/101'), 0);
+      expect(find.text('Опубликовано'), findsOneWidget);
+    });
+
+    testWidgets('confirmed hide sends is_active=false and says so', (
+      tester,
+    ) async {
+      final (api, _, _) = await pump(tester);
+      await tester.tap(status());
+      await settle(tester);
+      await tester.tap(find.byKey(const ValueKey('hide-service-confirm')));
+      await settle(tester);
+      expect(api.count('PUT /api/listings/101'), 1);
+      expect(
+        (api.bodies['PUT /api/listings/101']!.single as Map)['is_active'],
+        isFalse,
+      );
+      expect(find.text('Скрыто — не видно клиентам'), findsOneWidget);
+
+      // Publishing again needs no confirmation.
+      await tester.tap(status());
+      await settle(tester);
+      expect(find.text('Скрыть услугу?'), findsNothing);
+      expect(api.count('PUT /api/listings/101'), 2);
+      expect(find.text('Опубликовано'), findsOneWidget);
+    });
+  });
+
+  test(
+    'a new service refreshes every cached catalog list, filtered too',
+    () async {
+      final (client, api) = fakeProviderApi(
+        existingProvider: {
+          'id': 5,
+          'user_id': 1,
+          'display_name': 'Dana',
+          'city': 'Алматы',
+          'status': 'active',
+        },
+      );
+      final fetches = <String?, int>{};
+      final container = ProviderContainer(
+        overrides: [
+          apiClientProvider.overrideWithValue(client),
+          for (final slug in [null, 'hosts'])
+            listingsProvider(slug).overrideWith((ref) {
+              fetches[slug] = (fetches[slug] ?? 0) + 1;
+              return Future.value(const <Listing>[]);
+            }),
+        ],
+      );
+      addTearDown(container.dispose);
+      final subs = [
+        container.listen(listingsProvider(null), (_, _) {}),
+        container.listen(listingsProvider('hosts'), (_, _) {}),
+      ];
+      addTearDown(() {
+        for (final s in subs) {
+          s.close();
+        }
+      });
+      await container.read(listingsProvider(null).future);
+      await container.read(listingsProvider('hosts').future);
+      expect(fetches, {null: 1, 'hosts': 1});
+
+      await container
+          .read(providerActionsProvider)
+          .createListing(
+            categoryId: 2,
+            nameRu: 'Новая услуга',
+            nameKz: 'Новая услуга',
+            city: 'Алматы',
+            price: 50000,
+          );
+      await container.read(listingsProvider(null).future);
+      await container.read(listingsProvider('hosts').future);
+      expect(fetches, {null: 2, 'hosts': 2});
+      expect(api.count('POST /api/provider/me/listings'), 1);
+    },
+  );
 }

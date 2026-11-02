@@ -145,6 +145,10 @@ class _ServiceRow extends ConsumerWidget {
 
   Future<void> _toggleActive(BuildContext context, WidgetRef ref) async {
     final locale = ref.read(localeProvider);
+    // Hiding takes the service out of the public catalog: never on a stray
+    // tap (the chip sits where people tap to open the service).
+    if (listing.isActive && !await _confirmHide(context, locale)) return;
+    if (!context.mounted) return;
     try {
       await ref
           .read(providerActionsProvider)
@@ -166,6 +170,48 @@ class _ServiceRow extends ConsumerWidget {
         ).showSnackBar(SnackBar(content: Text(apiErrorMessage(locale, err))));
       }
     }
+  }
+
+  Future<bool> _confirmHide(BuildContext context, AppLocale locale) async {
+    final hide = await showDialog<bool>(
+      context: context,
+      builder: (context) => AlertDialog(
+        title: Text(
+          t(
+            locale,
+            ru: 'Скрыть услугу?',
+            kz: 'Қызметті жасыру керек пе?',
+            en: 'Hide this service?',
+          ),
+        ),
+        content: Text(
+          t(
+            locale,
+            ru:
+                'Клиенты перестанут видеть её в каталоге. Вернуть её можно '
+                'в любой момент.',
+            kz:
+                'Клиенттер оны каталогта көрмейді. Кез келген уақытта қайта '
+                'жариялай аласыз.',
+            en:
+                'Clients will no longer see it in the catalog. You can '
+                'publish it again at any time.',
+          ),
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.of(context).pop(false),
+            child: Text(t(locale, ru: 'Отмена', kz: 'Болдырмау', en: 'Cancel')),
+          ),
+          TextButton(
+            key: const ValueKey('hide-service-confirm'),
+            onPressed: () => Navigator.of(context).pop(true),
+            child: Text(t(locale, ru: 'Скрыть', kz: 'Жасыру', en: 'Hide')),
+          ),
+        ],
+      ),
+    );
+    return hide ?? false;
   }
 
   Future<void> _delete(BuildContext context, WidgetRef ref) async {
@@ -249,6 +295,16 @@ class _ServiceRow extends ConsumerWidget {
                           spacing: AppSpacing.xs,
                           children: [
                             ActionChip(
+                              key: ValueKey('service-status-${listing.id}'),
+                              avatar: Icon(
+                                listing.isActive
+                                    ? Icons.visibility_outlined
+                                    : Icons.visibility_off_outlined,
+                                size: 16,
+                                color: listing.isActive
+                                    ? context.mereytoiColors.success
+                                    : context.mereytoiColors.error,
+                              ),
                               label: Text(
                                 listing.isActive
                                     ? t(
@@ -257,11 +313,12 @@ class _ServiceRow extends ConsumerWidget {
                                         kz: 'Жарияланды',
                                         en: 'Published',
                                       )
+                                    // Hidden says what it means for clients.
                                     : t(
                                         locale,
-                                        ru: 'Скрыто',
-                                        kz: 'Жасырын',
-                                        en: 'Hidden',
+                                        ru: 'Скрыто — не видно клиентам',
+                                        kz: 'Жасырын — клиенттерге көрінбейді',
+                                        en: 'Hidden — clients can’t see it',
                                       ),
                               ),
                               onPressed: () => _toggleActive(context, ref),
