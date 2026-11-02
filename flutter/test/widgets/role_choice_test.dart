@@ -9,6 +9,7 @@ import 'package:mereytoi_app/models/event.dart';
 import 'package:mereytoi_app/models/site_statistics.dart';
 import 'package:mereytoi_app/models/user.dart';
 import 'package:mereytoi_app/screens/auth/login_screen.dart';
+import 'package:mereytoi_app/screens/intro/intro_screen.dart';
 import 'package:mereytoi_app/screens/profile/profile_screen.dart';
 import 'package:mereytoi_app/screens/provider/business/my_business_screen.dart';
 import 'package:mereytoi_app/screens/provider/onboarding/provider_onboarding_screen.dart';
@@ -102,6 +103,7 @@ void main() {
     bool signedIn = false,
     bool isProvider = false,
     String? storedMode,
+    bool introSeen = false,
     Size size = const Size(390, 844),
     ThemeData Function()? theme,
     AppLocale locale = AppLocale.ru,
@@ -111,6 +113,7 @@ void main() {
     SharedPreferences.setMockInitialValues({
       if (locale != AppLocale.ru) 'app_locale_v1': locale.name,
       'app_mode_v1': ?storedMode,
+      if (introSeen) 'intro_seen_v1': true,
     });
     tester.view.physicalSize = size;
     tester.view.devicePixelRatio = 1;
@@ -318,10 +321,23 @@ void main() {
       await tester.pumpAndSettle();
     }
 
-    testWidgets('first launch asks for the mode', (tester) async {
+    testWidgets('first launch shows the intro first', (tester) async {
       await pump(tester, home: const SplashScreen(), settle: false);
       await launch(tester);
+      expect(find.byType(IntroScreen), findsOneWidget);
+      expect(find.byType(RoleChoiceScreen), findsNothing);
+    });
+
+    testWidgets('intro seen, no mode yet → the mode choice', (tester) async {
+      await pump(
+        tester,
+        home: const SplashScreen(),
+        introSeen: true,
+        settle: false,
+      );
+      await launch(tester);
       expect(find.byType(RoleChoiceScreen), findsOneWidget);
+      expect(find.byType(IntroScreen), findsNothing);
     });
 
     testWidgets('later launches open the last mode: client', (tester) async {
