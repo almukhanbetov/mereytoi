@@ -49,6 +49,7 @@ class BudgetTab extends ConsumerWidget {
             ),
             error: (err, _) => AppErrorView(
               message: apiErrorMessage(locale, err),
+              error: err,
               locale: locale,
               onRetry: () => ref.invalidate(eventSummaryProvider(eventId)),
             ),
@@ -114,6 +115,7 @@ class BudgetTab extends ConsumerWidget {
             ),
             error: (err, _) => AppErrorView(
               message: apiErrorMessage(locale, err),
+              error: err,
               locale: locale,
               onRetry: () => ref.invalidate(eventCandidatesProvider(eventId)),
             ),

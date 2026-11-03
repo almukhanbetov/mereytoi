@@ -39,6 +39,7 @@ class CategoriesScreen extends ConsumerWidget {
         loading: () => const AppGridSkeleton(itemCount: 6, aspectRatio: 0.92),
         error: (err, _) => AppErrorView(
           message: apiErrorMessage(locale, err),
+          error: err,
           locale: locale,
           onRetry: () => ref.invalidate(categoriesProvider),
         ),

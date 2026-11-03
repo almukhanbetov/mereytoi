@@ -109,6 +109,7 @@ class OverviewTab extends ConsumerWidget {
             ),
             error: (err, _) => AppErrorView(
               message: apiErrorMessage(locale, err),
+              error: err,
               locale: locale,
               onRetry: () => ref.invalidate(eventSummaryProvider(eventId)),
             ),
@@ -196,6 +197,7 @@ class OverviewTab extends ConsumerWidget {
             loading: () => const SizedBox.shrink(),
             error: (err, _) => AppErrorView(
               message: apiErrorMessage(locale, err),
+              error: err,
               locale: locale,
               onRetry: () => ref.invalidate(eventRequestProvider(eventId)),
             ),

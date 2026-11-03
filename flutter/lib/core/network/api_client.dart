@@ -30,7 +30,14 @@ class ApiClient {
     _dio.interceptors.add(
       InterceptorsWrapper(
         onRequest: (options, handler) async {
-          final token = await _tokenProvider();
+          // A token that can't be read must never fail the request itself
+          // — the call simply goes out as a guest one.
+          String? token;
+          try {
+            token = await _tokenProvider();
+          } catch (e) {
+            debugPrint('[api] token unavailable (${e.runtimeType})');
+          }
           if (token != null && token.isNotEmpty) {
             options.headers['Authorization'] = 'Bearer $token';
           }
@@ -114,10 +121,7 @@ class ApiClient {
   /// `Content-Type: multipart/form-data; boundary=...` for a [FormData]
   /// body regardless of this client's default JSON header, so no extra
   /// `Options` override is needed here.
-  Future<Map<String, dynamic>> postMultipart(
-    String path,
-    FormData data,
-  ) async {
+  Future<Map<String, dynamic>> postMultipart(String path, FormData data) async {
     final res = await _run(() => _dio.post(path, data: data));
     return _asMap(res);
   }
@@ -128,6 +132,13 @@ class ApiClient {
     try {
       return await request();
     } on DioException catch (e) {
+      final req = e.requestOptions;
+      _log(
+        req.method,
+        req.path,
+        e.response?.statusCode,
+        '${e.type.name} ${e.error?.runtimeType ?? ''}'.trim(),
+      );
       throw _mapError(e);
     }
   }
@@ -136,20 +147,45 @@ class ApiClient {
     final data = res.data;
     if (data is Map<String, dynamic>) return data;
     if (data is Map) return Map<String, dynamic>.from(data);
-    throw const ApiException(
-      ApiErrorType.unknown,
+    final req = res.requestOptions;
+    _log(req.method, req.path, res.statusCode, 'parse: ${data.runtimeType}');
+    throw ApiException(
+      ApiErrorType.invalidResponse,
+      statusCode: res.statusCode,
       debugMessage: 'response was not a JSON object',
+      causeType: data.runtimeType.toString(),
     );
   }
 
+  /// Safe failure log: method, path without the query string, status and
+  /// the error's type — never headers, tokens, bodies or messages.
+  static void _log(String method, String path, int? status, String what) {
+    debugPrint('[api] $method $path → ${status ?? '-'} $what');
+  }
+
   ApiException _mapError(DioException e) {
+    final cause = e.error?.runtimeType.toString();
     switch (e.type) {
       case DioExceptionType.connectionTimeout:
       case DioExceptionType.sendTimeout:
       case DioExceptionType.receiveTimeout:
-        return ApiException(ApiErrorType.timeout, debugMessage: e.message);
+        return ApiException(
+          ApiErrorType.timeout,
+          debugMessage: e.message,
+          causeType: cause,
+        );
       case DioExceptionType.connectionError:
-        return ApiException(ApiErrorType.network, debugMessage: e.message);
+        return ApiException(
+          ApiErrorType.network,
+          debugMessage: e.message,
+          causeType: cause,
+        );
+      case DioExceptionType.badCertificate:
+        return ApiException(
+          ApiErrorType.tls,
+          debugMessage: e.message,
+          causeType: cause,
+        );
       case DioExceptionType.badResponse:
         final status = e.response?.statusCode;
         if (status == 404) {
@@ -210,9 +246,32 @@ class ApiClient {
           ApiErrorType.unknown,
           statusCode: status,
           debugMessage: _extractServerError(e),
+          causeType: cause,
         );
       default:
-        return ApiException(ApiErrorType.unknown, debugMessage: e.message);
+        // dart:io's HandshakeException/TlsException and a SocketException
+        // outside the connect phase land here (Dio files them under
+        // "unknown"), as does anything an interceptor throws.
+        if (cause == 'SocketException') {
+          return ApiException(
+            ApiErrorType.network,
+            debugMessage: e.message,
+            causeType: cause,
+          );
+        }
+        if (cause != null &&
+            (cause.contains('Handshake') || cause.contains('Tls'))) {
+          return ApiException(
+            ApiErrorType.tls,
+            debugMessage: e.message,
+            causeType: cause,
+          );
+        }
+        return ApiException(
+          ApiErrorType.unknown,
+          debugMessage: e.message,
+          causeType: cause,
+        );
     }
   }
 

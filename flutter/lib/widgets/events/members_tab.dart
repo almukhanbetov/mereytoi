@@ -47,6 +47,7 @@ class MembersTab extends ConsumerWidget {
                 height: 420,
                 child: AppErrorView(
                   message: apiErrorMessage(locale, err),
+                  error: err,
                   locale: locale,
                   onRetry: () => ref.invalidate(eventMembersProvider(eventId)),
                 ),
