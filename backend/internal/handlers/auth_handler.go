@@ -14,6 +14,7 @@ import (
 	"github.com/almukhanbetov/mereytoi/backend/internal/middleware"
 	"github.com/almukhanbetov/mereytoi/backend/internal/models"
 	"github.com/almukhanbetov/mereytoi/backend/internal/passwordreset"
+	"github.com/almukhanbetov/mereytoi/backend/internal/recoverycode"
 )
 
 func normalizePhone(phone string) string {
@@ -55,11 +56,14 @@ func NewAuthHandler(db *gorm.DB, jwtSecret string, delivery *claimdelivery.Servi
 	return &AuthHandler{DB: db, JWTSecret: jwtSecret, Delivery: delivery}
 }
 
+// registerInput — the password's length rules are
+// passwordreset.CheckNewPassword's, the same for registration, password
+// change and recovery.
 type registerInput struct {
 	Name     string `json:"name" binding:"required"`
 	Email    string `json:"email" binding:"required,email"`
 	Phone    string `json:"phone"`
-	Password string `json:"password" binding:"required,min=6"`
+	Password string `json:"password" binding:"required"`
 }
 
 type loginInput struct {
@@ -75,6 +79,11 @@ func (h *AuthHandler) Register(c *gin.Context) {
 		return
 	}
 
+	if err := passwordreset.CheckNewPassword(in.Password); err != nil {
+		passwordError(c, err)
+		return
+	}
+
 	var existing models.User
 	if err := h.DB.Where("email = ?", in.Email).First(&existing).Error; err == nil {
 		c.JSON(http.StatusConflict, gin.H{"error": "email already registered"})
@@ -87,13 +96,23 @@ func (h *AuthHandler) Register(c *gin.Context) {
 		return
 	}
 
+	// The backup code for password recovery — only its hash is stored;
+	// the code itself goes out once, in this response.
+	recoveryCode, recoveryHash, err := recoverycode.NewCode()
+	if err != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{"error": "failed to create recovery code"})
+		return
+	}
+	now := time.Now()
 	user := models.User{
-		Name:            in.Name,
-		Email:           in.Email,
-		Phone:           normalizePhone(in.Phone),
-		PhoneNormalized: strongNormalizePhone(in.Phone),
-		PasswordHash:    string(hash),
-		Role:            "user",
+		Name:                  in.Name,
+		Email:                 in.Email,
+		Phone:                 normalizePhone(in.Phone),
+		PhoneNormalized:       strongNormalizePhone(in.Phone),
+		PasswordHash:          string(hash),
+		Role:                  "user",
+		RecoveryCodeHash:      recoveryHash,
+		RecoveryCodeCreatedAt: &now,
 	}
 	if err := h.DB.Create(&user).Error; err != nil {
 		c.JSON(http.StatusInternalServerError, gin.H{"error": "failed to create user"})
@@ -106,7 +125,12 @@ func (h *AuthHandler) Register(c *gin.Context) {
 		return
 	}
 
-	c.JSON(http.StatusCreated, gin.H{"user": user, "token": token})
+	noStore(c)
+	c.JSON(http.StatusCreated, gin.H{
+		"user":          user,
+		"token":         token,
+		"recovery_code": recoverycode.Format(recoveryCode),
+	})
 }
 
 // findLoginUserByPhone resolves a phone typed at login to exactly one
@@ -206,6 +230,10 @@ func (h *AuthHandler) Me(c *gin.Context) {
 		"user":                       user,
 		"telegram_linked":            user.TelegramChatID != "",
 		"preferred_delivery_channel": user.PreferredDeliveryChannel,
+		// Whether a backup code exists (never the code itself) — lets the
+		// apps suggest creating one.
+		"has_recovery_code":        user.RecoveryCodeHash != "",
+		"recovery_code_created_at": user.RecoveryCodeCreatedAt,
 	})
 }
 

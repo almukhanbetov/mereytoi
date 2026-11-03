@@ -42,9 +42,11 @@ API listens on `http://localhost:8090` by default (`PORT` in `.env`).
 | Method | Path | Auth | Description |
 |---|---|---|---|
 | GET | `/api/health` | – | health check |
-| POST | `/api/auth/register` | – | create a user, returns JWT |
+| POST | `/api/auth/register` | – | create a user, returns JWT and the one-time backup code `recovery_code` |
 | POST | `/api/auth/login` | – | returns JWT |
 | GET | `/api/auth/me` | Bearer | current user |
+| POST | `/api/auth/recovery/reset` | – | recover the password with the backup code: `{login, code, new_password}` → `{user, token, recovery_code}` |
+| POST | `/api/users/me/recovery-code` | Bearer | replace the backup code: `{current_password}` → `{recovery_code}` |
 | GET | `/api/categories` | – | list the 5 categories |
 | GET | `/api/categories/:slug` | – | single category |
 | GET | `/api/listings?category=slug&search=term` | – | list/filter listings |
@@ -58,3 +60,11 @@ New users get `role=user`; promote to `admin` directly in the database to manage
 ```sql
 UPDATE users SET role = 'admin' WHERE email = 'you@example.com';
 ```
+
+## Password recovery
+
+Users recover a forgotten password with a one-time **backup code** — no SMS,
+WhatsApp or email. See [docs/password-recovery.md](../docs/password-recovery.md)
+for the user flow, security model and operations. The older WhatsApp OTP flow
+(`/api/auth/password/*`) is unchanged and still off unless
+`PASSWORD_RESET_DELIVERY_ENABLED` and its WhatsApp settings are configured.

@@ -98,10 +98,14 @@ Future<_FakeAuth> _pumpLogin(
   return fake;
 }
 
-/// Login → "Forgot password?" → the phone step.
+/// Login → "Forgot password?" (backup-code recovery) → "Get a code via
+/// WhatsApp" → the phone step.
 Future<void> _openForgot(WidgetTester tester) async {
   await tester.ensureVisible(_key('forgot-password-link'));
   await tester.tap(_key('forgot-password-link'));
+  await tester.pumpAndSettle();
+  await tester.ensureVisible(_key('recovery-use-whatsapp'));
+  await tester.tap(_key('recovery-use-whatsapp'));
   await tester.pumpAndSettle();
 }
 
@@ -139,10 +143,15 @@ Future<void> _systemBack(WidgetTester tester) async {
 
 void main() {
   group('Login link', () {
-    testWidgets('1. reset_available=false → no link', (tester) async {
+    testWidgets('1. reset_available=false → link still there, backup-code '
+        'recovery only (no WhatsApp option)', (tester) async {
       await _pumpLogin(tester, auth: _FakeAuth()..available = false);
-      expect(_key('forgot-password-link'), findsNothing);
-      expect(find.text('Забыли пароль?'), findsNothing);
+      expect(find.text('Забыли пароль?'), findsOneWidget);
+      await tester.ensureVisible(_key('forgot-password-link'));
+      await tester.tap(_key('forgot-password-link'));
+      await tester.pumpAndSettle();
+      expect(_key('recovery-code-input'), findsOneWidget);
+      expect(_key('recovery-use-whatsapp'), findsNothing);
     });
 
     testWidgets('2. reset_available=true → secondary text link', (
@@ -159,15 +168,14 @@ void main() {
       );
     });
 
-    testWidgets('3. config error → link hidden, login still works', (
-      tester,
-    ) async {
+    testWidgets('3. config error → link shown (backup code), login still '
+        'works', (tester) async {
       await _pumpLogin(
         tester,
         auth: _FakeAuth()
           ..configError = const ApiException(ApiErrorType.network),
       );
-      expect(_key('forgot-password-link'), findsNothing);
+      expect(_key('forgot-password-link'), findsOneWidget);
       expect(find.text('Войти'), findsWidgets);
       await tester.enterText(find.byType(TextFormField).first, 'a@b.kz');
       expect(tester.takeException(), isNull);

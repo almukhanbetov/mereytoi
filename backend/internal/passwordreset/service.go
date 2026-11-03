@@ -455,6 +455,11 @@ func (s *Service) setPassword(tx *gorm.DB, userID uint, newPassword string, phon
 	return tx.Model(&models.User{}).Where("id = ?", userID).Updates(updates).Error
 }
 
+// CheckNewPassword applies the password rules every reset/change uses
+// (at least MinPasswordLen characters, at most what bcrypt accepts) — also
+// used by backup-code recovery (internal/recoverycode).
+func CheckNewPassword(p string) error { return checkPassword(p) }
+
 func checkPassword(p string) error {
 	if utf8.RuneCountInString(p) < MinPasswordLen {
 		return ErrWeakPassword

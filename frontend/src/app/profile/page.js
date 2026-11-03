@@ -10,6 +10,7 @@ import { eventsApi } from '@/lib/eventsApi';
 import { formatPrice } from '@/lib/format';
 import { eventTypeEmoji, eventTypeLabel, formatEventDate, roleLabel } from '@/lib/eventHelpers';
 import TelegramConnectCard from '@/components/profile/TelegramConnectCard';
+import RecoveryCodeCard from '@/components/profile/RecoveryCodeCard';
 import ProviderPanel from '@/components/profile/ProviderPanel';
 
 function paidLabel(paid, lang) {
@@ -244,6 +245,8 @@ function ProfileContent() {
                 </button>
 
                 <TelegramConnectCard />
+
+                <RecoveryCodeCard />
               </form>
 
               <div>

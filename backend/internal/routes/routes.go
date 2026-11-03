@@ -14,6 +14,7 @@ import (
 	"github.com/almukhanbetov/mereytoi/backend/internal/middleware"
 	"github.com/almukhanbetov/mereytoi/backend/internal/models"
 	"github.com/almukhanbetov/mereytoi/backend/internal/passwordreset"
+	"github.com/almukhanbetov/mereytoi/backend/internal/recoverycode"
 	"github.com/almukhanbetov/mereytoi/backend/internal/telegram"
 	"github.com/almukhanbetov/mereytoi/backend/internal/whatsapp"
 )
@@ -98,6 +99,7 @@ func RegisterWithOptions(r *gin.Engine, database *gorm.DB, cfg config.Config, op
 		resetSvc = passwordreset.New(database, sender, cfg.OTPHMACSecret, cfg.JWTSecret)
 	}
 	passwordHandler := handlers.NewPasswordHandler(database, cfg.JWTSecret, resetSvc)
+	recoveryHandler := handlers.NewRecoveryHandler(database, cfg.JWTSecret, recoverycode.New(database))
 	categoryHandler := handlers.NewCategoryHandler(database)
 	cityHandler := handlers.NewCityHandler()
 	listingHandler := handlers.NewListingHandler(database)
@@ -151,6 +153,8 @@ func RegisterWithOptions(r *gin.Engine, database *gorm.DB, cfg config.Config, op
 			auth.GET("/password/config", passwordHandler.PasswordConfig)
 			auth.POST("/password/forgot", passwordHandler.ForgotPassword)
 			auth.POST("/password/reset", passwordHandler.ResetPassword)
+			// Backup-code recovery — independent of WhatsApp delivery.
+			auth.POST("/recovery/reset", recoveryHandler.Recover)
 			auth.GET("/me", middleware.RequireAuth(cfg.JWTSecret), authHandler.Me)
 			auth.PUT("/me", middleware.RequireAuth(cfg.JWTSecret), authHandler.UpdateMe)
 		}
@@ -171,6 +175,8 @@ func RegisterWithOptions(r *gin.Engine, database *gorm.DB, cfg config.Config, op
 			// the account's own phone (requested first via /me/password/code).
 			users.POST("/me/password/code", passwordHandler.RequestChangeCode)
 			users.PUT("/me/password", passwordHandler.ChangePassword)
+			// Create/replace the backup code (current password required).
+			users.POST("/me/recovery-code", recoveryHandler.ReplaceCode)
 			// "Мои рестораны" — every listing (restaurant/venue) this caller
 			// may manage: all of them for a global admin, only the ones with
 			// a ListingManager row otherwise. See ListingHandler.MyListings.

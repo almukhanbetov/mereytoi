@@ -5,9 +5,9 @@ import '../../core/theme/app_theme.dart';
 import '../../core/utils/error_messages.dart';
 import '../../state/auth_provider.dart';
 import '../../state/locale_provider.dart';
-import '../../state/password_reset_provider.dart';
 import '../../widgets/app_password_field.dart';
 import '../../widgets/claim/claim_entry_sheet.dart';
+import 'backup_code_recovery_screen.dart';
 import 'forgot_password_screen.dart';
 import 'register_screen.dart';
 
@@ -65,13 +65,31 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
     _passwordController.clear();
   }
 
+  /// «Забыли пароль?» — recovery with the backup code, always available
+  /// (no delivery needed). From there the person may switch to the
+  /// WhatsApp code flow when the backend can send codes.
+  Future<void> _openRecovery() async {
+    final typed = _identifierController.text.trim();
+    final outcome = await Navigator.of(context).push<BackupRecoveryOutcome>(
+      MaterialPageRoute(
+        builder: (_) => BackupCodeRecoveryScreen(initialLogin: typed),
+      ),
+    );
+    if (!mounted) return;
+    switch (outcome) {
+      case BackupRecoveryDone(:final user):
+        // Signs in; this screen then closes itself (see the listener).
+        ref.read(authProvider.notifier).activate(user);
+      case BackupRecoveryUseWhatsApp():
+        await _openForgotPassword();
+      case null:
+        break;
+    }
+  }
+
   @override
   Widget build(BuildContext context) {
     final locale = ref.watch(localeProvider);
-    // Hidden until the backend says codes can be delivered; a failed
-    // check just keeps it hidden.
-    final resetAvailable =
-        ref.watch(passwordResetAvailableProvider).valueOrNull ?? false;
 
     // Closes this screen the moment a session actually exists — whether
     // it came from *this* form or (in principle) from something else
@@ -178,22 +196,24 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
                         )
                       : null,
                 ),
-                if (resetAvailable)
-                  Align(
-                    alignment: Alignment.centerRight,
-                    child: TextButton(
-                      key: const ValueKey('forgot-password-link'),
-                      onPressed: submitting ? null : _openForgotPassword,
-                      child: Text(
-                        t(
-                          locale,
-                          ru: 'Забыли пароль?',
-                          kz: 'Құпиясөзді ұмыттыңыз ба?',
-                          en: 'Forgot password?',
-                        ),
+                Align(
+                  alignment: Alignment.centerRight,
+                  child: TextButton(
+                    key: const ValueKey('forgot-password-link'),
+                    style: TextButton.styleFrom(
+                      minimumSize: const Size(48, 48),
+                    ),
+                    onPressed: submitting ? null : _openRecovery,
+                    child: Text(
+                      t(
+                        locale,
+                        ru: 'Забыли пароль?',
+                        kz: 'Құпиясөзді ұмыттыңыз ба?',
+                        en: 'Forgot password?',
                       ),
                     ),
                   ),
+                ),
                 if (submitError != null) ...[
                   const SizedBox(height: AppSpacing.xs),
                   Text(

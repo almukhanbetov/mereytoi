@@ -5,6 +5,11 @@ import '../models/user.dart';
 /// `POST /api/auth/login` and `POST /api/auth/register` return.
 typedef AuthResult = ({User user, String token});
 
+/// A session plus the one-time backup code that came with it — returned by
+/// registration and by recovery with a backup code. The code is shown once
+/// and never stored by the app.
+typedef RecoveryAuthResult = ({User user, String token, String recoveryCode});
+
 /// `{user, token, eventId}` — `POST /api/auth/claim/:token`'s response.
 /// `eventId` is additive (only present when the newly-claimed account
 /// actually owns an event) — never client-chosen, always "whatever event
@@ -52,7 +57,9 @@ class AuthService {
     return _authResultFromJson(json);
   }
 
-  Future<AuthResult> register({
+  /// Also returns the account's backup code (`recovery_code`), issued once
+  /// at registration.
+  Future<RecoveryAuthResult> register({
     required String name,
     required String email,
     String phone = '',
@@ -64,7 +71,34 @@ class AuthService {
       'phone': phone,
       'password': password,
     });
-    return _authResultFromJson(json);
+    return _recoveryResultFromJson(json);
+  }
+
+  /// `POST /api/auth/recovery/reset` — sets [newPassword] using the backup
+  /// [code]; every earlier session is revoked and a new code replaces the
+  /// used one. [login] is an email or phone, as at sign-in. An unknown
+  /// account and a wrong code fail the same way (400
+  /// `invalid_recovery_code`); too many attempts is a 429.
+  Future<RecoveryAuthResult> recoverWithCode({
+    required String login,
+    required String code,
+    required String newPassword,
+  }) async {
+    final json = await _client.postJson('/api/auth/recovery/reset', {
+      'login': login,
+      'code': code,
+      'new_password': newPassword,
+    });
+    return _recoveryResultFromJson(json);
+  }
+
+  /// `POST /api/users/me/recovery-code` — replaces the backup code after
+  /// checking [currentPassword]; the previous code stops working at once.
+  Future<String> replaceRecoveryCode({required String currentPassword}) async {
+    final json = await _client.postJson('/api/users/me/recovery-code', {
+      'current_password': currentPassword,
+    });
+    return json['recovery_code'] as String? ?? '';
   }
 
   /// `GET /api/auth/me` — requires a token, which `ApiClient`'s own
@@ -77,6 +111,7 @@ class AuthService {
     return user.copyWith(
       telegramLinked: json['telegram_linked'] as bool?,
       preferredDeliveryChannel: json['preferred_delivery_channel'] as String?,
+      hasRecoveryCode: json['has_recovery_code'] as bool?,
     );
   }
 
@@ -201,6 +236,15 @@ class AuthService {
       'new_password': newPassword,
     });
     return json['token'] as String? ?? '';
+  }
+
+  RecoveryAuthResult _recoveryResultFromJson(Map<String, dynamic> json) {
+    final auth = _authResultFromJson(json);
+    return (
+      user: auth.user,
+      token: auth.token,
+      recoveryCode: json['recovery_code'] as String? ?? '',
+    );
   }
 
   AuthResult _authResultFromJson(Map<String, dynamic> json) {
