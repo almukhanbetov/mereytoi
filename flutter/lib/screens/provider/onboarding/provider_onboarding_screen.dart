@@ -439,6 +439,7 @@ class _CategoryStep extends ConsumerWidget {
           ),
           error: (err, _) => AppErrorView(
             message: apiErrorMessage(locale, err),
+            error: err,
             locale: locale,
             onRetry: () => ref.invalidate(categoriesProvider),
           ),

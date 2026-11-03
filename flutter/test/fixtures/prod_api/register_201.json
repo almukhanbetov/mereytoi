@@ -1,0 +1,1 @@
+{"token": "test-token", "user": {"id": 2, "name": "Fixture User", "email": "fixture.user@example.com", "phone": "+77000000099", "role": "user", "created_at": "2026-11-03T12:42:29.110747048+05:00", "updated_at": "2026-11-03T12:42:29.110747048+05:00", "status": "active"}}

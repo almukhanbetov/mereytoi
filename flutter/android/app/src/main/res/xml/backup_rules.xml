@@ -1,0 +1,9 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- Android 6–11 Auto Backup. flutter_secure_storage's prefs are encrypted
+     with an Android Keystore key, which is never backed up: restored onto a
+     reinstall they can't be decrypted, and every token read fails. Keep
+     them out of the backup; everything else is backed up as before. -->
+<full-backup-content>
+    <exclude domain="sharedpref" path="FlutterSecureStorage.xml" />
+    <exclude domain="sharedpref" path="FlutterSecureKeyStorage.xml" />
+</full-backup-content>

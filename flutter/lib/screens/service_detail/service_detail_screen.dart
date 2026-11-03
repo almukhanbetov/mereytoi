@@ -77,6 +77,7 @@ class _ServiceDetailScreenState extends ConsumerState<ServiceDetailScreen> {
         error: (err, _) => Center(
           child: AppErrorView(
             message: apiErrorMessage(locale, err),
+            error: err,
             locale: locale,
             onRetry: () =>
                 ref.invalidate(listingDetailProvider(widget.listingId)),

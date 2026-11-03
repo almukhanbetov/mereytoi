@@ -177,6 +177,7 @@ class _ServicesScreenState extends ConsumerState<ServicesScreen> {
                 hasScrollBody: false,
                 child: AppErrorView(
                   message: apiErrorMessage(locale, err),
+                  error: err,
                   locale: locale,
                   onRetry: () => ref.invalidate(listingsProvider(listingsKey)),
                 ),

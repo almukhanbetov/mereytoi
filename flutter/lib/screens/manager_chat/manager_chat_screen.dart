@@ -271,6 +271,7 @@ class _ChatBodyState extends ConsumerState<_ChatBody> {
       error: (err, _) => Center(
         child: AppErrorView(
           message: apiErrorMessage(locale, err),
+          error: err,
           locale: locale,
           onRetry: () => ref.read(managerChatProvider(_key).notifier).refresh(),
         ),

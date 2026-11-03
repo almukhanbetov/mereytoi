@@ -90,6 +90,7 @@ class EventWorkspaceScreen extends ConsumerWidget {
           error: (err, _) => Center(
             child: AppErrorView(
               message: apiErrorMessage(locale, err),
+              error: err,
               locale: locale,
               onRetry: () => ref.invalidate(eventDetailProvider(eventId)),
             ),

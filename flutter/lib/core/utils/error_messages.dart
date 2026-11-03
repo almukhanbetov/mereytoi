@@ -63,6 +63,20 @@ String apiErrorMessage(AppLocale locale, Object error) {
           kz: 'Қызмет уақытша қолжетімсіз',
           en: 'Service temporarily unavailable',
         );
+      case ApiErrorType.tls:
+        return t(
+          locale,
+          ru: 'Не удалось установить защищённое соединение',
+          kz: 'Қауіпсіз байланыс орнату мүмкін болмады',
+          en: 'Couldn\'t establish a secure connection',
+        );
+      case ApiErrorType.invalidResponse:
+        return t(
+          locale,
+          ru: 'Сервер вернул некорректный ответ',
+          kz: 'Сервер қате жауап қайтарды',
+          en: 'The server sent an invalid response',
+        );
       case ApiErrorType.unknown:
         return t(
           locale,
@@ -72,10 +86,33 @@ String apiErrorMessage(AppLocale locale, Object error) {
         );
     }
   }
+  // A response that arrived but didn't fit the app's models — not a
+  // connection problem, so never worded like one.
+  if (error is TypeError || error is FormatException) {
+    return t(
+      locale,
+      ru: 'Не удалось обработать ответ сервера',
+      kz: 'Сервер жауабын өңдеу мүмкін болмады',
+      en: 'Couldn\'t process the server response',
+    );
+  }
   return t(
     locale,
     ru: 'Не удалось загрузить данные',
     kz: 'Деректерді жүктеу мүмкін болмады',
     en: 'Couldn\'t load data',
   );
+}
+
+/// The short line under an error message — a code plus the error's type,
+/// e.g. "ERR_HTTP_429 · DioException", "ERR_TYPE · _TypeError". Type names
+/// only: never a message, URL query, token or any personal data, so it is
+/// safe on screen and in a tester's screenshot.
+String errorDiagnostics(Object error) {
+  if (error is ApiException) {
+    return '${error.diagnosticCode} · ${error.causeType ?? 'ApiException'}';
+  }
+  if (error is FormatException) return 'ERR_FORMAT · ${error.runtimeType}';
+  if (error is TypeError) return 'ERR_TYPE · ${error.runtimeType}';
+  return 'ERR_UNKNOWN · ${error.runtimeType}';
 }

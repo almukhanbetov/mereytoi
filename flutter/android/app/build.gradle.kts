@@ -26,6 +26,25 @@ if (mapsApiKey.isEmpty() &&
     )
 }
 
+// Release signing — the Play upload key, configured in the untracked
+// android/key.properties (storeFile, storePassword, keyAlias, keyPassword),
+// never committed. A release build without it fails instead of silently
+// falling back to the Android Debug key, which Google Play rejects.
+val keystoreProperties = Properties().apply {
+    val file = rootProject.file("key.properties")
+    if (file.exists()) file.inputStream().use { load(it) }
+}
+val hasReleaseKeystore = keystoreProperties.getProperty("storeFile") != null
+
+if (!hasReleaseKeystore &&
+    gradle.startParameter.taskNames.any { it.contains("Release", ignoreCase = true) }
+) {
+    throw GradleException(
+        "Release signing is not configured. Add android/key.properties with " +
+            "storeFile, storePassword, keyAlias and keyPassword of the upload keystore.",
+    )
+}
+
 android {
     namespace = "kz.mereytoi.mereytoi_app"
     compileSdk = flutter.compileSdkVersion
@@ -48,11 +67,22 @@ android {
         versionName = flutter.versionName
     }
 
+    signingConfigs {
+        if (hasReleaseKeystore) {
+            create("release") {
+                storeFile = file(keystoreProperties.getProperty("storeFile"))
+                storePassword = keystoreProperties.getProperty("storePassword")
+                keyAlias = keystoreProperties.getProperty("keyAlias")
+                keyPassword = keystoreProperties.getProperty("keyPassword")
+            }
+        }
+    }
+
     buildTypes {
         release {
-            // TODO: Add your own signing config for the release build.
-            // Signing with the debug keys for now, so `flutter run --release` works.
-            signingConfig = signingConfigs.getByName("debug")
+            if (hasReleaseKeystore) {
+                signingConfig = signingConfigs.getByName("release")
+            }
         }
     }
 }

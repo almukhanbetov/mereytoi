@@ -103,6 +103,7 @@ class _EventCommentListState extends ConsumerState<EventCommentList> {
             loading: () => const AppLoader(),
             error: (err, _) => AppErrorView(
               message: apiErrorMessage(locale, err),
+              error: err,
               locale: locale,
               onRetry: () => ref.invalidate(eventCommentsProvider(_key)),
             ),
