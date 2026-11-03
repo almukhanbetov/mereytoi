@@ -69,6 +69,12 @@ function LoginForm() {
           <PasswordInput value={password} onChange={(e) => setPassword(e.target.value)} required placeholder="••••••••" />
         </label>
 
+        <p className="auth-card__forgot">
+          <Link href={searchParams.get('next') ? `/recover?next=${encodeURIComponent(next)}` : '/recover'}>
+            <T ru="Забыли пароль?" kz="Құпиясөзді ұмыттыңыз ба?" en="Forgot password?" />
+          </Link>
+        </p>
+
         {error && <p className="auth-card__error">{error}</p>}
 
         <button type="submit" className="btn btn--gold btn--block" disabled={submitting}>

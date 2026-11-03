@@ -2,6 +2,8 @@ package db
 
 import (
 	"log"
+	"os"
+	"time"
 
 	"gorm.io/driver/postgres"
 	"gorm.io/gorm"
@@ -13,7 +15,19 @@ import (
 
 func Connect(cfg config.Config) *gorm.DB {
 	database, err := gorm.Open(postgres.Open(cfg.DSN()), &gorm.Config{
-		Logger: logger.Default.LogMode(logger.Warn),
+		// Same output as logger.Default at Warn, but SQL is logged without
+		// its parameter values and "record not found" isn't logged at all:
+		// otherwise a failed sign-in wrote whatever was typed as the login
+		// (an email, a phone — or a password pasted into the wrong field)
+		// to the server log. passwordreset.RedactedDB did this for its own
+		// queries only.
+		Logger: logger.New(log.New(os.Stdout, "\r\n", log.LstdFlags), logger.Config{
+			SlowThreshold:             200 * time.Millisecond,
+			LogLevel:                  logger.Warn,
+			IgnoreRecordNotFoundError: true,
+			ParameterizedQueries:      true,
+			Colorful:                  true,
+		}),
 	})
 	if err != nil {
 		log.Fatalf("failed to connect to database: %v", err)
@@ -23,6 +37,9 @@ func Connect(cfg config.Config) *gorm.DB {
 		&models.User{}, &models.Category{}, &models.Listing{}, &models.Booking{}, &models.Comment{}, &models.Client{}, &models.SiteStatistics{},
 		// Password reset/change one-time codes — see models/password_reset_code.go.
 		&models.PasswordResetCode{},
+		// Backup-code recovery throttle — see models/recovery_attempt.go
+		// (the code's hash itself is a column on users).
+		&models.RecoveryAttempt{},
 		// "Мой той" collaborative workspace — see models/event.go.
 		&models.Event{}, &models.EventMember{}, &models.EventInvitation{},
 		&models.EventCandidate{}, &models.EventVote{}, &models.EventComment{},

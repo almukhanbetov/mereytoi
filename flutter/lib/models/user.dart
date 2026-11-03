@@ -27,6 +27,7 @@ class User {
     this.phoneVerifiedAt,
     this.telegramLinked,
     this.preferredDeliveryChannel,
+    this.hasRecoveryCode,
   });
 
   final int id;
@@ -54,6 +55,11 @@ class User {
   final bool? telegramLinked;
   final String? preferredDeliveryChannel;
 
+  /// Whether the account has a password-recovery backup code (never the
+  /// code itself). Like [telegramLinked], only known after `GET
+  /// /api/auth/me` — or right after the app itself created a code.
+  final bool? hasRecoveryCode;
+
   bool get isAdmin => role == 'admin';
 
   factory User.fromJson(Map<String, dynamic> json) {
@@ -76,7 +82,11 @@ class User {
     );
   }
 
-  User copyWith({bool? telegramLinked, String? preferredDeliveryChannel}) {
+  User copyWith({
+    bool? telegramLinked,
+    String? preferredDeliveryChannel,
+    bool? hasRecoveryCode,
+  }) {
     return User(
       id: id,
       name: name,
@@ -90,6 +100,7 @@ class User {
       telegramLinked: telegramLinked ?? this.telegramLinked,
       preferredDeliveryChannel:
           preferredDeliveryChannel ?? this.preferredDeliveryChannel,
+      hasRecoveryCode: hasRecoveryCode ?? this.hasRecoveryCode,
     );
   }
 }

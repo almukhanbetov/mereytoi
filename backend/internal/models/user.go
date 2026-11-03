@@ -54,6 +54,12 @@ type User struct {
 	// has been. Every JWT issued before it (by iat, whole seconds) is
 	// rejected by middleware.RequireAuth — see SessionValidator.
 	PasswordChangedAt *time.Time `json:"-"`
+	// RecoveryCodeHash — hash of the account's one-time backup code
+	// (internal/recoverycode); empty when none was issued. The code itself
+	// is never stored. Replacing or redeeming the code overwrites it, which
+	// is what makes the previous code stop working.
+	RecoveryCodeHash      string     `gorm:"size:80;index" json:"-"`
+	RecoveryCodeCreatedAt *time.Time `json:"-"`
 }
 
 const (

@@ -44,11 +44,23 @@ export function AuthProvider({ children }) {
     loadUser();
   }, [loadUser]);
 
+  // Also returns the account's backup code — shown once by the register
+  // page, never stored anywhere on the client.
   const register = useCallback(async (name, email, phone, password) => {
-    const { user, token } = await authApi.register(name, email, phone, password);
+    const { user, token, recovery_code: recoveryCode } = await authApi.register(name, email, phone, password);
     setUserToken(token);
     setUser(user);
-    return user;
+    return { user, recoveryCode };
+  }, []);
+
+  // Password recovery with the backup code: signs in with the fresh session
+  // (every older one is revoked by the backend) and returns the new code
+  // that replaced the used one.
+  const recover = useCallback(async (loginValue, code, newPassword) => {
+    const { user, token, recovery_code: recoveryCode } = await authApi.recover(loginValue.trim(), code, newPassword);
+    setUserToken(token);
+    setUser(user);
+    return { user, recoveryCode };
   }, []);
 
   const login = useCallback(async (identifier, password) => {
@@ -96,6 +108,7 @@ export function AuthProvider({ children }) {
         isAuthenticated: !!user,
         isAdmin,
         register,
+        recover,
         login,
         claim,
         logout,

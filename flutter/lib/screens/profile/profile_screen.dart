@@ -12,6 +12,7 @@ import '../../state/categories_provider.dart';
 import '../../state/event_providers.dart';
 import '../../state/listings_provider.dart';
 import '../../state/locale_provider.dart';
+import '../../state/recovery_code_provider.dart';
 import '../../state/provider_provider.dart';
 import '../../state/providers.dart';
 import '../../state/theme_provider.dart';
@@ -23,6 +24,7 @@ import '../provider_chat/provider_chat_list_screen.dart';
 import '../role_choice/role_choice_screen.dart';
 import '../root_shell.dart';
 import 'change_password_screen.dart';
+import 'recovery_code_settings_screen.dart';
 import 'restaurant_admin/restaurant_admin_list_screen.dart';
 
 /// Brief section 3 — the account screen: identity, messenger/delivery
@@ -415,6 +417,72 @@ class _ProfileBodyState extends ConsumerState<_ProfileBody>
                           en: 'Change password',
                         ),
                         style: Theme.of(context).textTheme.bodyLarge,
+                      ),
+                    ),
+                    Icon(
+                      Icons.chevron_right_rounded,
+                      size: 18,
+                      color: context.mereytoiColors.textMuted,
+                    ),
+                  ],
+                ),
+              ),
+            ),
+          ),
+          const SizedBox(height: AppSpacing.sm),
+          AppCard(
+            padding: EdgeInsets.zero,
+            child: InkWell(
+              key: const ValueKey('profile-recovery-code'),
+              borderRadius: BorderRadius.circular(AppRadius.lg),
+              onTap: () => Navigator.of(context).push(
+                MaterialPageRoute(
+                  builder: (_) => const RecoveryCodeSettingsScreen(),
+                ),
+              ),
+              child: Padding(
+                padding: const EdgeInsets.all(AppSpacing.md),
+                child: Row(
+                  children: [
+                    Icon(
+                      Icons.key_rounded,
+                      size: 18,
+                      color: context.mereytoiColors.textSecondary,
+                    ),
+                    const SizedBox(width: AppSpacing.xs),
+                    Expanded(
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          Text(
+                            t(
+                              locale,
+                              ru: 'Резервный код восстановления',
+                              kz: 'Қалпына келтіру резервтік коды',
+                              en: 'Recovery backup code',
+                            ),
+                            style: Theme.of(context).textTheme.bodyLarge,
+                          ),
+                          // Accounts from before backup codes have none —
+                          // say so right here.
+                          if (ref
+                                  .watch(recoveryCodeStatusProvider)
+                                  .valueOrNull ==
+                              false)
+                            Text(
+                              t(
+                                locale,
+                                ru: 'Не создан — создайте сейчас',
+                                kz: 'Жасалмаған — қазір жасаңыз',
+                                en: 'Not created yet — create one now',
+                              ),
+                              key: const ValueKey('profile-recovery-missing'),
+                              style: Theme.of(context).textTheme.bodySmall
+                                  ?.copyWith(
+                                    color: context.mereytoiColors.goldPrimary,
+                                  ),
+                            ),
+                        ],
                       ),
                     ),
                     Icon(

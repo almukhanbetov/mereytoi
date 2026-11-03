@@ -3,15 +3,18 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../../core/theme/app_theme.dart';
 import '../../core/utils/error_messages.dart';
+import '../../domain/auth/password_reset_rules.dart';
 import '../../state/auth_provider.dart';
 import '../../state/locale_provider.dart';
 import '../../widgets/app_password_field.dart';
 import 'login_screen.dart';
+import 'recovery_code_screen.dart';
 
 /// POST /api/auth/register — {name, email, phone?, password}, exactly the
-/// backend's `registerInput` (phone is optional there; min password length
-/// 6 is enforced server-side, mirrored here only as a friendlier inline
-/// validator so the request isn't sent just to bounce off a 400).
+/// backend's `registerInput` (phone is optional there; the minimum password
+/// length — [minNewPasswordLength], the same for registration, change and
+/// recovery — is enforced server-side, mirrored here only as a friendlier
+/// inline validator so the request isn't sent just to bounce off a 400).
 class RegisterScreen extends ConsumerStatefulWidget {
   const RegisterScreen({super.key});
 
@@ -35,9 +38,12 @@ class _RegisterScreenState extends ConsumerState<RegisterScreen> {
     super.dispose();
   }
 
-  void _submit() {
+  /// Registers, shows the account's backup code (once — it can't be seen
+  /// again), and only then signs in: this screen and the login screen
+  /// below it close themselves on `AuthAuthenticated`.
+  Future<void> _submit() async {
     if (!_formKey.currentState!.validate()) return;
-    ref
+    final result = await ref
         .read(authSubmitProvider.notifier)
         .register(
           name: _nameController.text.trim(),
@@ -45,6 +51,16 @@ class _RegisterScreenState extends ConsumerState<RegisterScreen> {
           phone: _phoneController.text.trim(),
           password: _passwordController.text,
         );
+    if (result == null || !mounted) return;
+    if (result.recoveryCode.isNotEmpty) {
+      await Navigator.of(context).push<bool>(
+        MaterialPageRoute(
+          fullscreenDialog: true,
+          builder: (_) => RecoveryCodeScreen(code: result.recoveryCode),
+        ),
+      );
+    }
+    ref.read(authProvider.notifier).activate(result.user);
   }
 
   @override
@@ -190,12 +206,12 @@ class _RegisterScreenState extends ConsumerState<RegisterScreen> {
                         en: 'Enter your password',
                       );
                     }
-                    if (v.length < 6) {
+                    if (v.length < minNewPasswordLength) {
                       return t(
                         locale,
-                        ru: 'Минимум 6 символов',
-                        kz: 'Кемінде 6 таңба',
-                        en: 'At least 6 characters',
+                        ru: 'Минимум $minNewPasswordLength символов',
+                        kz: 'Кемінде $minNewPasswordLength таңба',
+                        en: 'At least $minNewPasswordLength characters',
                       );
                     }
                     return null;

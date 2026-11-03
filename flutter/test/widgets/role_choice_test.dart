@@ -394,6 +394,13 @@ void main() {
         home: const ProfileScreen(),
         signedIn: true,
       );
+      // Below Security (password, backup code) — scroll it into view.
+      await tester.scrollUntilVisible(
+        find.text('Режим приложения'),
+        200,
+        scrollable: find.byType(Scrollable).first,
+      );
+      await tester.pumpAndSettle();
       expect(find.text('Режим приложения'), findsOneWidget);
       expect(find.text('Текущий режим: Для мероприятия'), findsOneWidget);
       expect(find.text('Предлагаю услуги'), findsOneWidget);
@@ -412,6 +419,12 @@ void main() {
         signedIn: true,
         isProvider: true,
       );
+      await tester.scrollUntilVisible(
+        find.text('Текущий режим: Для мероприятия'),
+        200,
+        scrollable: find.byType(Scrollable).first,
+      );
+      await tester.pumpAndSettle();
       expect(find.text('Текущий режим: Для мероприятия'), findsOneWidget);
       expect(find.text('Мой бизнес'), findsOneWidget);
       expect(find.text('Открыть'), findsOneWidget);

@@ -6,6 +6,7 @@ import { useRouter, useSearchParams } from 'next/navigation';
 import { useAuth } from '@/context/AuthContext';
 import { T } from '@/context/AppProviders';
 import PasswordInput from '@/components/PasswordInput';
+import RecoveryCodePanel from '@/components/auth/RecoveryCodePanel';
 
 // See login/page.js for why this needs a Suspense boundary.
 export default function RegisterPage() {
@@ -27,19 +28,41 @@ function RegisterForm() {
   const [password, setPassword] = useState('');
   const [error, setError] = useState('');
   const [submitting, setSubmitting] = useState(false);
+  // The backup code from the registration response — shown once, then the
+  // user continues; never persisted.
+  const [recoveryCode, setRecoveryCode] = useState('');
 
   async function handleSubmit(e) {
     e.preventDefault();
     setError('');
     setSubmitting(true);
     try {
-      await register(name, email, phone, password);
-      router.push(next);
+      const { recoveryCode: code } = await register(name, email, phone, password);
+      if (code) {
+        setRecoveryCode(code);
+      } else {
+        router.push(next);
+      }
     } catch (err) {
-      setError(err.message || 'Не удалось зарегистрироваться');
+      setError(err.message === 'weak_password' ? 'Пароль должен быть не короче 8 символов' : err.message || 'Не удалось зарегистрироваться');
     } finally {
       setSubmitting(false);
     }
+  }
+
+  if (recoveryCode) {
+    return (
+      <div className="auth-page">
+        <div className="auth-card contacts__form">
+          <p className="auth-card__title"><T ru="Аккаунт создан" kz="Аккаунт жасалды" en="Account created" /></p>
+          <RecoveryCodePanel
+            code={recoveryCode}
+            onDone={() => router.push(next)}
+            doneLabel={<T ru="Продолжить" kz="Жалғастыру" en="Continue" />}
+          />
+        </div>
+      </div>
+    );
   }
 
   return (
@@ -65,7 +88,7 @@ function RegisterForm() {
         </label>
         <label>
           <span><T ru="Пароль" kz="Құпия сөз" /></span>
-          <PasswordInput value={password} onChange={(e) => setPassword(e.target.value)} required minLength={6} placeholder="Минимум 6 символов" />
+          <PasswordInput value={password} onChange={(e) => setPassword(e.target.value)} required minLength={8} autoComplete="new-password" placeholder="Минимум 8 символов" />
         </label>
 
         {error && <p className="auth-card__error">{error}</p>}

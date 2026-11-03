@@ -98,7 +98,10 @@ class AuthNotifier extends StateNotifier<AuthState> {
     state = AuthAuthenticated(result.user);
   }
 
-  Future<void> register({
+  /// Saves the new session but leaves [state] alone: the caller first
+  /// shows the returned backup code, then calls [activate] — screens close
+  /// themselves on `AuthAuthenticated`, which would hide the code.
+  Future<RecoveryAuthResult> register({
     required String name,
     required String email,
     String phone = '',
@@ -111,7 +114,36 @@ class AuthNotifier extends StateNotifier<AuthState> {
       password: password,
     );
     await TokenStorage.instance.saveToken(result.token);
-    state = AuthAuthenticated(result.user);
+    return result;
+  }
+
+  /// Password recovery with a backup code — same "save now, [activate]
+  /// after the new code was shown" contract as [register].
+  Future<RecoveryAuthResult> recoverWithCode({
+    required String login,
+    required String code,
+    required String newPassword,
+  }) async {
+    final result = await _authService.recoverWithCode(
+      login: login,
+      code: code,
+      newPassword: newPassword,
+    );
+    await TokenStorage.instance.saveToken(result.token);
+    return result;
+  }
+
+  /// Finishes [register]/[recoverWithCode] once their code was shown —
+  /// both always leave the account with a backup code.
+  void activate(User user) =>
+      state = AuthAuthenticated(user.copyWith(hasRecoveryCode: true));
+
+  /// A backup code was just created/replaced in security settings.
+  void markRecoveryCodeCreated() {
+    final current = state;
+    if (current is AuthAuthenticated) {
+      state = AuthAuthenticated(current.user.copyWith(hasRecoveryCode: true));
+    }
   }
 
   Future<void> logout() async {
@@ -240,7 +272,10 @@ class AuthSubmitNotifier extends StateNotifier<AsyncValue<void>> {
     }
   }
 
-  Future<void> register({
+  /// Returns the new account and its backup code (null on failure — the
+  /// error is in [state]). The session is saved but not yet active: the
+  /// register screen shows the code, then calls `activate`.
+  Future<RecoveryAuthResult?> register({
     required String name,
     required String email,
     String phone = '',
@@ -248,12 +283,14 @@ class AuthSubmitNotifier extends StateNotifier<AsyncValue<void>> {
   }) async {
     state = const AsyncLoading();
     try {
-      await _ref
+      final result = await _ref
           .read(authProvider.notifier)
           .register(name: name, email: email, phone: phone, password: password);
       state = const AsyncData(null);
+      return result;
     } catch (error, stackTrace) {
       state = AsyncError(error, stackTrace);
+      return null;
     }
   }
 

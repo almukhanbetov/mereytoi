@@ -2614,3 +2614,20 @@ a.ws-chip:hover, button.ws-chip:hover{ border-color: var(--gold); }
   display:inline-flex; align-items:center; gap:5px; align-self:flex-start; padding:2px 9px; border-radius:999px;
   background: var(--gold); color:#17140d; font-size:10px; font-weight:700; text-transform:uppercase; letter-spacing:.03em; margin-bottom:4px;
 }
+
+/* ---------- Backup code (password recovery) ---------- */
+.recovery-code{ display:flex; flex-direction:column; gap:12px; }
+.recovery-code__title{ margin:0; text-align:center; font-weight:600; }
+.recovery-code__value{
+  display:block; padding:16px 12px; border:1px solid var(--gold);
+  border-radius:12px; text-align:center; font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
+  font-size:15px; letter-spacing:.06em; line-height:1.6; word-break:break-all; user-select:all;
+}
+.recovery-code__warning{ margin:0; font-size:13.5px; color: var(--text-muted); line-height:1.5; }
+.recovery-code__confirm{ display:flex !important; flex-direction:row !important; align-items:center; gap:8px; font-size:14px; }
+.recovery-code__confirm input{ width:auto !important; }
+.auth-card__forgot{ text-align:right; font-size:13.5px; margin:-4px 0 0; }
+.auth-card__forgot a{ color: var(--gold-light); }
+.auth-card__hint{ font-size:13px; color: var(--text-muted); margin:0; line-height:1.5; }
+.recovery-code__status{ margin:0 0 12px; font-size:13.5px; line-height:1.5; }
+.recovery-code__status[data-status="missing"]{ color: var(--gold-light); }

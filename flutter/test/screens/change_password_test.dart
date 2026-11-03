@@ -326,7 +326,9 @@ void main() {
       await _tap(tester, 'change-done');
       await tester.pumpAndSettle();
       expect(find.byType(ChangePasswordScreen), findsNothing);
-      expect(find.text('Безопасность'), findsOneWidget);
+      // Back on Profile, in Security (the section title itself may sit
+      // above the fold: the list scrolled to this tile).
+      expect(_key('profile-change-password'), findsOneWidget);
     });
 
     testWidgets('loading state blocks a double submit', (tester) async {
@@ -508,7 +510,7 @@ void main() {
     expect(_key('change-step-choose'), findsOneWidget);
     await _systemBack(tester);
     expect(find.byType(ChangePasswordScreen), findsNothing);
-    expect(find.text('Безопасность'), findsOneWidget);
+    expect(_key('profile-change-password'), findsOneWidget);
 
     await _openFromProfile(tester);
     await _toCode(tester);

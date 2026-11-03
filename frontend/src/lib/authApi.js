@@ -40,6 +40,17 @@ export const authApi = {
     return request('/api/auth/login', { method: 'POST', body });
   },
   me: () => request('/api/auth/me', { auth: true }),
+  // Password recovery with the one-time backup code (no SMS/WhatsApp).
+  // `login` is an email or phone, as at sign-in. Resolves with
+  // { user, token, recovery_code } — the new code that replaced the used
+  // one. Errors: 'invalid_recovery_code' (unknown account or wrong code —
+  // deliberately the same), 'too_many_attempts', 'weak_password'.
+  recover: (login, code, newPassword) =>
+    request('/api/auth/recovery/reset', { method: 'POST', body: { login, code, new_password: newPassword } }),
+  // Replaces the backup code after checking the current password; the old
+  // code stops working. Resolves with { recovery_code }.
+  replaceRecoveryCode: (currentPassword) =>
+    request('/api/users/me/recovery-code', { method: 'POST', body: { current_password: currentPassword }, auth: true }),
   updateMe: (name, phone) => request('/api/auth/me', { method: 'PUT', body: { name, phone }, auth: true }),
   myBookings: () => request('/api/users/me/bookings', { auth: true }),
   deleteMyBooking: (id) => request(`/api/users/me/bookings/${id}`, { method: 'DELETE', auth: true }),
