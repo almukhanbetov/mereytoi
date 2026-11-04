@@ -118,6 +118,40 @@ class AuthService {
     return _recoveryResultFromJson(json);
   }
 
+  /// Whether the backend can send recovery codes by email.
+  Future<bool> fetchEmailOtpAvailable() async {
+    final json = await _client.getJson('/api/auth/password/config');
+    return json['email_otp_available'] == true;
+  }
+
+  /// `POST /api/auth/recovery/email/request` — asks for a code by email. The
+  /// answer is the same whether or not the account exists; too many requests
+  /// from one address is a 429.
+  Future<void> requestEmailOtp({
+    required String email,
+    required String lang,
+  }) async {
+    await _client.postJson('/api/auth/recovery/email/request', {
+      'email': email,
+      'lang': lang,
+    });
+  }
+
+  /// `POST /api/auth/recovery/email/reset` — sets [newPassword] with the code;
+  /// every earlier session is revoked. An unknown email and a wrong, expired or
+  /// used code fail the same way (400 `invalid_recovery_code`).
+  Future<void> resetWithEmailOtp({
+    required String email,
+    required String otp,
+    required String newPassword,
+  }) async {
+    await _client.postJson('/api/auth/recovery/email/reset', {
+      'email': email,
+      'otp': otp,
+      'new_password': newPassword,
+    });
+  }
+
   /// `POST /api/users/me/recovery-code` — replaces the backup code after
   /// checking [currentPassword]; the previous code stops working at once.
   Future<String> replaceRecoveryCode({required String currentPassword}) async {

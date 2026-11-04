@@ -98,8 +98,11 @@ func RegisterWithOptions(r *gin.Engine, database *gorm.DB, cfg config.Config, op
 		}
 		resetSvc = passwordreset.New(database, sender, cfg.OTPHMACSecret, cfg.JWTSecret)
 	}
+	if cfg.PasswordEmailOTPEnabled {
+		resetSvc.EnableEmail(mailer)
+	}
 	passwordHandler := handlers.NewPasswordHandler(database, cfg.JWTSecret, resetSvc)
-	recoveryHandler := handlers.NewRecoveryHandler(database, cfg.JWTSecret, recoverycode.New(database))
+	recoveryHandler := handlers.NewRecoveryHandler(database, cfg.JWTSecret, recoverycode.New(database), resetSvc)
 	categoryHandler := handlers.NewCategoryHandler(database)
 	cityHandler := handlers.NewCityHandler()
 	listingHandler := handlers.NewListingHandler(database)
@@ -158,6 +161,9 @@ func RegisterWithOptions(r *gin.Engine, database *gorm.DB, cfg config.Config, op
 			// Backup code lost: ask support for a temporary code, then use it.
 			auth.POST("/recovery/support-request", recoveryHandler.SupportRequest)
 			auth.POST("/recovery/support-reset", recoveryHandler.SupportReset)
+			// Code sent to the account's email.
+			auth.POST("/recovery/email/request", recoveryHandler.EmailOTPRequest)
+			auth.POST("/recovery/email/reset", recoveryHandler.EmailOTPReset)
 			auth.GET("/me", middleware.RequireAuth(cfg.JWTSecret), authHandler.Me)
 			auth.PUT("/me", middleware.RequireAuth(cfg.JWTSecret), authHandler.UpdateMe)
 		}

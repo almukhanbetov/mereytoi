@@ -4,10 +4,24 @@ import (
 	"context"
 	"crypto/tls"
 	"encoding/base64"
+	"errors"
 	"fmt"
+	"net"
 	"net/smtp"
 	"strings"
+	"time"
 )
+
+const (
+	// implicitTLSPort — submission over TLS from the first byte (RFC 8314).
+	implicitTLSPort = "465"
+	dialTimeout     = 5 * time.Second
+)
+
+// sessionTimeout caps a whole SMTP session. net/smtp has no deadlines of its
+// own, so without this a server that accepts and then stalls would keep the
+// goroutine and the connection forever, long after Send gave up on them.
+var sessionTimeout = 30 * time.Second
 
 // SMTPSender is the production transport — plain standard SMTP, no
 // provider-specific API/SDK. It also happens to be exactly what a local
@@ -19,10 +33,9 @@ type SMTPSender struct {
 	Port     string
 	Username string
 	Password string
-	// UseTLS gates STARTTLS (brief section 4's MAIL_USE_TLS). Kept as an
-	// explicit flag rather than always-opportunistic so a misconfigured
-	// dev Mailpit (no TLS support at all) and a real provider that
-	// requires it are both handled by one setting, not guesswork.
+	// UseTLS requires an encrypted connection (SMTP_USE_TLS): TLS from the
+	// start on port 465, STARTTLS otherwise. Off, it stays plain, which is
+	// what a local Mailpit speaks.
 	UseTLS bool
 	// FromAddr/FromName build the message's own From header — kept here
 	// rather than only in Service, since the raw RFC 5322 message this
@@ -50,23 +63,11 @@ func (s *SMTPSender) Send(ctx context.Context, msg Message) error {
 func (s *SMTPSender) sendSync(msg Message) error {
 	addr := fmt.Sprintf("%s:%s", s.Host, s.Port)
 
-	c, err := smtp.Dial(addr)
+	c, err := s.connect(addr)
 	if err != nil {
-		return fmt.Errorf("dial %s: %w", addr, err)
+		return err
 	}
 	defer c.Close()
-
-	if s.UseTLS {
-		if ok, _ := c.Extension("STARTTLS"); ok {
-			if err := c.StartTLS(&tls.Config{ServerName: s.Host}); err != nil {
-				return fmt.Errorf("starttls: %w", err)
-			}
-		}
-		// Server doesn't advertise STARTTLS (a local Mailpit, typically) —
-		// proceed unencrypted rather than failing dev delivery outright;
-		// MAIL_USE_TLS is "use it when offered," not "refuse to send
-		// without it."
-	}
 
 	if s.Username != "" {
 		if ok, _ := c.Extension("AUTH"); ok {
@@ -94,6 +95,49 @@ func (s *SMTPSender) sendSync(msg Message) error {
 		return fmt.Errorf("close body: %w", err)
 	}
 	return c.Quit()
+}
+
+// connect opens the session, encrypted when UseTLS says so. A server that
+// doesn't offer STARTTLS is refused rather than falling back to plain text:
+// these messages can carry password reset codes, and anyone on the path can
+// strip the offer.
+func (s *SMTPSender) connect(addr string) (*smtp.Client, error) {
+	tlsConfig := &tls.Config{ServerName: s.Host, MinVersion: tls.VersionTLS12}
+	dialer := &net.Dialer{Timeout: dialTimeout}
+	if s.UseTLS && s.Port == implicitTLSPort {
+		conn, err := tls.DialWithDialer(dialer, "tcp", addr, tlsConfig)
+		if err != nil {
+			return nil, fmt.Errorf("tls dial %s: %w", addr, err)
+		}
+		_ = conn.SetDeadline(time.Now().Add(sessionTimeout))
+		c, err := smtp.NewClient(conn, s.Host)
+		if err != nil {
+			conn.Close()
+			return nil, fmt.Errorf("smtp session: %w", err)
+		}
+		return c, nil
+	}
+	conn, err := dialer.Dial("tcp", addr)
+	if err != nil {
+		return nil, fmt.Errorf("dial %s: %w", addr, err)
+	}
+	_ = conn.SetDeadline(time.Now().Add(sessionTimeout))
+	c, err := smtp.NewClient(conn, s.Host)
+	if err != nil {
+		conn.Close()
+		return nil, fmt.Errorf("smtp session: %w", err)
+	}
+	if s.UseTLS {
+		if ok, _ := c.Extension("STARTTLS"); !ok {
+			c.Close()
+			return nil, errors.New("starttls: not offered by the server")
+		}
+		if err := c.StartTLS(tlsConfig); err != nil {
+			c.Close()
+			return nil, fmt.Errorf("starttls: %w", err)
+		}
+	}
+	return c, nil
 }
 
 // buildRawMessage assembles a minimal RFC 5322 multipart/alternative

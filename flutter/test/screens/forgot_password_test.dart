@@ -104,6 +104,8 @@ Future<void> _openForgot(WidgetTester tester) async {
   await tester.ensureVisible(_key('forgot-password-link'));
   await tester.tap(_key('forgot-password-link'));
   await tester.pumpAndSettle();
+  await tester.tap(_key('forgot-have-code'));
+  await tester.pumpAndSettle();
   await tester.ensureVisible(_key('recovery-use-whatsapp'));
   await tester.tap(_key('recovery-use-whatsapp'));
   await tester.pumpAndSettle();
@@ -149,6 +151,8 @@ void main() {
       expect(find.text('Забыли пароль?'), findsOneWidget);
       await tester.ensureVisible(_key('forgot-password-link'));
       await tester.tap(_key('forgot-password-link'));
+      await tester.pumpAndSettle();
+      await tester.tap(_key('forgot-have-code'));
       await tester.pumpAndSettle();
       expect(_key('recovery-code-input'), findsOneWidget);
       expect(_key('recovery-use-whatsapp'), findsNothing);

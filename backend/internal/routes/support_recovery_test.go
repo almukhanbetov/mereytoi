@@ -387,6 +387,42 @@ func TestSupportResetSetsPasswordRevokesSessionsAndSpendsTheCode(t *testing.T) {
 	}
 }
 
+// An account from before backup codes has none to redeem: any code is refused
+// with the usual answer, and support is still reachable by email and phone.
+func TestAccountWithoutBackupCodeIsRefusedAndCanAskSupport(t *testing.T) {
+	e := newSupEnv(t)
+	u := e.register("old@test.local", "+7 700 400 00 09", "oldpass12")
+	e.db.Model(&models.User{}).Where("id = ?", u.id).Updates(map[string]any{
+		"recovery_code_hash": "", "recovery_code_created_at": nil,
+	})
+	for _, code := range []string{"12345678", "ABCD-EFGH-JKMN-PQRS-TVWX-YZ01-2345", ""} {
+		st, out := e.recover("old@test.local", code, "NewPass123")
+		if code == "" {
+			if st != 400 {
+				t.Fatalf("empty code: %d %v", st, out)
+			}
+			continue
+		}
+		if st != 400 || out["error"] != "invalid_recovery_code" {
+			t.Fatalf("code %q: %d %v", code, st, out)
+		}
+	}
+	if e.login("old@test.local", "oldpass12") != 200 {
+		t.Fatal("password changed")
+	}
+	if st, _ := e.supRequest("old@test.local"); st != 200 {
+		t.Fatalf("request by email: %d", st)
+	}
+	first := e.supOnly(u.id)
+	e.db.Model(&models.PasswordRecoveryRequest{}).Where("id = ?", first.ID).Update("status", models.RecoveryRequestRejected)
+	if st, _ := e.supRequest("8 700 400 00 09"); st != 200 {
+		t.Fatalf("request by phone: %d", st)
+	}
+	if got := e.supOnly(u.id); got.ID == first.ID || got.Status != models.RecoveryRequestPending {
+		t.Fatalf("request by phone %+v", got)
+	}
+}
+
 func TestBackupAndTemporaryCodesAreNotInterchangeable(t *testing.T) {
 	e := newSupEnv(t)
 	admin := e.supAdmin("adm3@test.local")

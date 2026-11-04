@@ -236,6 +236,7 @@ void main() {
     final link = tester.getSize(_key('forgot-password-link'));
     expect(link.height, greaterThanOrEqualTo(48));
     await _tap(tester, 'forgot-password-link');
+    await _tap(tester, 'forgot-have-code');
     expect(_key('recovery-use-whatsapp'), findsNothing);
 
     await _fillRecovery(tester);
@@ -263,12 +264,16 @@ void main() {
       );
     final h = await _pump(tester, const LoginScreen(), auth: auth);
     await _tap(tester, 'forgot-password-link');
+    await _tap(tester, 'forgot-have-code');
     await _fillRecovery(tester);
     await _tap(tester, 'recovery-submit');
     expect(
-      find.text('Неверный код или email/телефон. Проверьте данные.'),
+      find.text('Неверный резервный код или данные аккаунта'),
       findsOneWidget,
     );
+    // The way out stays on screen next to the error.
+    expect(_key('recovery-error').hitTestable(), findsOneWidget);
+    expect(_key('recovery-no-code').hitTestable(), findsOneWidget);
     auth.recoverError = const ApiException(
       ApiErrorType.unknown,
       statusCode: 429,
@@ -285,6 +290,7 @@ void main() {
   ) async {
     final h = await _pump(tester, const LoginScreen());
     await _tap(tester, 'forgot-password-link');
+    await _tap(tester, 'forgot-have-code');
     await tester.enterText(_key('recovery-login'), 'a@test.kz');
     await tester.enterText(_key('recovery-code-input'), _code);
     await tester.enterText(_key('recovery-new-password'), 'short');
@@ -304,6 +310,7 @@ void main() {
       auth: _FakeAuth()..whatsApp = true,
     );
     await _tap(tester, 'forgot-password-link');
+    await _tap(tester, 'forgot-have-code');
     expect(_key('recovery-code-input'), findsOneWidget);
     await _tap(tester, 'recovery-use-whatsapp');
     expect(_key('reset-phone'), findsOneWidget);
@@ -312,6 +319,9 @@ void main() {
   testWidgets('back from recovery returns to login', (tester) async {
     await _pump(tester, const LoginScreen());
     await _tap(tester, 'forgot-password-link');
+    await _tap(tester, 'forgot-have-code');
+    Navigator.of(tester.element(_key('recovery-code-input'))).pop();
+    await tester.pumpAndSettle();
     await tester.pageBack();
     await tester.pumpAndSettle();
     expect(_key('forgot-password-link'), findsOneWidget);
@@ -418,6 +428,7 @@ void main() {
             );
             expect(find.text(links[locale]!), findsOneWidget);
             await _tap(tester, 'forgot-password-link');
+            await _tap(tester, 'forgot-have-code');
             expect(tester.takeException(), isNull);
             await _fillRecovery(tester);
             await _tap(tester, 'recovery-submit');

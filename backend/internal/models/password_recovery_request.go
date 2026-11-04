@@ -45,6 +45,9 @@ const (
 	RecoveryAuditSuperseded = "superseded"
 	RecoveryAuditRejected   = "rejected"
 	RecoveryAuditUsed       = "used"
+	// Email OTP recovery: no request row, so RequestID stays NULL.
+	RecoveryAuditEmailRequested = "email_requested"
+	RecoveryAuditEmailUsed      = "email_used"
 )
 
 // RecoveryAuditEvent is one append-only record of what happened to a recovery

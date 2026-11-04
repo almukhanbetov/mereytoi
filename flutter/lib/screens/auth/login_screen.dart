@@ -9,6 +9,7 @@ import '../../widgets/app_password_field.dart';
 import '../../widgets/claim/claim_entry_sheet.dart';
 import 'backup_code_recovery_screen.dart';
 import 'forgot_password_screen.dart';
+import 'password_recovery_options_screen.dart';
 import 'register_screen.dart';
 
 /// POST /api/auth/login — one "identifier" field (email or phone, same as
@@ -27,6 +28,7 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
   final _formKey = GlobalKey<FormState>();
   final _identifierController = TextEditingController();
   final _passwordController = TextEditingController();
+  bool _recoveryOpen = false;
 
   @override
   void dispose() {
@@ -65,16 +67,19 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
     _passwordController.clear();
   }
 
-  /// «Забыли пароль?» — recovery with the backup code, always available
-  /// (no delivery needed). From there the person may switch to the
-  /// WhatsApp code flow when the backend can send codes.
+  /// «Забыли пароль?» — the choice of recovery flows. From the backup code
+  /// the person may also switch to the WhatsApp code flow when the backend
+  /// can send codes.
   Future<void> _openRecovery() async {
+    if (_recoveryOpen) return;
+    _recoveryOpen = true;
     final typed = _identifierController.text.trim();
     final outcome = await Navigator.of(context).push<BackupRecoveryOutcome>(
       MaterialPageRoute(
-        builder: (_) => BackupCodeRecoveryScreen(initialLogin: typed),
+        builder: (_) => PasswordRecoveryOptionsScreen(initialLogin: typed),
       ),
     );
+    _recoveryOpen = false;
     if (!mounted) return;
     switch (outcome) {
       case BackupRecoveryDone(:final user):
@@ -82,6 +87,23 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
         ref.read(authProvider.notifier).activate(user);
       case BackupRecoveryUseWhatsApp():
         await _openForgotPassword();
+      case EmailRecoveryDone(:final email):
+        _identifierController.text = email;
+        _passwordController.clear();
+        final locale = ref.read(localeProvider);
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            key: const ValueKey('email-recovery-done'),
+            content: Text(
+              t(
+                locale,
+                ru: 'Пароль изменён. Войдите с новым паролем.',
+                kz: 'Құпиясөз өзгертілді. Жаңа құпиясөзбен кіріңіз.',
+                en: 'Password changed. Sign in with your new password.',
+              ),
+            ),
+          ),
+        );
       case null:
         break;
     }

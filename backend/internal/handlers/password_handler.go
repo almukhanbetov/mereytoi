@@ -82,10 +82,13 @@ func (h *PasswordHandler) ForgotPassword(c *gin.Context) {
 }
 
 // PasswordConfig — GET /api/auth/password/config (public). Tells the app
-// whether codes can actually be delivered, so it can hide "Forgot
-// password?" until they can. Exactly one boolean, nothing else.
+// whether codes can actually be delivered over WhatsApp and over email, so it
+// can offer only what works. Two global booleans, nothing about any account.
 func (h *PasswordHandler) PasswordConfig(c *gin.Context) {
-	c.JSON(http.StatusOK, gin.H{"reset_available": h.Reset.Available()})
+	c.JSON(http.StatusOK, gin.H{
+		"reset_available":     h.Reset.Available(),
+		"email_otp_available": h.Reset.EmailAvailable(),
+	})
 }
 
 type resetPasswordInput struct {

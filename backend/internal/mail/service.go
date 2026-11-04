@@ -114,6 +114,44 @@ func (s *Service) link(path string) string {
 	return s.frontendURL + path
 }
 
+// SendPasswordResetOTP sends a one-time password recovery code. It doesn't
+// depend on MAIL_ENABLED, which governs the notifications below: whether codes
+// go out at all is PASSWORD_EMAIL_OTP_ENABLED, decided where passwordreset is
+// wired up. Unlike the notifications, the caller needs to know whether it went
+// out (a code that never arrived mustn't stay usable), so the error is
+// returned. Nothing is logged here: the body holds the code, and transport
+// errors can hold the address.
+func (s *Service) SendPasswordResetOTP(ctx context.Context, lang, to, code string) error {
+	subject := pick(lang, "Код восстановления пароля MEREYTOI", "MEREYTOI құпиясөзін қалпына келтіру коды", "Your MEREYTOI password recovery code")
+	html, text, err := s.renderPasswordResetOTP(lang, subject, code)
+	if err != nil {
+		return err
+	}
+	return s.sender.Send(ctx, Message{To: to, Subject: subject, HTMLBody: html, TextBody: text})
+}
+
+func (s *Service) renderPasswordResetOTP(lang, subject, code string) (string, string, error) {
+	data := contentData{
+		Heading: subject,
+		Paragraphs: []string{
+			pick(lang,
+				"Введите этот код в приложении, чтобы задать новый пароль. Он действует 10 минут и только один раз.",
+				"Жаңа құпиясөз орнату үшін осы кодты қолданбаға енгізіңіз. Ол 10 минут және бір рет қана жарамды.",
+				"Enter this code in the app to set a new password. It works for 10 minutes and only once."),
+			pick(lang,
+				"Никому не сообщайте этот код, даже сотрудникам MEREYTOI. Если вы не запрашивали восстановление, просто проигнорируйте письмо: пароль не изменится.",
+				"Бұл кодты ешкімге, тіпті MEREYTOI қызметкерлеріне де айтпаңыз. Қалпына келтіруді сұрамаған болсаңыз, хатқа мән бермеңіз: құпиясөз өзгермейді.",
+				"Don't share this code with anyone, even MEREYTOI staff. If you didn't ask to recover your password, ignore this email: your password stays the same."),
+		},
+		FactRows: []FactRow{{Label: pick(lang, "Код", "Код", "Code"), Value: code}},
+	}
+	html, err := renderHTML(subject, data)
+	if err != nil {
+		return "", "", err
+	}
+	return html, renderText(data), nil
+}
+
 // ---- Typed call sites — one per brief-section-6 email event. Each builds
 // its own contentData (heading/paragraphs/facts/CTA, all already localized
 // via copy.go's pick()) and hands it to deliver. Lang is accepted per call
