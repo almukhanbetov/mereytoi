@@ -23,10 +23,12 @@ type RecoveryHandler struct {
 	DB        *gorm.DB
 	JWTSecret string
 	Svc       *recoverycode.Service
+	// OTP sends and redeems the codes of email recovery.
+	OTP *passwordreset.Service
 }
 
-func NewRecoveryHandler(db *gorm.DB, jwtSecret string, svc *recoverycode.Service) *RecoveryHandler {
-	return &RecoveryHandler{DB: db, JWTSecret: jwtSecret, Svc: svc}
+func NewRecoveryHandler(db *gorm.DB, jwtSecret string, svc *recoverycode.Service, otp *passwordreset.Service) *RecoveryHandler {
+	return &RecoveryHandler{DB: db, JWTSecret: jwtSecret, Svc: svc, OTP: otp}
 }
 
 // noStore keeps a response carrying a secret (a backup code, a token) out
@@ -112,7 +114,7 @@ func recoveryError(c *gin.Context, err error) {
 		c.JSON(http.StatusBadRequest, gin.H{"error": "weak_password", "min_length": passwordreset.MinPasswordLen})
 	case errors.Is(err, passwordreset.ErrPasswordTooLong):
 		c.JSON(http.StatusBadRequest, gin.H{"error": "password_too_long"})
-	case errors.Is(err, recoverycode.ErrInvalid):
+	case errors.Is(err, recoverycode.ErrInvalid), errors.Is(err, passwordreset.ErrInvalidCode):
 		c.JSON(http.StatusBadRequest, gin.H{"error": "invalid_recovery_code"})
 	case errors.Is(err, recoverycode.ErrRateLimited):
 		c.JSON(http.StatusTooManyRequests, gin.H{"error": "too_many_attempts"})
@@ -326,4 +328,62 @@ func (h *RecoveryHandler) AdminRejectRequest(c *gin.Context) {
 		return
 	}
 	c.JSON(http.StatusOK, gin.H{"request": recoveryRequestView(req, nil)})
+}
+
+type emailOTPRequestInput struct {
+	Email string `json:"email" binding:"required"`
+	Lang  string `json:"lang"`
+}
+
+// EmailOTPRequest — POST /api/auth/recovery/email/request (public). Sends a
+// code if the address belongs to an active account. The answer is the same in
+// every case and comes before any lookup or send; only the per-address limit
+// shows (429), which says nothing about the email.
+func (h *RecoveryHandler) EmailOTPRequest(c *gin.Context) {
+	noStore(c)
+	var in emailOTPRequestInput
+	if err := c.ShouldBindJSON(&in); err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{"error": "invalid_request"})
+		return
+	}
+	send, err := h.Svc.AllowEmailOTPRequest(c.ClientIP(), in.Email)
+	if err != nil {
+		recoveryError(c, err)
+		return
+	}
+	if send {
+		h.OTP.RequestEmailReset(in.Email, in.Lang, c.ClientIP())
+	}
+	c.JSON(http.StatusOK, gin.H{"status": "ok"})
+}
+
+type emailOTPResetInput struct {
+	Email       string `json:"email" binding:"required"`
+	OTP         string `json:"otp" binding:"required"`
+	NewPassword string `json:"new_password" binding:"required"`
+}
+
+// EmailOTPReset — POST /api/auth/recovery/email/reset (public). Sets a new
+// password with the code; every earlier session is revoked. An unknown email
+// and a wrong, expired or used code get the same 400.
+func (h *RecoveryHandler) EmailOTPReset(c *gin.Context) {
+	noStore(c)
+	var in emailOTPResetInput
+	if err := c.ShouldBindJSON(&in); err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{"error": "invalid_request"})
+		return
+	}
+	if err := passwordreset.CheckNewPassword(in.NewPassword); err != nil {
+		recoveryError(c, err)
+		return
+	}
+	if !h.Svc.AllowEmailOTPReset(c.ClientIP(), in.Email) {
+		recoveryError(c, recoverycode.ErrRateLimited)
+		return
+	}
+	if err := h.OTP.ConfirmEmailReset(in.Email, in.OTP, in.NewPassword, c.ClientIP()); err != nil {
+		recoveryError(c, err)
+		return
+	}
+	c.JSON(http.StatusOK, gin.H{"status": "ok"})
 }

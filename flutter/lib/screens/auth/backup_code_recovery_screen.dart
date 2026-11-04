@@ -29,10 +29,17 @@ class BackupRecoveryUseWhatsApp extends BackupRecoveryOutcome {
   const BackupRecoveryUseWhatsApp();
 }
 
-/// «Забыли пароль?» — recovery with the one-time backup code: email/phone,
-/// the code, a new password. Works without any SMS/WhatsApp delivery. On
-/// success the new backup code (which replaced the used one) is shown once,
-/// then the screen pops with [BackupRecoveryDone].
+/// Password set with a code from email: the person signs in themselves.
+class EmailRecoveryDone extends BackupRecoveryOutcome {
+  const EmailRecoveryDone(this.email);
+  final String email;
+}
+
+/// Recovery with a backup code — two ways out, both on this screen. With a saved backup
+/// code: email/phone, the code, a new password; nothing is delivered anywhere.
+/// On success the new backup code (which replaced the used one) is shown once,
+/// then the screen pops with [BackupRecoveryDone]. Without one: «Не помню
+/// резервный код» goes on to the support flow.
 class BackupCodeRecoveryScreen extends ConsumerStatefulWidget {
   const BackupCodeRecoveryScreen({super.key, this.initialLogin = ''});
 
@@ -52,6 +59,7 @@ class _BackupCodeRecoveryScreenState
   final _codeController = TextEditingController();
   final _passwordController = TextEditingController();
   final _confirmController = TextEditingController();
+  final _fallbackKey = GlobalKey();
   bool _busy = false;
   Object? _error;
 
@@ -66,6 +74,7 @@ class _BackupCodeRecoveryScreenState
 
   Future<void> _submit() async {
     if (!_formKey.currentState!.validate()) return;
+    FocusManager.instance.primaryFocus?.unfocus();
     setState(() {
       _busy = true;
       _error = null;
@@ -93,10 +102,28 @@ class _BackupCodeRecoveryScreenState
       if (!mounted) return;
       Navigator.of(context).pop(BackupRecoveryDone(result.user));
     } catch (e) {
-      if (mounted) setState(() => _error = e);
+      if (mounted) {
+        setState(() => _error = e);
+        _showFallback();
+      }
     } finally {
       if (mounted) setState(() => _busy = false);
     }
+  }
+
+  /// A refused code usually means there is no valid one: keeps the way out in
+  /// view next to the error.
+  void _showFallback() {
+    // After the keyboard has gone, or the viewport still changes under this.
+    Future<void>.delayed(const Duration(milliseconds: 350), () {
+      final target = _fallbackKey.currentContext;
+      if (!mounted || target == null || !target.mounted) return;
+      Scrollable.ensureVisible(
+        target,
+        alignment: 1,
+        duration: const Duration(milliseconds: 200),
+      );
+    });
   }
 
   /// «Не помню резервный код» — the support flow finishes this screen too.
@@ -126,9 +153,9 @@ class _BackupCodeRecoveryScreenState
       if (reason == 'invalid_recovery_code') {
         return t(
           locale,
-          ru: 'Неверный код или email/телефон. Проверьте данные.',
-          kz: 'Код немесе email/телефон қате. Деректерді тексеріңіз.',
-          en: 'Wrong code or email/phone. Please check and try again.',
+          ru: 'Неверный резервный код или данные аккаунта',
+          kz: 'Резервтік код немесе аккаунт деректері қате',
+          en: 'Wrong backup code or account details',
         );
       }
       if (reason == 'weak_password') {
@@ -179,9 +206,9 @@ class _BackupCodeRecoveryScreenState
                 Text(
                   t(
                     locale,
-                    ru: 'Восстановление по резервному коду',
-                    kz: 'Резервтік код арқылы қалпына келтіру',
-                    en: 'Recover with your backup code',
+                    ru: 'Есть резервный код',
+                    kz: 'Резервтік код бар',
+                    en: 'I have a backup code',
                   ),
                   style: textTheme.titleLarge,
                 ),
@@ -190,15 +217,14 @@ class _BackupCodeRecoveryScreenState
                   t(
                     locale,
                     ru:
-                        'Введите email или телефон аккаунта и резервный код, '
-                        'который вы сохранили при регистрации или в настройках.',
+                        'Код не приходит по SMS, WhatsApp или email: он есть, '
+                        'только если вы сохранили его раньше.',
                     kz:
-                        'Аккаунттың email-ін немесе телефонын және тіркелу '
-                        'кезінде немесе баптауларда сақтаған резервтік кодты '
-                        'енгізіңіз.',
+                        'Код SMS, WhatsApp немесе email арқылы келмейді: ол '
+                        'тек бұрын сақтаған болсаңыз ғана бар.',
                     en:
-                        'Enter your account email or phone and the backup code '
-                        'you saved at sign-up or in settings.',
+                        'This code doesn\'t come by SMS, WhatsApp or email: you '
+                        'only have one if you saved it earlier.',
                   ),
                   style: textTheme.bodyMedium,
                 ),
@@ -235,7 +261,22 @@ class _BackupCodeRecoveryScreenState
                   textCapitalization: TextCapitalization.characters,
                   autocorrect: false,
                   enableSuggestions: false,
+                  // Keeps the explanation below the field above the keyboard.
+                  scrollPadding: const EdgeInsets.fromLTRB(20, 20, 20, 90),
                   decoration: InputDecoration(
+                    helperText: t(
+                      locale,
+                      ru:
+                          'Это код, который вы сохранили при регистрации или '
+                          'создали в Профиль → Безопасность.',
+                      kz:
+                          'Бұл тіркелу кезінде сақтаған немесе Профиль → '
+                          'Қауіпсіздік бөлімінде жасаған кодыңыз.',
+                      en:
+                          'The code you saved at sign-up or created in '
+                          'Profile → Security.',
+                    ),
+                    helperMaxLines: 3,
                     labelText: t(
                       locale,
                       ru: 'Резервный код',
@@ -291,6 +332,9 @@ class _BackupCodeRecoveryScreenState
                 AppPasswordField(
                   key: const ValueKey('recovery-confirm-password'),
                   controller: _confirmController,
+                  // Keeps «Сменить пароль» and «Не помню резервный код» above
+                  // the keyboard.
+                  scrollPadding: const EdgeInsets.fromLTRB(20, 20, 20, 330),
                   labelText: t(
                     locale,
                     ru: 'Повторите пароль',
@@ -354,27 +398,43 @@ class _BackupCodeRecoveryScreenState
                         ),
                 ),
                 const SizedBox(height: AppSpacing.lg),
+                const Divider(height: 1),
+                const SizedBox(height: AppSpacing.md),
+                Text(
+                  t(
+                    locale,
+                    ru: 'Нет резервного кода?',
+                    kz: 'Резервтік код жоқ па?',
+                    en: 'No backup code?',
+                  ),
+                  style: textTheme.titleMedium,
+                ),
+                const SizedBox(height: AppSpacing.xxs),
                 Text(
                   t(
                     locale,
                     ru:
-                        'Нет кода? Если вы помните пароль, войдите и создайте '
-                        'новый код в «Профиль → Безопасность».',
+                        'Менеджер проверит, что аккаунт ваш, и передаст '
+                        'временный код. Если помните пароль, войдите и создайте '
+                        'код в Профиль → Безопасность.',
                     kz:
-                        'Код жоқ па? Құпиясөзді есіңізде болса, кіріп, '
-                        '«Профиль → Қауіпсіздік» бөлімінде жаңа код жасаңыз.',
+                        'Менеджер аккаунттың сіздікі екенін тексеріп, уақытша '
+                        'кодты береді. Құпиясөз есіңізде болса, кіріп, Профиль '
+                        '→ Қауіпсіздік бөлімінде код жасаңыз.',
                     en:
-                        'No code? If you remember your password, sign in and '
-                        'create a new code in Profile → Security.',
+                        'A manager will check that the account is yours and '
+                        'give you a temporary code. If you remember your '
+                        'password, sign in and create a code in Profile → '
+                        'Security.',
                   ),
                   style: textTheme.bodySmall?.copyWith(
                     color: context.mereytoiColors.textSecondary,
                   ),
                 ),
-                const SizedBox(height: AppSpacing.xxs),
-                Align(
-                  alignment: Alignment.centerLeft,
-                  child: TextButton(
+                const SizedBox(height: AppSpacing.sm),
+                KeyedSubtree(
+                  key: _fallbackKey,
+                  child: OutlinedButton(
                     key: const ValueKey('recovery-no-code'),
                     onPressed: _busy ? null : _openSupport,
                     child: Text(
@@ -384,6 +444,7 @@ class _BackupCodeRecoveryScreenState
                         kz: 'Резервтік код есімде жоқ',
                         en: 'I don\'t remember my backup code',
                       ),
+                      textAlign: TextAlign.center,
                     ),
                   ),
                 ),

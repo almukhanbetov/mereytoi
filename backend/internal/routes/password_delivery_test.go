@@ -174,13 +174,13 @@ func TestPasswordConfigEndpoint(t *testing.T) {
 		mutate func(*config.Config)
 		want   string
 	}{
-		"valid":            {func(*config.Config) {}, `{"reset_available":true}`},
-		"disabled":         {func(c *config.Config) { c.PasswordResetDeliveryEnabled = false }, `{"reset_available":false}`},
-		"missing template": {func(c *config.Config) { c.WhatsAppOTPTemplateName = "" }, `{"reset_available":false}`},
-		"missing token":    {func(c *config.Config) { c.WhatsAppAccessToken = "" }, `{"reset_available":false}`},
-		"missing phone id": {func(c *config.Config) { c.WhatsAppPhoneNumberID = "" }, `{"reset_available":false}`},
-		"short hmac":       {func(c *config.Config) { c.OTPHMACSecret = "too-short" }, `{"reset_available":false}`},
-		"no hmac":          {func(c *config.Config) { c.OTPHMACSecret = "" }, `{"reset_available":false}`},
+		"valid":            {func(*config.Config) {}, `{"email_otp_available":false,"reset_available":true}`},
+		"disabled":         {func(c *config.Config) { c.PasswordResetDeliveryEnabled = false }, `{"email_otp_available":false,"reset_available":false}`},
+		"missing template": {func(c *config.Config) { c.WhatsAppOTPTemplateName = "" }, `{"email_otp_available":false,"reset_available":false}`},
+		"missing token":    {func(c *config.Config) { c.WhatsAppAccessToken = "" }, `{"email_otp_available":false,"reset_available":false}`},
+		"missing phone id": {func(c *config.Config) { c.WhatsAppPhoneNumberID = "" }, `{"email_otp_available":false,"reset_available":false}`},
+		"short hmac":       {func(c *config.Config) { c.OTPHMACSecret = "too-short" }, `{"email_otp_available":false,"reset_available":false}`},
+		"no hmac":          {func(c *config.Config) { c.OTPHMACSecret = "" }, `{"email_otp_available":false,"reset_available":false}`},
 	}
 	for name, tc := range cases {
 		cfg := full

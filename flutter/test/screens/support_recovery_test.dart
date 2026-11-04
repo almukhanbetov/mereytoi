@@ -179,6 +179,7 @@ void main() {
     final h = await _pump(tester, const LoginScreen());
     await tester.enterText(find.byType(TextFormField).first, 'a@test.kz');
     await _tap(tester, 'forgot-password-link');
+    await _tap(tester, 'forgot-have-code');
     expect(_key('recovery-no-code'), findsOneWidget);
     expect(find.text('Не помню резервный код'), findsOneWidget);
 
@@ -267,6 +268,7 @@ void main() {
       'code shown, signed in, back to the start', (tester) async {
     final h = await _pump(tester, const LoginScreen());
     await _tap(tester, 'forgot-password-link');
+    await _tap(tester, 'forgot-have-code');
     await _tap(tester, 'recovery-no-code');
     await _tap(tester, 'support-have-code');
     expect(find.text('Временный код восстановления'), findsOneWidget);
@@ -325,6 +327,54 @@ void main() {
 
     expect(h.storage.writes, isEmpty);
     expect(h.container.read(authProvider), isNot(isA<AuthAuthenticated>()));
+  });
+
+  for (final (locale, title, hint, button) in [
+    (
+      AppLocale.ru,
+      'Есть резервный код',
+      'Это код, который вы сохранили при регистрации или создали в Профиль → Безопасность.',
+      'Не помню резервный код',
+    ),
+    (
+      AppLocale.kz,
+      'Резервтік код бар',
+      'Бұл тіркелу кезінде сақтаған немесе Профиль → Қауіпсіздік бөлімінде жасаған кодыңыз.',
+      'Резервтік код есімде жоқ',
+    ),
+    (
+      AppLocale.en,
+      'I have a backup code',
+      'The code you saved at sign-up or created in Profile → Security.',
+      'I don\'t remember my backup code',
+    ),
+  ]) {
+    testWidgets('${locale.name}: both ways out are spelled out and nothing '
+        'promises to send the code', (tester) async {
+      await _pump(tester, const BackupCodeRecoveryScreen(), locale: locale);
+      expect(find.text(title), findsOneWidget);
+      expect(find.text(hint), findsOneWidget);
+      expect(find.text(button), findsOneWidget);
+      expect(
+        tester.getSize(_key('recovery-no-code')).width,
+        tester.getSize(_key('recovery-submit')).width,
+      );
+      expect(find.textContaining('отправим'), findsNothing);
+      expect(find.textContaining('придёт'), findsNothing);
+    });
+  }
+
+  testWidgets('no code at hand: «Не помню резервный код» carries the typed '
+      'login over to the support request', (tester) async {
+    final h = await _pump(tester, const BackupCodeRecoveryScreen());
+    await tester.enterText(
+      find.byKey(const ValueKey('recovery-login')),
+      'a@test.kz',
+    );
+    await _tap(tester, 'recovery-no-code');
+    await _tap(tester, 'support-submit');
+    expect(h.auth.requestCalls, ['a@test.kz']);
+    expect(_key('support-request-sent'), findsOneWidget);
   });
 
   testWidgets('the backup code flow is still there alongside the new link', (

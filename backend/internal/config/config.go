@@ -30,15 +30,19 @@ type Config struct {
 	// Mail* — stage 11A transactional email (see internal/mail). Every
 	// value here is read once at startup by mail.NewService; nothing in
 	// internal/mail reads os.Getenv directly.
-	MailEnabled     bool
-	MailDriver      string // "smtp" (default) | "log"
-	MailHost        string
-	MailPort        string
-	MailUsername    string
-	MailPassword    string
-	MailFromAddress string
-	MailFromName    string
-	MailUseTLS      bool
+	MailEnabled bool
+	// PasswordEmailOTPEnabled turns on password recovery codes by email. It is
+	// separate from MailEnabled, which only governs the notifications, so the
+	// codes can go live without them. Both use the same SMTP settings below.
+	PasswordEmailOTPEnabled bool
+	MailDriver              string // "smtp" (default) | "log"
+	MailHost                string
+	MailPort                string
+	MailUsername            string
+	MailPassword            string
+	MailFromAddress         string
+	MailFromName            string
+	MailUseTLS              bool
 
 	// AutoAccountFromBooking gates the entire booking→pending-account
 	// onboarding pipeline (handlers/onboarding.go). Off by default — a
@@ -203,15 +207,16 @@ func Load() Config {
 		// start attempting SMTP connections nobody configured. A developer
 		// who wants to see real emails opts in with MAIL_ENABLED=true (and,
 		// normally, `docker compose up -d mailpit` — see docker-compose.yml).
-		MailEnabled:     getEnv("MAIL_ENABLED", "false") == "true",
-		MailDriver:      getEnv("MAIL_DRIVER", "smtp"),
-		MailHost:        getEnv("MAIL_HOST", "localhost"),
-		MailPort:        getEnv("MAIL_PORT", "1025"),
-		MailUsername:    getEnv("MAIL_USERNAME", ""),
-		MailPassword:    getEnv("MAIL_PASSWORD", ""),
-		MailFromAddress: getEnv("MAIL_FROM_ADDRESS", "no-reply@mereytoi.kz"),
-		MailFromName:    getEnv("MAIL_FROM_NAME", "MEREYTOI"),
-		MailUseTLS:      getEnv("MAIL_USE_TLS", "false") == "true",
+		MailEnabled:             getEnv("MAIL_ENABLED", "false") == "true",
+		PasswordEmailOTPEnabled: getEnv("PASSWORD_EMAIL_OTP_ENABLED", "false") == "true",
+		MailDriver:              getEnv("MAIL_DRIVER", "smtp"),
+		MailHost:                getSMTPEnv("SMTP_HOST", "MAIL_HOST", "localhost"),
+		MailPort:                getSMTPEnv("SMTP_PORT", "MAIL_PORT", "1025"),
+		MailUsername:            getSMTPEnv("SMTP_USERNAME", "MAIL_USERNAME", ""),
+		MailPassword:            getSMTPEnv("SMTP_PASSWORD", "MAIL_PASSWORD", ""),
+		MailFromAddress:         getSMTPEnv("SMTP_FROM", "MAIL_FROM_ADDRESS", "no-reply@mereytoi.kz"),
+		MailFromName:            getSMTPEnv("SMTP_FROM_NAME", "MAIL_FROM_NAME", "MEREYTOI"),
+		MailUseTLS:              getSMTPEnv("SMTP_USE_TLS", "MAIL_USE_TLS", "false") == "true",
 
 		AutoAccountFromBooking: getEnv("AUTO_ACCOUNT_FROM_BOOKING", "false") == "true",
 
@@ -266,6 +271,15 @@ func getEnv(key, fallback string) string {
 		return v
 	}
 	return fallback
+}
+
+// getSMTPEnv reads a mail setting under its SMTP_* name or, failing that, the
+// MAIL_* name it had first.
+func getSMTPEnv(key, legacyKey, fallback string) string {
+	if v := os.Getenv(key); v != "" {
+		return v
+	}
+	return getEnv(legacyKey, fallback)
 }
 
 func getEnvInt(key string, fallback int) int {

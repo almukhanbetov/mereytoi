@@ -77,6 +77,9 @@ type Service struct {
 
 	jobs    chan func()
 	pending sync.WaitGroup
+
+	// email — nil means codes aren't sent by email (see EnableEmail).
+	email EmailSender
 }
 
 // New builds the Service and starts its delivery workers. A nil sender, or
@@ -189,7 +192,7 @@ func (s *Service) ConfirmReset(phone, code, newPassword string) error {
 	if !ok {
 		return ErrInvalidCode
 	}
-	return s.redeem(user, models.PasswordCodePurposeReset, code, newPassword)
+	return s.redeem(user, models.PasswordCodePurposeReset, code, newPassword, "")
 }
 
 // RequestChangeCode sends a "change" code to a signed-in user's own phone
@@ -230,7 +233,7 @@ func (s *Service) ChangeWithCode(userID uint, code, newPassword string) error {
 	if err != nil {
 		return err
 	}
-	return s.redeem(user, models.PasswordCodePurposeChange, code, newPassword)
+	return s.redeem(user, models.PasswordCodePurposeChange, code, newPassword, "")
 }
 
 // ChangeWithCurrent replaces a signed-in user's password given the current
@@ -292,13 +295,20 @@ func (s *Service) activeUser(userID uint) (models.User, error) {
 // limits, invalidating the previous live one — and returns its row and the
 // plaintext, which only the delivery step ever sees.
 func (s *Service) createCode(user models.User, phone, purpose string) (models.PasswordResetCode, string, error) {
+	return s.issueCode(user, phone, purpose, func(now time.Time) (bool, error) {
+		return s.phoneLimited(phone, now)
+	})
+}
+
+// issueCode is createCode with the limit to apply passed in.
+func (s *Service) issueCode(user models.User, phone, purpose string, limited func(time.Time) (bool, error)) (models.PasswordResetCode, string, error) {
 	unlock := s.lock(user.ID)
 	defer unlock()
 
 	now := s.now()
 	s.db.Where("created_at < ?", now.Add(-retention)).Delete(&models.PasswordResetCode{})
 
-	if limited, err := s.phoneLimited(phone, now); err != nil {
+	if limited, err := limited(now); err != nil {
 		return models.PasswordResetCode{}, "", err
 	} else if limited {
 		s.log.Printf("[password] %s code for user #%d not issued: rate limited", purpose, user.ID)
@@ -390,7 +400,7 @@ func (s *Service) phoneLimited(phone string, now time.Time) (bool, error) {
 // matches, uses it up and sets the new password — both or neither. A wrong
 // guess is counted (and kills the code at MaxAttempts) even though the
 // caller only ever sees ErrInvalidCode.
-func (s *Service) redeem(user models.User, purpose, code, newPassword string) error {
+func (s *Service) redeem(user models.User, purpose, code, newPassword, clientIP string) error {
 	unlock := s.lock(user.ID)
 	defer unlock()
 
@@ -429,6 +439,9 @@ func (s *Service) redeem(user models.User, purpose, code, newPassword string) er
 		}
 		if res.RowsAffected != 1 {
 			return ErrInvalidCode // someone else redeemed or replaced it first
+		}
+		if purpose == models.PasswordCodePurposeEmail {
+			return s.finishEmailReset(tx, user.ID, newPassword, clientIP, now)
 		}
 		return s.setPassword(tx, user.ID, newPassword, true)
 	})

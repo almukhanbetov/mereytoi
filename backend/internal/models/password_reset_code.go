@@ -3,11 +3,13 @@ package models
 import "time"
 
 // Password-reset code purposes: "reset" is the signed-out "forgot
-// password" flow, "change" the signed-in "I don't remember my current
-// password" one. A code only ever works for the purpose it was issued for.
+// password" flow over the phone, "change" the signed-in "I don't remember my
+// current password" one, "email_reset" the signed-out flow over email. A code
+// only ever works for the purpose it was issued for.
 const (
 	PasswordCodePurposeReset  = "reset"
 	PasswordCodePurposeChange = "change"
+	PasswordCodePurposeEmail  = "email_reset"
 )
 
 // PasswordResetCode is one one-time code sent to a user's phone to prove
@@ -23,7 +25,7 @@ type PasswordResetCode struct {
 	ID     uint `gorm:"primaryKey"`
 	UserID uint `gorm:"not null;index:idx_prc_user_purpose_created,priority:1;uniqueIndex:idx_prc_live,where:used_at IS NULL AND invalidated_at IS NULL,priority:1"`
 	// PhoneNormalized is the number the code was sent to — what the
-	// per-phone cooldown/hourly cap count by.
+	// per-phone cooldown/hourly cap count by. Empty for a code sent by email.
 	PhoneNormalized string    `gorm:"size:20;not null;index:idx_prc_phone_created,priority:1"`
 	Purpose         string    `gorm:"size:16;not null;index:idx_prc_user_purpose_created,priority:2;uniqueIndex:idx_prc_live,priority:2"`
 	CodeHash        string    `gorm:"size:64;not null"`
