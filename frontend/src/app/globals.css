@@ -2626,6 +2626,16 @@ a.ws-chip:hover, button.ws-chip:hover{ border-color: var(--gold); }
 .recovery-code__warning{ margin:0; font-size:13.5px; color: var(--text-muted); line-height:1.5; }
 .recovery-code__confirm{ display:flex !important; flex-direction:row !important; align-items:center; gap:8px; font-size:14px; }
 .recovery-code__confirm input{ width:auto !important; }
+.recovery-request .booking-card__head > div{ min-width:0; }
+.recovery-request .booking-card__customer,
+.recovery-request .booking-card__phone{ overflow-wrap:anywhere; }
+.recovery-request__intro{ margin-bottom:16px; }
+.recovery-request__issued{ margin-bottom:24px; }
+.recovery-request__input{ display:block; width:100%; box-sizing:border-box; margin-top:12px; }
+.recovery-request__actions{ display:flex; flex-wrap:wrap; gap:10px; margin-top:12px; }
+.recovery-request__actions .btn{ flex:1 1 auto; max-width:100%; box-sizing:border-box; white-space:normal; justify-content:center; text-align:center; }
+.recovery-request__note{ margin:10px 0 0; font-size:13.5px; color: var(--text-muted); overflow-wrap:anywhere; }
+.recovery-request__warning{ margin:6px 0 0; font-size:13px; color: var(--gold-light); }
 .auth-card__forgot{ text-align:right; font-size:13.5px; margin:-4px 0 0; }
 .auth-card__forgot a{ color: var(--gold-light); }
 .auth-card__hint{ font-size:13px; color: var(--text-muted); margin:0; line-height:1.5; }

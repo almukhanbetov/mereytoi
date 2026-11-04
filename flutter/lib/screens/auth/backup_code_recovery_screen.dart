@@ -11,6 +11,7 @@ import '../../state/locale_provider.dart';
 import '../../state/password_reset_provider.dart';
 import '../../widgets/app_password_field.dart';
 import 'recovery_code_screen.dart';
+import 'support_recovery_screen.dart';
 
 /// What [BackupCodeRecoveryScreen] hands back to the login screen.
 sealed class BackupRecoveryOutcome {
@@ -96,6 +97,19 @@ class _BackupCodeRecoveryScreenState
     } finally {
       if (mounted) setState(() => _busy = false);
     }
+  }
+
+  /// «Не помню резервный код» — the support flow finishes this screen too.
+  Future<void> _openSupport() async {
+    final done = await Navigator.of(context).push<BackupRecoveryDone>(
+      MaterialPageRoute(
+        builder: (_) => SupportRecoveryRequestScreen(
+          initialLogin: _loginController.text.trim(),
+        ),
+      ),
+    );
+    if (!mounted || done == null) return;
+    Navigator.of(context).pop(done);
   }
 
   String _errorText(AppLocale locale, Object error) {
@@ -345,21 +359,32 @@ class _BackupCodeRecoveryScreenState
                     locale,
                     ru:
                         'Нет кода? Если вы помните пароль, войдите и создайте '
-                        'новый код в «Профиль → Безопасность». Если утеряны и '
-                        'пароль, и код — напишите менеджеру MEREYTOI.',
+                        'новый код в «Профиль → Безопасность».',
                     kz:
                         'Код жоқ па? Құпиясөзді есіңізде болса, кіріп, '
-                        '«Профиль → Қауіпсіздік» бөлімінде жаңа код жасаңыз. '
-                        'Құпиясөз де, код та жоғалса — MEREYTOI менеджеріне '
-                        'жазыңыз.',
+                        '«Профиль → Қауіпсіздік» бөлімінде жаңа код жасаңыз.',
                     en:
                         'No code? If you remember your password, sign in and '
-                        'create a new code in Profile → Security. If you lost '
-                        'both the password and the code, contact a MEREYTOI '
-                        'manager.',
+                        'create a new code in Profile → Security.',
                   ),
                   style: textTheme.bodySmall?.copyWith(
                     color: context.mereytoiColors.textSecondary,
+                  ),
+                ),
+                const SizedBox(height: AppSpacing.xxs),
+                Align(
+                  alignment: Alignment.centerLeft,
+                  child: TextButton(
+                    key: const ValueKey('recovery-no-code'),
+                    onPressed: _busy ? null : _openSupport,
+                    child: Text(
+                      t(
+                        locale,
+                        ru: 'Не помню резервный код',
+                        kz: 'Резервтік код есімде жоқ',
+                        en: 'I don\'t remember my backup code',
+                      ),
+                    ),
                   ),
                 ),
                 if (whatsAppAvailable) ...[

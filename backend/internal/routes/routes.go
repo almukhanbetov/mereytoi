@@ -155,6 +155,9 @@ func RegisterWithOptions(r *gin.Engine, database *gorm.DB, cfg config.Config, op
 			auth.POST("/password/reset", passwordHandler.ResetPassword)
 			// Backup-code recovery — independent of WhatsApp delivery.
 			auth.POST("/recovery/reset", recoveryHandler.Recover)
+			// Backup code lost: ask support for a temporary code, then use it.
+			auth.POST("/recovery/support-request", recoveryHandler.SupportRequest)
+			auth.POST("/recovery/support-reset", recoveryHandler.SupportReset)
 			auth.GET("/me", middleware.RequireAuth(cfg.JWTSecret), authHandler.Me)
 			auth.PUT("/me", middleware.RequireAuth(cfg.JWTSecret), authHandler.UpdateMe)
 		}
@@ -449,6 +452,15 @@ func RegisterWithOptions(r *gin.Engine, database *gorm.DB, cfg config.Config, op
 			managerChat.POST("/start", managerChatHandler.Start)
 			managerChat.GET("/:id", managerChatHandler.Get)
 			managerChat.POST("/:id/messages", managerChatHandler.AddMessage)
+		}
+
+		adminRecovery := api.Group("/admin/recovery-requests")
+		adminRecovery.Use(middleware.RequireAuth(cfg.JWTSecret), middleware.RequireAdmin())
+		{
+			adminRecovery.GET("", recoveryHandler.AdminListRequests)
+			adminRecovery.GET("/:id", recoveryHandler.AdminGetRequest)
+			adminRecovery.POST("/:id/approve", recoveryHandler.AdminApproveRequest)
+			adminRecovery.POST("/:id/reject", recoveryHandler.AdminRejectRequest)
 		}
 
 		adminManagerChat := api.Group("/admin/manager-chat")

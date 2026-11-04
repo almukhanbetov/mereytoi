@@ -20,6 +20,11 @@ const alphabet = "0123456789ABCDEFGHJKMNPQRSTVWXYZ"
 // Length is the number of symbols in a code: 28 × 5 = 140 bits of entropy.
 const Length = 28
 
+// TempLength is the number of symbols in a temporary support code: 16 × 5 =
+// 80 bits, short enough to read out over the phone. It lives for minutes and
+// is throttled, so this is far more than guessing could ever reach.
+const TempLength = 16
+
 // groupSize — a code is shown as 7 groups of 4 ("ABCD-EFGH-…").
 const groupSize = 4
 
@@ -29,11 +34,15 @@ const hashPrefix = "sha256:"
 // Generate returns a fresh random code in canonical form (28 symbols, no
 // separators). It uses crypto/rand and never falls back to anything weaker.
 func Generate() (string, error) {
-	buf := make([]byte, Length)
+	return generate(Length)
+}
+
+func generate(length int) (string, error) {
+	buf := make([]byte, length)
 	if _, err := rand.Read(buf); err != nil {
 		return "", err
 	}
-	out := make([]byte, Length)
+	out := make([]byte, length)
 	for i, b := range buf {
 		out[i] = alphabet[int(b)%len(alphabet)]
 	}
@@ -57,6 +66,10 @@ func Format(code string) string {
 // mapped back (O→0, I/L→1). ok is false unless the result is exactly a
 // well-formed code.
 func Normalize(input string) (code string, ok bool) {
+	return normalize(input, Length)
+}
+
+func normalize(input string, length int) (code string, ok bool) {
 	var b strings.Builder
 	for _, r := range strings.ToUpper(input) {
 		switch {
@@ -73,7 +86,7 @@ func Normalize(input string) (code string, ok bool) {
 		b.WriteRune(r)
 	}
 	code = b.String()
-	return code, len(code) == Length
+	return code, len(code) == length
 }
 
 // Hash is what the database stores: SHA-256 of the canonical code. A code

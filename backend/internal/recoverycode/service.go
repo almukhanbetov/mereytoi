@@ -249,11 +249,13 @@ func (s *Service) accountKey(id Identifier) string {
 		err := byIdentifier(s.db.Model(&models.User{}).Where("status = ?", models.UserStatusActive), id).
 			Limit(2).Pluck("id", &ids).Error
 		if err == nil && len(ids) == 1 {
-			return "a:" + strconv.FormatUint(uint64(ids[0]), 10)
+			return userAccountKey(ids[0])
 		}
 	}
 	return id.key()
 }
+
+func userAccountKey(id uint) string { return "a:" + strconv.FormatUint(uint64(id), 10) }
 
 func userKeyFor(id uint) string { return "u:" + strconv.FormatUint(uint64(id), 10) }
 

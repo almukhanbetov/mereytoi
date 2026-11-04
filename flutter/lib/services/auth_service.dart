@@ -92,6 +92,32 @@ class AuthService {
     return _recoveryResultFromJson(json);
   }
 
+  /// `POST /api/auth/recovery/support-request` — asks support for a temporary
+  /// code. Answers the same whether or not the account exists; too many
+  /// requests from one address is a 429.
+  Future<void> requestSupportRecovery({required String login}) async {
+    await _client.postJson('/api/auth/recovery/support-request', {
+      'login': login,
+    });
+  }
+
+  /// `POST /api/auth/recovery/support-reset` — sets [newPassword] using the
+  /// temporary code from support; every earlier session is revoked and a new
+  /// backup code is issued. An unknown account and a wrong, expired or used
+  /// code fail the same way (400 `invalid_recovery_code`).
+  Future<RecoveryAuthResult> recoverWithSupportCode({
+    required String login,
+    required String tempCode,
+    required String newPassword,
+  }) async {
+    final json = await _client.postJson('/api/auth/recovery/support-reset', {
+      'login': login,
+      'temp_code': tempCode,
+      'new_password': newPassword,
+    });
+    return _recoveryResultFromJson(json);
+  }
+
   /// `POST /api/users/me/recovery-code` — replaces the backup code after
   /// checking [currentPassword]; the previous code stops working at once.
   Future<String> replaceRecoveryCode({required String currentPassword}) async {

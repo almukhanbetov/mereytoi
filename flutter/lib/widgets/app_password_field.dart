@@ -13,6 +13,7 @@ class AppPasswordField extends StatefulWidget {
     this.onFieldSubmitted,
     this.showTooltip = 'Show password',
     this.hideTooltip = 'Hide password',
+    this.scrollPadding = const EdgeInsets.all(20),
   });
 
   final TextEditingController controller;
@@ -22,6 +23,10 @@ class AppPasswordField extends StatefulWidget {
   final ValueChanged<String>? onFieldSubmitted;
   final String showTooltip;
   final String hideTooltip;
+
+  /// Extra room kept visible around the field above the keyboard, e.g. for a
+  /// submit button right below it.
+  final EdgeInsets scrollPadding;
 
   @override
   State<AppPasswordField> createState() => _AppPasswordFieldState();
@@ -33,6 +38,7 @@ class _AppPasswordFieldState extends State<AppPasswordField> {
   @override
   Widget build(BuildContext context) {
     return TextFormField(
+      scrollPadding: widget.scrollPadding,
       controller: widget.controller,
       obscureText: _obscure,
       textInputAction: widget.textInputAction,

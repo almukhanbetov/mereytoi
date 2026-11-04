@@ -68,3 +68,19 @@ func TestHashIsStableAndNotTheCode(t *testing.T) {
 		t.Fatal("different codes, same hash")
 	}
 }
+
+func TestTemporaryCodeIsShorterAndNotABackupCode(t *testing.T) {
+	c, err := generate(TempLength)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if got, ok := normalize(strings.ToLower(Format(c)), TempLength); !ok || got != c {
+		t.Fatalf("round trip: %q %v", got, ok)
+	}
+	if _, ok := Normalize(c); ok {
+		t.Fatal("a temporary code passes as a backup code")
+	}
+	if bits := TempLength * 5; bits < 80 {
+		t.Fatalf("only %d bits of entropy", bits)
+	}
+}
