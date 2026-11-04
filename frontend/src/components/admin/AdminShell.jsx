@@ -58,6 +58,9 @@ export default function AdminShell({ user, children }) {
             <span>Диалоги</span>
             {unreadChats > 0 && <span className="admin-nav__badge">{unreadChats}</span>}
           </Link>
+          <Link href="/admin/recovery-requests" className={`admin-nav__link${pathname.startsWith('/admin/recovery-requests') ? ' is-active' : ''}`}>
+            <span>Восстановление аккаунтов</span>
+          </Link>
           <Link href="/admin/comments" className={`admin-nav__link${pathname === '/admin/comments' ? ' is-active' : ''}`}>
             <span>Комментарии</span>
             {pendingComments > 0 && <span className="admin-nav__badge">{pendingComments}</span>}

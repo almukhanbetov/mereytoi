@@ -40,6 +40,9 @@ func Connect(cfg config.Config) *gorm.DB {
 		// Backup-code recovery throttle — see models/recovery_attempt.go
 		// (the code's hash itself is a column on users).
 		&models.RecoveryAttempt{},
+		// Support-assisted recovery and its audit log — see
+		// models/password_recovery_request.go.
+		&models.PasswordRecoveryRequest{}, &models.RecoveryAuditEvent{},
 		// "Мой той" collaborative workspace — see models/event.go.
 		&models.Event{}, &models.EventMember{}, &models.EventInvitation{},
 		&models.EventCandidate{}, &models.EventVote{}, &models.EventComment{},

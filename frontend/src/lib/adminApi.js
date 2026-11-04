@@ -148,6 +148,12 @@ export const adminApi = {
   updateEventRequestStatus: (id, status, managerComment) =>
     request(`/api/admin/event-requests/${id}/status`, { method: 'POST', body: { status, manager_comment: managerComment }, auth: true }),
 
+  // Support-assisted password recovery. Approving returns { temp_code,
+  // expires_at } — the only time the code is ever available.
+  recoveryRequests: (status) => request(`/api/admin/recovery-requests${status && status !== 'all' ? `?status=${status}` : ''}`, { auth: true }),
+  approveRecoveryRequest: (id, note) => request(`/api/admin/recovery-requests/${id}/approve`, { method: 'POST', body: { note }, auth: true }),
+  rejectRecoveryRequest: (id, note) => request(`/api/admin/recovery-requests/${id}/reject`, { method: 'POST', body: { note }, auth: true }),
+
   // Manager chat dialogs (brief section 24) — deliberately not a separate
   // CRM: list/detail/reply/status, same shape as eventRequests above.
   managerChats: (status) => request(`/api/admin/manager-chat${status && status !== 'all' ? `?status=${status}` : ''}`, { auth: true }),

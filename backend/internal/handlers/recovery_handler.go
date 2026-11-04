@@ -2,13 +2,16 @@ package handlers
 
 import (
 	"errors"
+	"io"
 	"net/http"
+	"strconv"
 	"strings"
 
 	"github.com/gin-gonic/gin"
 	"gorm.io/gorm"
 
 	"github.com/almukhanbetov/mereytoi/backend/internal/middleware"
+	"github.com/almukhanbetov/mereytoi/backend/internal/models"
 	"github.com/almukhanbetov/mereytoi/backend/internal/passwordreset"
 	"github.com/almukhanbetov/mereytoi/backend/internal/recoverycode"
 )
@@ -120,4 +123,207 @@ func recoveryError(c *gin.Context, err error) {
 	default:
 		c.JSON(http.StatusInternalServerError, gin.H{"error": "recovery_failed"})
 	}
+}
+
+type supportRequestInput struct {
+	Login string `json:"login" binding:"required"`
+}
+
+// SupportRequest — POST /api/auth/recovery/support-request (public). Asks
+// support for a temporary code. The answer is the same whether or not the
+// account exists; only the per-address limit shows (429).
+func (h *RecoveryHandler) SupportRequest(c *gin.Context) {
+	noStore(c)
+	var in supportRequestInput
+	if err := c.ShouldBindJSON(&in); err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{"error": "invalid_request"})
+		return
+	}
+	if err := h.Svc.RequestSupport(recoveryIdentifier(in.Login), c.ClientIP()); err != nil {
+		recoveryError(c, err)
+		return
+	}
+	c.JSON(http.StatusOK, gin.H{"status": "ok"})
+}
+
+type supportResetInput struct {
+	Login       string `json:"login" binding:"required"`
+	TempCode    string `json:"temp_code" binding:"required"`
+	NewPassword string `json:"new_password" binding:"required"`
+}
+
+// SupportReset — POST /api/auth/recovery/support-reset (public). Sets a new
+// password with the temporary code. On success every earlier session is
+// revoked and the response carries a fresh token and a new backup code. An
+// unknown account and a wrong, expired or used code get the same 400.
+func (h *RecoveryHandler) SupportReset(c *gin.Context) {
+	noStore(c)
+	var in supportResetInput
+	if err := c.ShouldBindJSON(&in); err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{"error": "invalid_request"})
+		return
+	}
+	res, err := h.Svc.ResetWithTempCode(recoveryIdentifier(in.Login), in.TempCode, in.NewPassword, c.ClientIP())
+	if err != nil {
+		recoveryError(c, err)
+		return
+	}
+	token, err := issueJWT(h.JWTSecret, res.User)
+	if err != nil {
+		// The password did change; the client can still sign in with it.
+		c.JSON(http.StatusInternalServerError, gin.H{"error": "failed to issue token"})
+		return
+	}
+	c.JSON(http.StatusOK, gin.H{
+		"user":          res.User,
+		"token":         token,
+		"recovery_code": recoverycode.Format(res.Code),
+	})
+}
+
+// recoveryRequestView is what an admin sees: never a hash. The fields are
+// listed one by one so a new column can't leak by default.
+func recoveryRequestView(r models.PasswordRecoveryRequest, u *models.User) gin.H {
+	view := gin.H{
+		"id":                   r.ID,
+		"user_id":              r.UserID,
+		"status":               r.Status,
+		"requested_at":         r.RequestedAt,
+		"approved_at":          r.ApprovedAt,
+		"approved_by":          r.ApprovedBy,
+		"temp_code_expires_at": r.TempCodeExpiresAt,
+		"used_at":              r.UsedAt,
+		"admin_note":           r.AdminNote,
+	}
+	if u != nil {
+		view["user"] = gin.H{"id": u.ID, "name": u.Name, "email": u.Email, "phone": u.Phone, "role": u.Role, "status": u.Status}
+	}
+	return view
+}
+
+func recoveryActor(c *gin.Context) recoverycode.Actor {
+	userID, _ := c.Get(middleware.ContextUserIDKey)
+	return recoverycode.Actor{ID: userID.(uint), IP: c.ClientIP()}
+}
+
+func recoveryRequestID(c *gin.Context) (uint, bool) {
+	id, err := strconv.ParseUint(c.Param("id"), 10, 32)
+	if err != nil || id == 0 {
+		c.JSON(http.StatusBadRequest, gin.H{"error": "invalid_request"})
+		return 0, false
+	}
+	return uint(id), true
+}
+
+func adminRecoveryError(c *gin.Context, err error) {
+	switch {
+	case errors.Is(err, recoverycode.ErrRequestNotFound):
+		c.JSON(http.StatusNotFound, gin.H{"error": "not_found"})
+	case errors.Is(err, recoverycode.ErrRequestState):
+		c.JSON(http.StatusConflict, gin.H{"error": "invalid_status"})
+	case errors.Is(err, recoverycode.ErrSelfApproval):
+		c.JSON(http.StatusForbidden, gin.H{"error": "self_approval_forbidden"})
+	default:
+		recoveryError(c, err)
+	}
+}
+
+// AdminListRequests — GET /api/admin/recovery-requests?status=pending.
+func (h *RecoveryHandler) AdminListRequests(c *gin.Context) {
+	noStore(c)
+	status := c.Query("status")
+	switch status {
+	case "", models.RecoveryRequestPending, models.RecoveryRequestApproved, models.RecoveryRequestRejected,
+		models.RecoveryRequestUsed, models.RecoveryRequestExpired:
+	default:
+		c.JSON(http.StatusBadRequest, gin.H{"error": "invalid_status"})
+		return
+	}
+	page, err := h.Svc.ListRequests(status, recoveryActor(c))
+	if err != nil {
+		adminRecoveryError(c, err)
+		return
+	}
+	requests := make([]gin.H, 0, len(page.Requests))
+	for _, r := range page.Requests {
+		var user *models.User
+		if u, ok := page.Users[r.UserID]; ok {
+			user = &u
+		}
+		requests = append(requests, recoveryRequestView(r, user))
+	}
+	c.JSON(http.StatusOK, gin.H{"requests": requests})
+}
+
+// AdminGetRequest — GET /api/admin/recovery-requests/:id, with the audit trail.
+func (h *RecoveryHandler) AdminGetRequest(c *gin.Context) {
+	noStore(c)
+	id, ok := recoveryRequestID(c)
+	if !ok {
+		return
+	}
+	out, err := h.Svc.GetRequest(id, recoveryActor(c))
+	if err != nil {
+		adminRecoveryError(c, err)
+		return
+	}
+	c.JSON(http.StatusOK, gin.H{"request": recoveryRequestView(out.Request, out.User), "audit": out.Audit})
+}
+
+type recoveryDecisionInput struct {
+	Note string `json:"note" binding:"max=500"`
+}
+
+// recoveryDecision reads the optional note; an empty body is fine.
+func recoveryDecision(c *gin.Context) (string, bool) {
+	var in recoveryDecisionInput
+	if err := c.ShouldBindJSON(&in); err != nil && !errors.Is(err, io.EOF) {
+		c.JSON(http.StatusBadRequest, gin.H{"error": "invalid_request"})
+		return "", false
+	}
+	return strings.TrimSpace(in.Note), true
+}
+
+// AdminApproveRequest — POST /api/admin/recovery-requests/:id/approve. The
+// response is the only place the temporary code ever appears.
+func (h *RecoveryHandler) AdminApproveRequest(c *gin.Context) {
+	noStore(c)
+	id, ok := recoveryRequestID(c)
+	if !ok {
+		return
+	}
+	note, ok := recoveryDecision(c)
+	if !ok {
+		return
+	}
+	res, err := h.Svc.Approve(id, note, recoveryActor(c))
+	if err != nil {
+		adminRecoveryError(c, err)
+		return
+	}
+	c.JSON(http.StatusOK, gin.H{
+		"request":    recoveryRequestView(res.Request, nil),
+		"temp_code":  recoverycode.Format(res.Code),
+		"expires_at": res.Request.TempCodeExpiresAt,
+	})
+}
+
+// AdminRejectRequest — POST /api/admin/recovery-requests/:id/reject. Also
+// revokes the code of an already approved request.
+func (h *RecoveryHandler) AdminRejectRequest(c *gin.Context) {
+	noStore(c)
+	id, ok := recoveryRequestID(c)
+	if !ok {
+		return
+	}
+	note, ok := recoveryDecision(c)
+	if !ok {
+		return
+	}
+	req, err := h.Svc.Reject(id, note, recoveryActor(c))
+	if err != nil {
+		adminRecoveryError(c, err)
+		return
+	}
+	c.JSON(http.StatusOK, gin.H{"request": recoveryRequestView(req, nil)})
 }

@@ -133,7 +133,23 @@ class AuthNotifier extends StateNotifier<AuthState> {
     return result;
   }
 
-  /// Finishes [register]/[recoverWithCode] once their code was shown —
+  /// Password recovery with a temporary code from support — the same
+  /// contract as [recoverWithCode].
+  Future<RecoveryAuthResult> recoverWithSupportCode({
+    required String login,
+    required String tempCode,
+    required String newPassword,
+  }) async {
+    final result = await _authService.recoverWithSupportCode(
+      login: login,
+      tempCode: tempCode,
+      newPassword: newPassword,
+    );
+    await TokenStorage.instance.saveToken(result.token);
+    return result;
+  }
+
+  /// Finishes [register]/[recoverWithCode]/[recoverWithSupportCode] once their code was shown —
   /// both always leave the account with a backup code.
   void activate(User user) =>
       state = AuthAuthenticated(user.copyWith(hasRecoveryCode: true));
