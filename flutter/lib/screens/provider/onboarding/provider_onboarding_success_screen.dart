@@ -38,6 +38,7 @@ class ProviderOnboardingSuccessScreen extends ConsumerWidget {
 
     return Scaffold(
       backgroundColor: colors.backgroundPrimary,
+      appBar: AppBar(),
       body: SafeArea(
         child: LayoutBuilder(
           builder: (context, constraints) => SingleChildScrollView(

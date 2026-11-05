@@ -1,3 +1,4 @@
+import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
@@ -20,6 +21,7 @@ import '../../widgets/app_error_view.dart';
 import '../../widgets/app_skeleton.dart';
 import '../../widgets/category_card.dart';
 import '../../widgets/city_selector.dart';
+import '../../widgets/exit_app_sheet.dart';
 import '../../widgets/fade_slide_in.dart';
 import '../../widgets/locale_sheet.dart';
 import '../../widgets/provider/provider_business_card.dart';
@@ -64,6 +66,7 @@ class HomeScreen extends ConsumerWidget {
           slivers: [
             SliverAppBar(
               floating: true,
+              automaticallyImplyLeading: false,
               backgroundColor: context.mereytoiColors.backgroundPrimary,
               titleSpacing: AppSpacing.lg,
               title: const _BrandMark(),
@@ -83,12 +86,43 @@ class HomeScreen extends ConsumerWidget {
             // Finding a specific service is the «Услуги» tab's job.
             SliverToBoxAdapter(child: _Hero(locale: locale)),
             // The hero's own bottom padding (16) is the gap above the city.
-            const SliverToBoxAdapter(
+            // Exit sits beside the city to stay on the first screen; on a narrow
+            // phone it wraps to its own line.
+            SliverToBoxAdapter(
               child: Padding(
-                padding: EdgeInsets.symmetric(horizontal: AppSpacing.lg),
-                child: Align(
-                  alignment: Alignment.centerLeft,
-                  child: CitySelectorButton(),
+                padding: const EdgeInsets.symmetric(horizontal: AppSpacing.lg),
+                child: SizedBox(
+                  width: double.infinity,
+                  child: Wrap(
+                    alignment: WrapAlignment.spaceBetween,
+                    crossAxisAlignment: WrapCrossAlignment.center,
+                    spacing: AppSpacing.xs,
+                    runSpacing: AppSpacing.xs,
+                    children: [
+                      const CitySelectorButton(),
+                      // Android only: an iOS app must not close itself.
+                      if (defaultTargetPlatform == TargetPlatform.android)
+                        OutlinedButton.icon(
+                          key: const ValueKey('home-exit-app'),
+                          style: OutlinedButton.styleFrom(
+                            minimumSize: const Size(48, 48),
+                            padding: const EdgeInsets.symmetric(
+                              horizontal: AppSpacing.sm,
+                            ),
+                          ),
+                          onPressed: () => showExitAppSheet(context, locale),
+                          icon: const Icon(Icons.exit_to_app_rounded, size: 18),
+                          label: Text(
+                            t(
+                              locale,
+                              ru: 'Выйти из приложения',
+                              kz: 'Қолданбадан шығу',
+                              en: 'Exit the app',
+                            ),
+                          ),
+                        ),
+                    ],
+                  ),
                 ),
               ),
             ),

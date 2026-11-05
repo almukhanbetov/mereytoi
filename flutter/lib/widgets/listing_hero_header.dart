@@ -53,10 +53,7 @@ List<Widget> listingHeroSlivers({
       pinned: true,
       expandedHeight: 260,
       backgroundColor: context.mereytoiColors.backgroundPrimary,
-      leading: const Padding(
-        padding: EdgeInsets.only(left: AppSpacing.xs),
-        child: AppBackButton(onHero: true),
-      ),
+      leading: const AppBackButton(),
       flexibleSpace: FlexibleSpaceBar(
         background: images.isEmpty
             ? const NetworkImageBox(
