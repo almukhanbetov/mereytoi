@@ -5,6 +5,7 @@ import { useRouter, useSearchParams } from 'next/navigation';
 import Link from 'next/link';
 import { useAuth } from '@/context/AuthContext';
 import { T, useLang } from '@/context/AppProviders';
+import SignOutButton from '@/components/SignOutButton';
 import { authApi } from '@/lib/authApi';
 import { eventsApi } from '@/lib/eventsApi';
 import { formatPrice } from '@/lib/format';
@@ -240,9 +241,9 @@ function ProfileContent() {
                   <T ru="Изменения сохранены" kz="Өзгерістер сақталды" />
                 </p>
 
-                <button type="button" className="btn btn--outline" style={{ marginTop: 8 }} onClick={handleLogout}>
-                  <T ru="Выйти из аккаунта" kz="Аккаунттан шығу" />
-                </button>
+                <SignOutButton className="btn btn--outline" style={{ marginTop: 8 }} onConfirm={handleLogout}>
+                  <T ru="Выйти из аккаунта" kz="Аккаунттан шығу" en="Sign out" />
+                </SignOutButton>
 
                 <TelegramConnectCard />
 

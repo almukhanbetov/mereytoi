@@ -76,6 +76,7 @@ class _ProfileBody extends ConsumerStatefulWidget {
 class _ProfileBodyState extends ConsumerState<_ProfileBody>
     with WidgetsBindingObserver {
   bool _mintingTelegram = false;
+  bool _logoutSheetOpen = false;
   bool _awaitingTelegramReturn = false;
   String? _telegramError;
 
@@ -151,14 +152,21 @@ class _ProfileBodyState extends ConsumerState<_ProfileBody>
   }
 
   Future<void> _logout() async {
-    final confirmed = await showModalBottomSheet<bool>(
+    // A quick second tap must not stack another sheet.
+    if (_logoutSheetOpen) return;
+    _logoutSheetOpen = true;
+    final navigator = Navigator.of(context);
+    final auth = ref.read(authProvider.notifier);
+    final signedOut = await showModalBottomSheet<bool>(
       context: context,
-      builder: (sheetContext) => _LogoutConfirmSheet(locale: widget.locale),
+      backgroundColor: Colors.transparent,
+      // A swipe would close the sheet past its PopScope, mid sign-out.
+      enableDrag: false,
+      builder: (_) =>
+          _LogoutConfirmSheet(locale: widget.locale, onConfirm: auth.logout),
     );
-    if (confirmed == true) {
-      await ref.read(authProvider.notifier).logout();
-      if (mounted) Navigator.of(context).maybePop();
-    }
+    _logoutSheetOpen = false;
+    if (signedOut == true) navigator.maybePop();
   }
 
   @override
@@ -755,6 +763,7 @@ class _ProfileBodyState extends ConsumerState<_ProfileBody>
         const SizedBox(height: AppSpacing.lg),
 
         OutlinedButton(
+          key: const ValueKey('profile-logout'),
           onPressed: _logout,
           style: OutlinedButton.styleFrom(
             foregroundColor: context.mereytoiColors.error,
@@ -1034,43 +1043,129 @@ class _SectionTitle extends StatelessWidget {
   }
 }
 
-class _LogoutConfirmSheet extends StatelessWidget {
-  const _LogoutConfirmSheet({required this.locale});
+/// Asks before signing out. «Остаться» is the safe default; the sheet runs
+/// [onConfirm] itself and can't be dismissed until it finishes. Pops `true`
+/// after signing out, `false` on «Остаться», `null` on Back or a tap outside.
+class _LogoutConfirmSheet extends StatefulWidget {
+  const _LogoutConfirmSheet({required this.locale, required this.onConfirm});
 
   final AppLocale locale;
+  final Future<void> Function() onConfirm;
+
+  @override
+  State<_LogoutConfirmSheet> createState() => _LogoutConfirmSheetState();
+}
+
+class _LogoutConfirmSheetState extends State<_LogoutConfirmSheet> {
+  // Set by the first tap on either button, so a double tap can neither sign
+  // out twice nor pop the screen underneath the sheet.
+  bool _decided = false;
+  bool _signingOut = false;
+
+  void _stay() {
+    if (_decided) return;
+    _decided = true;
+    Navigator.of(context).pop(false);
+  }
+
+  Future<void> _signOut() async {
+    if (_decided) return;
+    _decided = true;
+    setState(() => _signingOut = true);
+    await widget.onConfirm();
+    if (mounted) Navigator.of(context).pop(true);
+  }
 
   @override
   Widget build(BuildContext context) {
-    return SafeArea(
-      child: Padding(
-        padding: const EdgeInsets.all(AppSpacing.lg),
-        child: Column(
-          mainAxisSize: MainAxisSize.min,
-          crossAxisAlignment: CrossAxisAlignment.stretch,
-          children: [
-            Text(
-              t(
-                locale,
-                ru: 'Выйти из аккаунта?',
-                kz: 'Аккаунттан шығу керек пе?',
-                en: 'Sign out of your account?',
+    final locale = widget.locale;
+    final colors = context.mereytoiColors;
+    final textTheme = Theme.of(context).textTheme;
+    return PopScope(
+      canPop: !_signingOut,
+      child: SafeArea(
+        child: Padding(
+          padding: const EdgeInsets.all(AppSpacing.lg),
+          child: DecoratedBox(
+            decoration: BoxDecoration(
+              color: colors.surfaceElevated,
+              borderRadius: BorderRadius.circular(AppRadius.lg),
+            ),
+            child: SingleChildScrollView(
+              padding: const EdgeInsets.all(AppSpacing.lg),
+              child: Column(
+                mainAxisSize: MainAxisSize.min,
+                crossAxisAlignment: CrossAxisAlignment.stretch,
+                children: [
+                  Semantics(
+                    header: true,
+                    child: Text(
+                      t(
+                        locale,
+                        ru: 'Выйти из аккаунта?',
+                        kz: 'Аккаунттан шығу керек пе?',
+                        en: 'Sign out?',
+                      ),
+                      style: textTheme.titleMedium,
+                      textAlign: TextAlign.center,
+                    ),
+                  ),
+                  const SizedBox(height: AppSpacing.xs),
+                  Text(
+                    t(
+                      locale,
+                      ru: 'Вы уверены, что хотите выйти?',
+                      kz: 'Аккаунттан шығуға сенімдісіз бе?',
+                      en: 'Are you sure you want to sign out?',
+                    ),
+                    style: textTheme.bodyMedium?.copyWith(
+                      color: colors.textSecondary,
+                    ),
+                    textAlign: TextAlign.center,
+                  ),
+                  const SizedBox(height: AppSpacing.lg),
+                  ElevatedButton(
+                    key: const ValueKey('logout-stay'),
+                    autofocus: true,
+                    onPressed: _signingOut ? null : _stay,
+                    child: Text(
+                      t(locale, ru: 'Остаться', kz: 'Қалу', en: 'Stay'),
+                    ),
+                  ),
+                  const SizedBox(height: AppSpacing.xs),
+                  OutlinedButton(
+                    key: const ValueKey('logout-confirm'),
+                    onPressed: _signingOut ? null : _signOut,
+                    style: OutlinedButton.styleFrom(
+                      foregroundColor: colors.error,
+                      disabledForegroundColor: colors.error,
+                      side: BorderSide(color: colors.error),
+                    ),
+                    child: Row(
+                      mainAxisSize: MainAxisSize.min,
+                      children: [
+                        if (_signingOut) ...[
+                          SizedBox.square(
+                            dimension: 18,
+                            child: CircularProgressIndicator(
+                              strokeWidth: 2,
+                              color: colors.error,
+                            ),
+                          ),
+                          const SizedBox(width: AppSpacing.xs),
+                        ],
+                        Flexible(
+                          child: Text(
+                            t(locale, ru: 'Выйти', kz: 'Шығу', en: 'Sign out'),
+                          ),
+                        ),
+                      ],
+                    ),
+                  ),
+                ],
               ),
-              style: Theme.of(context).textTheme.titleMedium,
-              textAlign: TextAlign.center,
             ),
-            const SizedBox(height: AppSpacing.md),
-            ElevatedButton(
-              onPressed: () => Navigator.of(context).pop(true),
-              child: Text(t(locale, ru: 'Выйти', kz: 'Шығу', en: 'Sign out')),
-            ),
-            const SizedBox(height: AppSpacing.xs),
-            OutlinedButton(
-              onPressed: () => Navigator.of(context).pop(false),
-              child: Text(
-                t(locale, ru: 'Отмена', kz: 'Бас тарту', en: 'Cancel'),
-              ),
-            ),
-          ],
+          ),
         ),
       ),
     );
