@@ -6,13 +6,16 @@ import 'package:image_picker/image_picker.dart';
 import '../../../../core/config/api_config.dart';
 import '../../../../core/theme/app_theme.dart';
 import '../../../../core/utils/error_messages.dart';
+import '../../../../models/city.dart';
 import '../../../../models/provider_profile.dart';
 import '../../../../state/locale_provider.dart';
 import '../../../../state/provider_onboarding.dart' show kMaxExperienceYears;
 import '../../../../state/provider_provider.dart';
 import '../../../../state/providers.dart';
 import '../../../../widgets/admin/form_sheet_scaffold.dart';
+import '../../../../widgets/city_selector.dart';
 import '../../../../widgets/network_image_box.dart';
+import '../../../../widgets/provider/provider_form_widgets.dart';
 
 /// "Стать услугодателем" (existing == null) / "Профиль услугодателя"
 /// (edit) — Этап 11 brief section 4: deliberately compact, same field set
@@ -44,7 +47,10 @@ class _ProviderProfileFormSheetState
     extends ConsumerState<ProviderProfileFormSheet> {
   final _formKey = GlobalKey<FormState>();
   late final TextEditingController _displayName;
-  late final TextEditingController _city;
+  // Saved as stored until the directory picker replaces it, so an older
+  // free-text city survives an edit of something else.
+  late String _storedCity;
+  City? _pickedCity;
   late final TextEditingController _description;
   late final TextEditingController _experience;
   late final TextEditingController _phone;
@@ -60,7 +66,7 @@ class _ProviderProfileFormSheetState
     super.initState();
     final e = widget.existing;
     _displayName = TextEditingController(text: e?.displayName ?? '');
-    _city = TextEditingController(text: e?.city ?? '');
+    _storedCity = e?.city ?? '';
     _description = TextEditingController(text: e?.description ?? '');
     _experience = TextEditingController(
       text: e?.experienceYears == null ? '' : '${e!.experienceYears}',
@@ -112,7 +118,6 @@ class _ProviderProfileFormSheetState
   @override
   void dispose() {
     _displayName.dispose();
-    _city.dispose();
     _description.dispose();
     _experience.dispose();
     _phone.dispose();
@@ -133,7 +138,7 @@ class _ProviderProfileFormSheetState
       if (widget.existing == null) {
         await actions.become(
           displayName: _displayName.text.trim(),
-          city: _city.text.trim(),
+          city: _pickedCity?.nameRu ?? _storedCity,
           description: _description.text.trim(),
           phone: _phone.text.trim(),
           whatsapp: _whatsapp.text.trim(),
@@ -144,7 +149,7 @@ class _ProviderProfileFormSheetState
       } else {
         await actions.updateProfile(
           displayName: _displayName.text.trim(),
-          city: _city.text.trim(),
+          city: _pickedCity?.nameRu ?? _storedCity,
           description: _description.text.trim(),
           phone: _phone.text.trim(),
           whatsapp: _whatsapp.text.trim(),
@@ -272,11 +277,25 @@ class _ProviderProfileFormSheetState
               : null,
         ),
         const SizedBox(height: AppSpacing.sm),
-        TextFormField(
-          controller: _city,
-          decoration: InputDecoration(
-            labelText: t(locale, ru: 'Город', kz: 'Қала', en: 'City'),
+        ProviderPickerCard(
+          tapKey: const ValueKey('provider-profile-city'),
+          icon: Icons.location_on_outlined,
+          value:
+              _pickedCity?.name(locale) ??
+              (_storedCity.isEmpty ? null : _storedCity),
+          placeholder: t(
+            locale,
+            ru: 'Выберите город',
+            kz: 'Қаланы таңдаңыз',
+            en: 'Select a city',
           ),
+          onTap: () async {
+            final picked = await showCityPicker(
+              context,
+              selectedId: _pickedCity?.id,
+            );
+            if (picked != null) setState(() => _pickedCity = picked);
+          },
         ),
         const SizedBox(height: AppSpacing.sm),
         TextFormField(

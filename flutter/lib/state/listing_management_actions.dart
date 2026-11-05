@@ -43,6 +43,8 @@ class ListingManagementActions {
     // should show up there too without a restart.
     _ref.invalidate(listingsProvider(null));
     _ref.invalidate(listingsProvider('venues'));
+    // «Мои рестораны» shows the name and the hall and menu counts.
+    _ref.invalidate(myListingsProvider);
   }
 
   Future<Listing> updateListing(

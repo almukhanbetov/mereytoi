@@ -12,6 +12,7 @@ import '../../../state/provider_provider.dart';
 import '../../../widgets/app_error_view.dart';
 import '../../../widgets/network_image_box.dart';
 import '../../profile/provider/my_services_screen.dart';
+import '../../profile/restaurant_admin/restaurant_admin_list_screen.dart';
 import '../../profile/provider/widgets/provider_profile_form_sheet.dart';
 import '../../provider_chat/provider_chat_list_screen.dart';
 import '../onboarding/provider_onboarding_screen.dart';
@@ -79,6 +80,12 @@ class _BusinessBody extends ConsumerWidget {
   Widget build(BuildContext context, WidgetRef ref) {
     final services = ref.watch(myServicesCountProvider);
     final bookings = ref.watch(myBookingsCountProvider);
+    final restaurantsTitle = t(
+      locale,
+      ru: 'Мои рестораны',
+      kz: 'Менің мейрамханаларым',
+      en: 'My restaurants',
+    );
 
     void push(Widget screen) =>
         Navigator.of(context).push(MaterialPageRoute(builder: (_) => screen));
@@ -121,6 +128,14 @@ class _BusinessBody extends ConsumerWidget {
                 : servicesCountLabel(locale, services),
             onTap: () => push(const MyServicesScreen()),
           ),
+          if (ref.watch(hasOwnRestaurantProvider))
+            _HubTile(
+              key: const ValueKey('business-restaurants'),
+              icon: Icons.storefront_outlined,
+              title: restaurantsTitle,
+              onTap: () =>
+                  push(RestaurantAdminListScreen(title: restaurantsTitle)),
+            ),
           _HubTile(
             key: const ValueKey('business-bookings'),
             icon: Icons.inbox_rounded,

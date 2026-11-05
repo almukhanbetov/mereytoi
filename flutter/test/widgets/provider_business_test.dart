@@ -13,6 +13,7 @@ import 'package:mereytoi_app/screens/home/home_screen.dart';
 import 'package:mereytoi_app/screens/profile/profile_screen.dart';
 import 'package:mereytoi_app/screens/profile/provider/my_services_screen.dart';
 import 'package:mereytoi_app/screens/profile/provider/widgets/provider_profile_form_sheet.dart';
+import 'package:mereytoi_app/screens/profile/restaurant_admin/restaurant_admin_list_screen.dart';
 import 'package:mereytoi_app/screens/provider/business/my_business_screen.dart';
 import 'package:mereytoi_app/screens/provider/business/provider_bookings_screen.dart';
 import 'package:mereytoi_app/screens/provider/business/provider_statistics_screen.dart';
@@ -448,6 +449,71 @@ void main() {
       await pump(tester, const MyBusinessScreen(), isProvider: true);
       await openTile(tester, 'business-messages');
       expect(find.byType(ProviderChatListScreen), findsOneWidget);
+    });
+
+    testWidgets(
+      'a provider who owns a restaurant reaches it, without services',
+      (tester) async {
+        await pump(tester, const MyBusinessScreen(), isProvider: true);
+        await openTile(tester, 'business-restaurants');
+        expect(find.byType(RestaurantAdminListScreen), findsOneWidget);
+        expect(find.text('Услуга 102'), findsOneWidget); // the venue
+        expect(find.text('Услуга 101'), findsNothing); // the ordinary service
+      },
+    );
+
+    testWidgets('no restaurant tile without a restaurant', (tester) async {
+      final (container, api) = await pump(
+        tester,
+        const MyBusinessScreen(),
+        isProvider: true,
+      );
+      api.listings.removeWhere((l) => l['category_id'] == 1);
+      await tester.runAsync(() => container.refresh(myListingsProvider.future));
+      await tester.pumpAndSettle();
+      expect(find.byKey(const ValueKey('business-restaurants')), findsNothing);
+    });
+
+    testWidgets('opening the cabinet creates and changes nothing', (
+      tester,
+    ) async {
+      final (container, api) = await pump(
+        tester,
+        const MyBusinessScreen(),
+        isProvider: true,
+      );
+      await tester.runAsync(
+        () => container.refresh(providerProfileProvider.future),
+      );
+      await tester.pumpAndSettle();
+      expect(
+        api.calls.where((c) => !c.startsWith('GET ')),
+        isEmpty,
+        reason: 'only reads when opening',
+      );
+      expect(api.listings, hasLength(2));
+    });
+
+    testWidgets('Профиль: an older free-text city survives saving', (
+      tester,
+    ) async {
+      final (_, api) = await pump(
+        tester,
+        const MyBusinessScreen(),
+        isProvider: true,
+      );
+      await openTile(tester, 'business-profile');
+      expect(
+        find.byKey(const ValueKey('provider-profile-city')),
+        findsOneWidget,
+      );
+      expect(find.text('Усть-Каменогорск'), findsWidgets);
+      await tester.ensureVisible(find.byType(ElevatedButton).last);
+      await tester.tap(find.byType(ElevatedButton).last);
+      await tester.pumpAndSettle();
+      final body = api.bodies['PUT /api/provider/me']!.last as Map;
+      expect(body['city'], 'Усть-Каменогорск');
+      expect(api.calls, isNot(contains('POST /api/provider')));
     });
 
     testWidgets('Профиль → existing provider profile form', (tester) async {

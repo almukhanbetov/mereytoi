@@ -18,6 +18,17 @@ final myServicesCountProvider = Provider<int?>((ref) {
   return listings.where((l) => !venueIds.contains(l.categoryId)).length;
 });
 
+/// Whether the caller manages a restaurant: those live outside «Мои услуги».
+final hasOwnRestaurantProvider = Provider<bool>((ref) {
+  final listings = ref.watch(myListingsProvider).valueOrNull ?? const [];
+  final categories = ref.watch(categoriesProvider).valueOrNull ?? const [];
+  final venueIds = {
+    for (final c in categories)
+      if (c.slug == 'venues') c.id,
+  };
+  return listings.any((l) => venueIds.contains(l.categoryId));
+});
+
 /// How many booking requests include the provider's services. Null while
 /// loading or on error.
 final myBookingsCountProvider = Provider<int?>((ref) {

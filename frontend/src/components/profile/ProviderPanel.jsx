@@ -7,7 +7,7 @@ import { formatPrice } from '@/lib/format';
 import { mediaUrl } from '@/lib/media';
 import ProviderServiceForm from './ProviderServiceForm';
 
-const EMPTY_PROFILE = { display_name: '', city: '', description: '', phone: '', whatsapp: '', telegram: '', avatar_url: '' };
+const EMPTY_PROFILE = { display_name: '', city: '', description: '', experience_years: '', phone: '', whatsapp: '', telegram: '', avatar_url: '' };
 
 // "Профиль → Стать услугодателем / Профиль услугодателя / Мои услуги / +
 // Добавить услугу" — Этап 11, brief section 10. One self-contained panel
@@ -17,6 +17,7 @@ export default function ProviderPanel() {
   const { lang } = useLang();
   const [loading, setLoading] = useState(true);
   const [provider, setProvider] = useState(null); // null = not a provider yet
+  const [loadFailed, setLoadFailed] = useState(false);
   const [listings, setListings] = useState([]);
   const [categories, setCategories] = useState([]);
 
@@ -44,7 +45,11 @@ export default function ProviderPanel() {
         setProvider(d.provider);
         loadMine();
       })
-      .catch(() => setProvider(null))
+      .catch((err) => {
+        // Only a 404 means "not a provider yet": a network failure must not
+        // offer an existing provider to sign up again.
+        if (err.status !== 404) setLoadFailed(true);
+      })
       .finally(() => setLoading(false));
     providerApi.categories().then((d) => setCategories(d.categories || [])).catch(() => {});
   }, []);
@@ -60,6 +65,7 @@ export default function ProviderPanel() {
       display_name: provider.display_name || '',
       city: provider.city || '',
       description: provider.description || '',
+      experience_years: provider.experience_years ?? '',
       phone: provider.phone || '',
       whatsapp: provider.whatsapp || '',
       telegram: provider.telegram || '',
@@ -90,7 +96,11 @@ export default function ProviderPanel() {
     setProfileError('');
     setProfileSaving(true);
     try {
-      const data = provider ? await providerApi.update(profileForm) : await providerApi.create(profileForm);
+      const payload = {
+        ...profileForm,
+        experience_years: profileForm.experience_years === '' ? null : Number(profileForm.experience_years),
+      };
+      const data = provider ? await providerApi.update(payload) : await providerApi.create(payload);
       setProvider(data.provider);
       setEditingProfile(false);
       if (!provider) loadMine();
@@ -122,6 +132,14 @@ export default function ProviderPanel() {
   }
 
   if (loading) return <p className="admin-table__empty">Загрузка…</p>;
+
+  if (loadFailed) {
+    return (
+      <p className="admin-table__empty">
+        <T ru="Не удалось загрузить профиль. Обновите страницу." kz="Профильді жүктеу мүмкін болмады. Бетті жаңартыңыз." en="Couldn’t load the profile. Please refresh the page." />
+      </p>
+    );
+  }
 
   return (
     <div>
@@ -161,13 +179,17 @@ export default function ProviderPanel() {
             <textarea rows="3" value={profileForm.description} onChange={(e) => setProfileForm((v) => ({ ...v, description: e.target.value }))} />
           </label>
           <label>
+            <span><T ru="Опыт, лет (необязательно)" kz="Тәжірибе, жыл (міндетті емес)" en="Experience, years (optional)" /></span>
+            <input type="number" min="0" max="80" value={profileForm.experience_years} onChange={(e) => setProfileForm((v) => ({ ...v, experience_years: e.target.value }))} />
+          </label>
+          <label>
             <span><T ru="Телефон" kz="Телефон" /></span>
-            <input value={profileForm.phone} onChange={(e) => setProfileForm((v) => ({ ...v, phone: e.target.value }))} placeholder="+7 700 000 00 00" />
+            <input type="tel" value={profileForm.phone} onChange={(e) => setProfileForm((v) => ({ ...v, phone: e.target.value }))} placeholder="+7 700 000 00 00" />
           </label>
           <div className="form-row">
             <label>
               <span>WhatsApp</span>
-              <input value={profileForm.whatsapp} onChange={(e) => setProfileForm((v) => ({ ...v, whatsapp: e.target.value }))} placeholder="+7 700 000 00 00" />
+              <input type="tel" value={profileForm.whatsapp} onChange={(e) => setProfileForm((v) => ({ ...v, whatsapp: e.target.value }))} placeholder="+7 700 000 00 00" />
             </label>
             <label>
               <span>Telegram</span>
@@ -209,6 +231,11 @@ export default function ProviderPanel() {
               <div>
                 <h2 className="admin-section-title" style={{ margin: 0 }}>{provider.display_name}</h2>
                 {provider.city && <p style={{ margin: 0, color: 'var(--text-muted)', fontSize: 13.5 }}>{provider.city}</p>}
+                {provider.experience_years != null && (
+                  <p style={{ margin: 0, color: 'var(--text-muted)', fontSize: 13.5 }}>
+                    <T ru="Опыт, лет" kz="Тәжірибе, жыл" en="Experience, years" />: {provider.experience_years}
+                  </p>
+                )}
               </div>
             </div>
             <div style={{ display: 'flex', gap: 10 }}>
@@ -226,7 +253,7 @@ export default function ProviderPanel() {
               <ProviderServiceForm
                 categories={categories}
                 listingId={serviceForm === 'new' ? undefined : serviceForm.id}
-                initial={serviceForm === 'new' ? undefined : listingToPayload(serviceForm)}
+                initial={serviceForm === 'new' ? { city: provider.city || '' } : listingToPayload(serviceForm)}
                 onSaved={() => {
                   setServiceForm(null);
                   loadMine();
