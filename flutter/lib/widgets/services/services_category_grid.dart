@@ -33,26 +33,22 @@ IconData servicesCategoryIcon(String? slug) {
   return Icons.auto_awesome_rounded;
 }
 
-/// The category picker of the services catalog: a grid of large tiles —
-/// «Все» first, then every category from the API. Two columns on phones,
-/// three from 520dp. With many categories it starts collapsed to the
-/// first [collapsedCount] tiles plus a «Показать все» toggle, so the
-/// results stay close to the top; it starts expanded when the active
-/// category would otherwise be hidden.
+/// The category picker of the services catalog: a grid of large tiles, one
+/// per category from the API. Two columns on phones, three from 520dp. With
+/// many categories it starts collapsed to the first [collapsedCount] tiles
+/// plus a «Показать все» toggle.
 class ServicesCategoryGrid extends StatefulWidget {
   const ServicesCategoryGrid({
     super.key,
     required this.categories,
-    required this.activeSlug,
     required this.locale,
     required this.onSelect,
     this.collapsedCount = 6,
   });
 
   final List<Category> categories;
-  final String? activeSlug;
   final AppLocale locale;
-  final ValueChanged<String?> onSelect;
+  final ValueChanged<String> onSelect;
   final int collapsedCount;
 
   @override
@@ -60,19 +56,12 @@ class ServicesCategoryGrid extends StatefulWidget {
 }
 
 class _ServicesCategoryGridState extends State<ServicesCategoryGrid> {
-  late bool _expanded = _activeIndex() >= widget.collapsedCount;
-
-  /// Position of the active tile in the full list («Все» is 0).
-  int _activeIndex() {
-    if (widget.activeSlug == null) return 0;
-    final i = widget.categories.indexWhere((c) => c.slug == widget.activeSlug);
-    return i < 0 ? 0 : i + 1;
-  }
+  bool _expanded = false;
 
   @override
   Widget build(BuildContext context) {
     final locale = widget.locale;
-    final total = widget.categories.length + 1;
+    final total = widget.categories.length;
     // Hiding a single tile behind a toggle isn't worth the extra tap.
     final collapsible = total > widget.collapsedCount + 1;
     final visible = !collapsible || _expanded ? total : widget.collapsedCount;
@@ -106,19 +95,11 @@ class _ServicesCategoryGridState extends State<ServicesCategoryGrid> {
                 mainAxisSpacing: AppSpacing.xs,
               ),
               itemBuilder: (context, i) {
-                if (i == 0) {
-                  return ServicesCategoryTile(
-                    label: t(locale, ru: 'Все', kz: 'Барлығы', en: 'All'),
-                    icon: servicesCategoryIcon(null),
-                    selected: widget.activeSlug == null,
-                    onTap: () => widget.onSelect(null),
-                  );
-                }
-                final category = widget.categories[i - 1];
+                final category = widget.categories[i];
                 return ServicesCategoryTile(
                   label: category.name(locale),
                   icon: servicesCategoryIcon(category.slug),
-                  selected: widget.activeSlug == category.slug,
+                  selected: false,
                   onTap: () => widget.onSelect(category.slug),
                 );
               },

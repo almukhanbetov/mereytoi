@@ -5,6 +5,7 @@ import '../state/cart_provider.dart';
 import '../state/locale_provider.dart';
 import '../widgets/app_bottom_nav.dart';
 import '../widgets/chat/chat_fab.dart';
+import '../widgets/exit_app_sheet.dart';
 import 'cart/cart_screen.dart';
 import 'events/events_screen.dart';
 import 'home/home_screen.dart';
@@ -52,6 +53,21 @@ class _RootShellState extends ConsumerState<RootShell> {
     super.dispose();
   }
 
+  /// System Back with nothing pushed above this shell. A shell opened on top
+  /// of another screen returns to it, another tab returns to Главная, and only
+  /// Главная asks to close the app.
+  void _handleBack(bool didPop, Object? _) {
+    if (didPop) return;
+    final navigator = Navigator.of(context);
+    if (navigator.canPop()) {
+      navigator.pop();
+    } else if (ref.read(selectedTabProvider) != 0) {
+      ref.read(selectedTabProvider.notifier).state = 0;
+    } else {
+      showExitAppSheet(context, ref.read(localeProvider));
+    }
+  }
+
   @override
   Widget build(BuildContext context) {
     ref.listen(
@@ -62,7 +78,7 @@ class _RootShellState extends ConsumerState<RootShell> {
     final locale = ref.watch(localeProvider);
     final cartCount = ref.watch(cartCountProvider);
 
-    return Scaffold(
+    final shell = Scaffold(
       body: SafeArea(
         bottom: false,
         child: IndexedStack(
@@ -120,6 +136,11 @@ class _RootShellState extends ConsumerState<RootShell> {
           ),
         ],
       ),
+    );
+    return PopScope(
+      canPop: false,
+      onPopInvokedWithResult: _handleBack,
+      child: shell,
     );
   }
 }

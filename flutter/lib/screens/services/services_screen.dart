@@ -27,13 +27,18 @@ import '../../widgets/services/services_style.dart';
 /// `GET /api/listings?category=<slug>&search=<term>` the Go handler
 /// already supports server-side — no client-only filtering invented here.
 ///
+/// Without [initialCategorySlug] this is the whole catalog: a tile opens that
+/// category as its own pushed copy of this screen, so the catalog below keeps
+/// its scroll position and search. With a slug it shows only that category,
+/// titled with its name.
+///
 /// Results are a 2-column grid of [ServiceGridCard]s, marketplace style.
 /// Names vary a lot in length, so every card reserves two lines for the
 /// name and the grid gives all cards one computed height.
 class ServicesScreen extends ConsumerStatefulWidget {
   const ServicesScreen({super.key, this.initialCategorySlug});
 
-  /// Non-null when opened from a category card, matching the site's
+  /// Non-null when showing one category, matching the site's
   /// `/services?category=<slug>` deep link.
   final String? initialCategorySlug;
 
@@ -42,7 +47,6 @@ class ServicesScreen extends ConsumerStatefulWidget {
 }
 
 class _ServicesScreenState extends ConsumerState<ServicesScreen> {
-  late String? _activeSlug = widget.initialCategorySlug;
   final _searchController = TextEditingController();
   String _search = '';
   Timer? _debounce;
@@ -61,26 +65,29 @@ class _ServicesScreenState extends ConsumerState<ServicesScreen> {
     });
   }
 
-  void _resetFilters() {
-    setState(() {
-      _activeSlug = null;
-      _search = '';
-      _searchController.clear();
-    });
-  }
-
   void _clearSearch() {
     _debounce?.cancel();
     _searchController.clear();
     setState(() => _search = '');
   }
 
+  void _openCategory(String slug) {
+    Navigator.of(context).push(
+      MaterialPageRoute(
+        builder: (_) => ServicesScreen(initialCategorySlug: slug),
+      ),
+    );
+  }
+
   @override
   Widget build(BuildContext context) {
     final locale = ref.watch(localeProvider);
     final categories = ref.watch(categoriesProvider);
-    final listingsKey = _activeSlug;
+    final listingsKey = widget.initialCategorySlug;
     final listings = ref.watch(listingsProvider(listingsKey));
+    final category = categories.valueOrNull
+        ?.where((c) => c.slug == listingsKey)
+        .firstOrNull;
 
     return Scaffold(
       // This screen doubles as a bottom-nav tab root (no back button) *and*
@@ -88,7 +95,10 @@ class _ServicesScreenState extends ConsumerState<ServicesScreen> {
       // the button, unlike Service Detail's, still has to stay conditional
       // on `canPop`, same as the default `BackButton` would be.
       appBar: AppBar(
-        title: Text(t(locale, ru: 'Услуги', kz: 'Қызметтер', en: 'Services')),
+        title: Text(
+          category?.name(locale) ??
+              t(locale, ru: 'Услуги', kz: 'Қызметтер', en: 'Services'),
+        ),
         leading: Navigator.canPop(context) ? const AppBackButton() : null,
         titleSpacing: Navigator.canPop(context) ? null : AppSpacing.md,
         // A slightly shorter bar keeps the title close to the city filter.
@@ -119,31 +129,32 @@ class _ServicesScreenState extends ConsumerState<ServicesScreen> {
                   onChanged: _onSearchChanged,
                   onClear: _clearSearch,
                 ),
-                ...categories.when(
-                  loading: () => [
-                    const SizedBox(height: AppSpacing.lg),
-                    const _CategoryGridSkeleton(),
-                  ],
-                  error: (err, _) => const <Widget>[],
-                  data: (list) => [
-                    const SizedBox(height: AppSpacing.lg),
-                    _SectionTitle(
-                      t(
-                        locale,
-                        ru: 'Категории',
-                        kz: 'Санаттар',
-                        en: 'Categories',
+                // While searching, the results come right under the field.
+                if (listingsKey == null && _search.isEmpty)
+                  ...categories.when(
+                    loading: () => [
+                      const SizedBox(height: AppSpacing.lg),
+                      const _CategoryGridSkeleton(),
+                    ],
+                    error: (err, _) => const <Widget>[],
+                    data: (list) => [
+                      const SizedBox(height: AppSpacing.lg),
+                      _SectionTitle(
+                        t(
+                          locale,
+                          ru: 'Категории',
+                          kz: 'Санаттар',
+                          en: 'Categories',
+                        ),
                       ),
-                    ),
-                    const SizedBox(height: AppSpacing.sm),
-                    ServicesCategoryGrid(
-                      categories: list,
-                      activeSlug: _activeSlug,
-                      locale: locale,
-                      onSelect: (slug) => setState(() => _activeSlug = slug),
-                    ),
-                  ],
-                ),
+                      const SizedBox(height: AppSpacing.sm),
+                      ServicesCategoryGrid(
+                        categories: list,
+                        locale: locale,
+                        onSelect: _openCategory,
+                      ),
+                    ],
+                  ),
                 const SizedBox(height: AppSpacing.lg),
               ],
             ),
@@ -194,15 +205,14 @@ class _ServicesScreenState extends ConsumerState<ServicesScreen> {
                               .contains(_search.toLowerCase()),
                         )
                         .toList();
-              final filtersActive = _activeSlug != null || _search.isNotEmpty;
               if (filtered.isEmpty) {
                 return [
                   SliverFillRemaining(
                     hasScrollBody: false,
                     child: _EmptyResults(
                       locale: locale,
-                      showReset: filtersActive,
-                      onReset: _resetFilters,
+                      showReset: _search.isNotEmpty,
+                      onReset: _clearSearch,
                     ),
                   ),
                 ];

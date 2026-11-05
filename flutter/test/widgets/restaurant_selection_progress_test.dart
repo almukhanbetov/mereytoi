@@ -192,7 +192,9 @@ void main() {
       expect(find.text('Малый зал'), findsWidgets);
       expect(find.text('Выбран зал: Малый зал'), findsNothing);
 
-      await tester.tap(find.text('Малый зал').first, warnIfMissed: false);
+      await tester.ensureVisible(find.text('Малый зал').first);
+      await tester.pumpAndSettle();
+      await tester.tap(find.text('Малый зал').first);
       await tester.pumpAndSettle();
 
       expect(find.text('Выбран зал: Малый зал'), findsOneWidget);
@@ -216,11 +218,15 @@ void main() {
       final container = await _pump(tester);
       addTearDown(container.dispose);
 
-      await tester.tap(find.text('Малый зал').first, warnIfMissed: false);
+      await tester.ensureVisible(find.text('Малый зал').first);
+      await tester.pumpAndSettle();
+      await tester.tap(find.text('Малый зал').first);
       await tester.pumpAndSettle();
       expect(find.text('Выбран зал: Малый зал'), findsOneWidget);
 
-      await tester.tap(find.text('Большой зал').first, warnIfMissed: false);
+      await tester.ensureVisible(find.text('Большой зал').first);
+      await tester.pumpAndSettle();
+      await tester.tap(find.text('Большой зал').first);
       await tester.pumpAndSettle();
 
       expect(find.text('Выбран зал: Большой зал'), findsOneWidget);
@@ -237,7 +243,9 @@ void main() {
 
     expect(find.byIcon(Icons.check_rounded), findsNothing);
 
-    await tester.tap(find.text('Малый зал').first, warnIfMissed: false);
+    await tester.ensureVisible(find.text('Малый зал').first);
+    await tester.pumpAndSettle();
+    await tester.tap(find.text('Малый зал').first);
     await tester.pumpAndSettle();
 
     expect(find.byIcon(Icons.check_rounded), findsOneWidget);
@@ -250,7 +258,9 @@ void main() {
         final container = await _pump(tester, size: Size(width, 800));
         addTearDown(container.dispose);
 
-        await tester.tap(find.text('Малый зал').first, warnIfMissed: false);
+        await tester.ensureVisible(find.text('Малый зал').first);
+        await tester.pumpAndSettle();
+        await tester.tap(find.text('Малый зал').first);
         await tester.pumpAndSettle();
 
         expect(tester.takeException(), isNull);

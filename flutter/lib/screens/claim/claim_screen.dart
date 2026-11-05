@@ -70,6 +70,7 @@ class _ClaimScreenState extends ConsumerState<ClaimScreen> {
     final locale = ref.watch(localeProvider);
 
     return Scaffold(
+      appBar: AppBar(),
       body: Center(
         child: Padding(
           padding: const EdgeInsets.all(AppSpacing.xl),

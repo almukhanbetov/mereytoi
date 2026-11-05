@@ -2660,3 +2660,9 @@ a.ws-chip:hover, button.ws-chip:hover{ border-color: var(--gold); }
   .signout-dialog{ width:100%; max-width:100%; margin:auto 0 0; border-radius:22px 22px 0 0; }
   .signout-dialog__body{ padding:22px 20px calc(22px + env(safe-area-inset-bottom)); }
 }
+
+/* ---------- Provider form: the business's contact ---------- */
+.provider-contact{ display:flex; flex-direction:column; align-items:flex-start; gap:4px; }
+.provider-contact > span{ color: var(--text-muted); font-size:13.5px; }
+.provider-contact small,
+.provider-form-card label small{ color: var(--text-muted); font-size:12.5px; }

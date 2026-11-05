@@ -21,6 +21,8 @@ import '../../../../widgets/city_selector.dart';
 import '../../../../widgets/network_image_box.dart';
 import '../../../../widgets/provider/provider_form_widgets.dart';
 import '../../../../widgets/services/services_category_grid.dart';
+import '../../restaurant_admin/restaurant_manage_screen.dart';
+import 'provider_profile_form_sheet.dart';
 
 const _priceTypes = [
   (value: 'fixed', ru: 'Фиксированная', kz: 'Тіркелген', en: 'Fixed'),
@@ -52,6 +54,17 @@ Future<bool?> openProviderServiceForm(
   );
 }
 
+/// «Добавить ресторан»: the same form for a restaurant's general data, then
+/// straight on to the existing halls and menus management.
+Future<void> openRestaurantForm(BuildContext context) {
+  return Navigator.of(context).push<void>(
+    MaterialPageRoute(
+      fullscreenDialog: true,
+      builder: (_) => const ProviderServiceFormScreen(restaurant: true),
+    ),
+  );
+}
+
 /// The provider's own add/edit service form, in the onboarding's premium
 /// style: Основное, Стоимость, Категория, Город, Фотографии, Дополнительно.
 /// The city comes only from the directory (canonical name saved), the
@@ -60,9 +73,17 @@ Future<bool?> openProviderServiceForm(
 /// created for the signed-in user's own provider profile — the backend
 /// binds it to the JWT, there's nothing to choose.
 class ProviderServiceFormScreen extends ConsumerStatefulWidget {
-  const ProviderServiceFormScreen({super.key, this.existing});
+  const ProviderServiceFormScreen({
+    super.key,
+    this.existing,
+    this.restaurant = false,
+  });
 
   final Listing? existing;
+
+  /// A new restaurant: its category is fixed and it has its own phone. Its
+  /// prices live in the menus, so there's no price here.
+  final bool restaurant;
 
   @override
   ConsumerState<ProviderServiceFormScreen> createState() =>
@@ -71,6 +92,97 @@ class ProviderServiceFormScreen extends ConsumerStatefulWidget {
 
 /// A photo in the form: an already-uploaded URL, or a local file being or
 /// failing to be uploaded.
+/// The business's number as clients get it, with a way to change it right
+/// from the service form: the sheet opens over the form, so nothing typed is
+/// lost. It belongs to the business, not to this service.
+class _BusinessContact extends ConsumerWidget {
+  const _BusinessContact({required this.locale});
+
+  final AppLocale locale;
+
+  @override
+  Widget build(BuildContext context, WidgetRef ref) {
+    final colors = context.mereytoiColors;
+    final textTheme = Theme.of(context).textTheme;
+    final profile = ref.watch(providerProfileProvider).valueOrNull;
+    final phone = profile?.phone.trim() ?? '';
+    // The contact button clients get prefers these over the phone number.
+    final messenger = profile == null
+        ? null
+        : profile.whatsapp.trim().isNotEmpty
+        ? 'WhatsApp'
+        : profile.telegram.trim().isNotEmpty
+        ? 'Telegram'
+        : null;
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Text(
+          t(
+            locale,
+            ru: 'Контактный телефон бизнеса',
+            kz: 'Бизнестің байланыс телефоны',
+            en: 'Business contact phone',
+          ),
+          style: textTheme.labelLarge?.copyWith(color: colors.textSecondary),
+        ),
+        const SizedBox(height: AppSpacing.xxs),
+        Text(
+          phone.isEmpty
+              ? t(locale, ru: 'Не указан', kz: 'Көрсетілмеген', en: 'Not set')
+              : phone,
+          key: const ValueKey('service-business-phone'),
+          style: textTheme.bodyLarge,
+        ),
+        const SizedBox(height: AppSpacing.xxs),
+        Text(
+          phone.isEmpty
+              ? t(
+                  locale,
+                  ru: 'Клиенты смогут связаться с вами только через чат или указанные мессенджеры',
+                  kz: 'Клиенттер сізбен тек чат немесе көрсетілген мессенджерлер арқылы байланыса алады',
+                  en: 'Clients can reach you only through chat or the messengers you added',
+                )
+              : t(
+                  locale,
+                  ru: 'Этот номер увидят клиенты',
+                  kz: 'Бұл нөмірді клиенттер көреді',
+                  en: 'Clients will see this number',
+                ),
+          style: textTheme.bodySmall?.copyWith(color: colors.textSecondary),
+        ),
+        if (phone.isNotEmpty && messenger != null) ...[
+          const SizedBox(height: AppSpacing.xxs),
+          Text(
+            t(
+              locale,
+              ru: 'Кнопка связи сейчас открывает $messenger',
+              kz: 'Байланыс түймесі қазір $messenger ашады',
+              en: 'The contact button currently opens $messenger',
+            ),
+            style: textTheme.bodySmall?.copyWith(color: colors.textSecondary),
+          ),
+        ],
+        if (profile != null)
+          Align(
+            alignment: Alignment.centerRight,
+            child: TextButton(
+              key: const ValueKey('service-business-phone-edit'),
+              style: TextButton.styleFrom(minimumSize: const Size(48, 48)),
+              onPressed: () =>
+                  openProviderProfileFormSheet(context, existing: profile),
+              child: Text(
+                phone.isEmpty
+                    ? t(locale, ru: 'Добавить', kz: 'Қосу', en: 'Add')
+                    : t(locale, ru: 'Изменить', kz: 'Өзгерту', en: 'Edit'),
+              ),
+            ),
+          ),
+      ],
+    );
+  }
+}
+
 class _FormPhoto {
   const _FormPhoto({this.url, this.path, this.failed = false});
 
@@ -88,6 +200,7 @@ class _ProviderServiceFormScreenState
   late final TextEditingController _price;
   late final TextEditingController _nameKz;
   late final TextEditingController _descriptionKz;
+  final _phone = TextEditingController();
   Category? _category;
   City? _city;
   late String _priceType;
@@ -97,6 +210,7 @@ class _ProviderServiceFormScreenState
   String? _error;
 
   bool get _isEdit => widget.existing != null;
+  bool get _isRestaurant => widget.restaurant;
 
   @override
   void initState() {
@@ -131,7 +245,7 @@ class _ProviderServiceFormScreenState
     try {
       final categories = await ref.read(categoriesProvider.future);
       int? categoryId = e?.categoryId;
-      if (categoryId == null) {
+      if (categoryId == null && !_isRestaurant) {
         final mine = ref.read(myListingsProvider).valueOrNull ?? const [];
         final candidates = mine.where(
           (l) => !categories.any(
@@ -153,6 +267,13 @@ class _ProviderServiceFormScreenState
         setState(() => _category = category);
       }
     } catch (_) {}
+    if (_isRestaurant) {
+      try {
+        // The business's public number, as a starting point to edit.
+        final provider = await ref.read(providerProfileProvider.future);
+        if (mounted && _phone.text.isEmpty) _phone.text = provider?.phone ?? '';
+      } catch (_) {}
+    }
     try {
       final cities = await ref.read(citiesProvider.future);
       var wanted = e?.city ?? '';
@@ -178,7 +299,14 @@ class _ProviderServiceFormScreenState
 
   @override
   void dispose() {
-    for (final c in [_name, _description, _price, _nameKz, _descriptionKz]) {
+    for (final c in [
+      _name,
+      _description,
+      _price,
+      _nameKz,
+      _descriptionKz,
+      _phone,
+    ]) {
       c.dispose();
     }
     super.dispose();
@@ -232,8 +360,7 @@ class _ProviderServiceFormScreenState
 
   bool get _valid =>
       _nameError == null &&
-      _priceError == null &&
-      _categoryError == null &&
+      (_isRestaurant || (_priceError == null && _categoryError == null)) &&
       _cityError == null;
 
   // ---- photos ----
@@ -320,11 +447,46 @@ class _ProviderServiceFormScreenState
     final descriptionKz = _descriptionKz.text.trim().isEmpty
         ? description
         : _descriptionKz.text.trim();
-    final price = int.parse(_price.text.trim());
+    final price = _isRestaurant ? 0 : int.parse(_price.text.trim());
     final imageUrls = [for (final p in _photos) p.url!];
 
     try {
       final actions = ref.read(providerActionsProvider);
+      if (_isRestaurant) {
+        final categories = await ref.read(categoriesProvider.future);
+        final venues = categories.firstWhere((c) => c.slug == 'venues');
+        final created = await actions.createListing(
+          categoryId: venues.id,
+          nameRu: name,
+          nameKz: nameKz,
+          descriptionRu: description,
+          descriptionKz: descriptionKz,
+          city: _city!.nameRu,
+          phone: _phone.text.trim(),
+          imageUrls: imageUrls,
+        );
+        if (!mounted) return;
+        // Not awaited: this form is gone once the management screen opens.
+        navigator.pushReplacement(
+          MaterialPageRoute<void>(
+            builder: (_) => RestaurantManageScreen(listingId: created.id),
+          ),
+        );
+        messenger.showSnackBar(
+          SnackBar(
+            behavior: SnackBarBehavior.floating,
+            content: Text(
+              t(
+                locale,
+                ru: 'Ресторан опубликован. Добавьте залы и меню',
+                kz: 'Мейрамхана жарияланды. Залдар мен мәзір қосыңыз',
+                en: 'Restaurant published. Add halls and menus',
+              ),
+            ),
+          ),
+        );
+        return;
+      }
       if (_isEdit) {
         await actions.updateListing(
           widget.existing!,
@@ -400,7 +562,14 @@ class _ProviderServiceFormScreenState
           onPressed: _saving ? null : () => Navigator.of(context).pop(),
         ),
         title: Text(
-          _isEdit
+          _isRestaurant
+              ? t(
+                  locale,
+                  ru: 'Новый ресторан',
+                  kz: 'Жаңа мейрамхана',
+                  en: 'New restaurant',
+                )
+              : _isEdit
               ? t(
                   locale,
                   ru: 'Изменить услугу',
@@ -439,12 +608,19 @@ class _ProviderServiceFormScreenState
                           kz: 'Атауы',
                           en: 'Name',
                         ),
-                        hint: t(
-                          locale,
-                          ru: 'Например, Проведение тоя',
-                          kz: 'Мысалы, Той жүргізу',
-                          en: 'e.g. Wedding hosting',
-                        ),
+                        hint: _isRestaurant
+                            ? t(
+                                locale,
+                                ru: 'Например, Банкетный зал «Алтын»',
+                                kz: 'Мысалы, «Алтын» банкет залы',
+                                en: 'e.g. Altyn banquet hall',
+                              )
+                            : t(
+                                locale,
+                                ru: 'Например, Проведение тоя',
+                                kz: 'Мысалы, Той жүргізу',
+                                en: 'e.g. Wedding hosting',
+                              ),
                         controller: _name,
                         maxLength: 200,
                         errorText: show ? _nameError : null,
@@ -473,72 +649,84 @@ class _ProviderServiceFormScreenState
                     ],
                   ),
                 ),
-                _Section(
-                  title: t(locale, ru: 'Стоимость', kz: 'Құны', en: 'Price'),
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      ProviderTextField(
-                        fieldKey: const ValueKey('service-price'),
-                        label: t(locale, ru: 'Цена', kz: 'Бағасы', en: 'Price'),
-                        hint: '50 000',
-                        suffixText: '₸',
-                        controller: _price,
-                        keyboardType: TextInputType.number,
-                        inputFormatters: [
-                          FilteringTextInputFormatter.digitsOnly,
-                        ],
-                        maxLength: 9,
-                        errorText: show ? _priceError : null,
-                        onChanged: (_) => setState(() {}),
-                      ),
-                      Wrap(
-                        spacing: AppSpacing.xs,
-                        runSpacing: AppSpacing.xs,
-                        children: [
-                          for (final pt in _priceTypes)
-                            _Pill(
-                              key: ValueKey('price-type-${pt.value}'),
-                              label: t(locale, ru: pt.ru, kz: pt.kz, en: pt.en),
-                              selected: _priceType == pt.value,
-                              onTap: () =>
-                                  setState(() => _priceType = pt.value),
-                            ),
-                        ],
-                      ),
-                    ],
-                  ),
-                ),
-                _Section(
-                  title: t(
-                    locale,
-                    ru: 'Категория',
-                    kz: 'Санат',
-                    en: 'Category',
-                  ),
-                  plain: true,
-                  child: ProviderPickerCard(
-                    tapKey: const ValueKey('service-category'),
-                    icon: _category == null
-                        ? Icons.category_outlined
-                        : servicesCategoryIcon(_category!.slug),
-                    value: _category?.name(locale),
-                    placeholder: t(
-                      locale,
-                      ru: 'Выберите категорию',
-                      kz: 'Санатты таңдаңыз',
-                      en: 'Select a category',
+                if (!_isRestaurant)
+                  _Section(
+                    title: t(locale, ru: 'Стоимость', kz: 'Құны', en: 'Price'),
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        ProviderTextField(
+                          fieldKey: const ValueKey('service-price'),
+                          label: t(
+                            locale,
+                            ru: 'Цена',
+                            kz: 'Бағасы',
+                            en: 'Price',
+                          ),
+                          hint: '50 000',
+                          suffixText: '₸',
+                          controller: _price,
+                          keyboardType: TextInputType.number,
+                          inputFormatters: [
+                            FilteringTextInputFormatter.digitsOnly,
+                          ],
+                          maxLength: 9,
+                          errorText: show ? _priceError : null,
+                          onChanged: (_) => setState(() {}),
+                        ),
+                        Wrap(
+                          spacing: AppSpacing.xs,
+                          runSpacing: AppSpacing.xs,
+                          children: [
+                            for (final pt in _priceTypes)
+                              _Pill(
+                                key: ValueKey('price-type-${pt.value}'),
+                                label: t(
+                                  locale,
+                                  ru: pt.ru,
+                                  kz: pt.kz,
+                                  en: pt.en,
+                                ),
+                                selected: _priceType == pt.value,
+                                onTap: () =>
+                                    setState(() => _priceType = pt.value),
+                              ),
+                          ],
+                        ),
+                      ],
                     ),
-                    errorText: show ? _categoryError : null,
-                    onTap: () async {
-                      final picked = await showProviderCategoryPicker(
-                        context,
-                        selectedId: _category?.id,
-                      );
-                      if (picked != null) setState(() => _category = picked);
-                    },
                   ),
-                ),
+                if (!_isRestaurant)
+                  _Section(
+                    title: t(
+                      locale,
+                      ru: 'Категория',
+                      kz: 'Санат',
+                      en: 'Category',
+                    ),
+                    plain: true,
+                    child: ProviderPickerCard(
+                      tapKey: const ValueKey('service-category'),
+                      icon: _category == null
+                          ? Icons.category_outlined
+                          : servicesCategoryIcon(_category!.slug),
+                      value: _category?.name(locale),
+                      placeholder: t(
+                        locale,
+                        ru: 'Выберите категорию',
+                        kz: 'Санатты таңдаңыз',
+                        en: 'Select a category',
+                      ),
+                      errorText: show ? _categoryError : null,
+                      onTap: () async {
+                        final picked = await showProviderCategoryPicker(
+                          context,
+                          selectedId: _category?.id,
+                        );
+                        if (picked != null) setState(() => _category = picked);
+                      },
+                    ),
+                  ),
                 _Section(
                   title: t(locale, ru: 'Город', kz: 'Қала', en: 'City'),
                   plain: true,
@@ -561,6 +749,36 @@ class _ProviderServiceFormScreenState
                       if (picked != null) setState(() => _city = picked);
                     },
                   ),
+                ),
+                _Section(
+                  title: t(
+                    locale,
+                    ru: 'Контактный телефон',
+                    kz: 'Байланыс телефоны',
+                    en: 'Contact phone',
+                  ),
+                  child: _isRestaurant
+                      ? ProviderTextField(
+                          fieldKey: const ValueKey('restaurant-phone'),
+                          label: t(
+                            locale,
+                            ru: 'Телефон ресторана',
+                            kz: 'Мейрамхана телефоны',
+                            en: 'Restaurant phone',
+                          ),
+                          hint: '+7 700 000 00 00',
+                          helperText: t(
+                            locale,
+                            ru: 'Необязательно. Номер будет виден клиентам',
+                            kz: 'Міндетті емес. Нөмірді клиенттер көреді',
+                            en: 'Optional. Clients will see this number',
+                          ),
+                          controller: _phone,
+                          keyboardType: TextInputType.phone,
+                          maxLength: 30,
+                          onChanged: (_) {},
+                        )
+                      : _BusinessContact(locale: locale),
                 ),
                 _Section(
                   title: t(
@@ -636,6 +854,7 @@ class _ProviderServiceFormScreenState
           _BottomBar(
             locale: locale,
             isEdit: _isEdit,
+            restaurant: _isRestaurant,
             saving: _saving,
             photosBusy: _photosBusy,
             photosFailed: _photosFailed,
@@ -1027,6 +1246,7 @@ class _BottomBar extends StatelessWidget {
   const _BottomBar({
     required this.locale,
     required this.isEdit,
+    required this.restaurant,
     required this.saving,
     required this.photosBusy,
     required this.photosFailed,
@@ -1036,6 +1256,7 @@ class _BottomBar extends StatelessWidget {
 
   final AppLocale locale;
   final bool isEdit;
+  final bool restaurant;
   final bool saving;
   final bool photosBusy;
   final bool photosFailed;
@@ -1115,6 +1336,13 @@ class _BottomBar extends StatelessWidget {
                                   ru: 'Сохранить изменения',
                                   kz: 'Өзгерістерді сақтау',
                                   en: 'Save changes',
+                                )
+                              : restaurant
+                              ? t(
+                                  locale,
+                                  ru: 'Опубликовать ресторан',
+                                  kz: 'Мейрамхананы жариялау',
+                                  en: 'Publish the restaurant',
                                 )
                               : t(
                                   locale,

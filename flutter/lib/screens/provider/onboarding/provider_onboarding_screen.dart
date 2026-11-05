@@ -62,6 +62,7 @@ class _ProviderOnboardingScreenState
   final _name = TextEditingController();
   final _description = TextEditingController();
   final _experience = TextEditingController();
+  final _phone = TextEditingController();
   final _serviceName = TextEditingController();
   final _serviceDescription = TextEditingController();
   final _price = TextEditingController();
@@ -86,6 +87,7 @@ class _ProviderOnboardingScreenState
       if (_name.text.isEmpty) _name.text = s.displayName;
       if (_description.text.isEmpty) _description.text = s.description;
       if (_experience.text.isEmpty) _experience.text = s.experienceText;
+      if (_phone.text.isEmpty) _phone.text = s.phone;
     } catch (_) {
       // No profile info — the wizard simply starts empty.
     }
@@ -97,6 +99,7 @@ class _ProviderOnboardingScreenState
       _name,
       _description,
       _experience,
+      _phone,
       _serviceName,
       _serviceDescription,
       _price,
@@ -171,6 +174,7 @@ class _ProviderOnboardingScreenState
                     name: _name,
                     description: _description,
                     experience: _experience,
+                    phone: _phone,
                   ),
                   _CityStep(locale: locale),
                   _PhotosStep(locale: locale),
@@ -463,12 +467,14 @@ class _ProfileStep extends ConsumerWidget {
     required this.name,
     required this.description,
     required this.experience,
+    required this.phone,
   });
 
   final AppLocale locale;
   final TextEditingController name;
   final TextEditingController description;
   final TextEditingController experience;
+  final TextEditingController phone;
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
@@ -545,6 +551,26 @@ class _ProfileStep extends ConsumerWidget {
                   en: 'From 0 to $kMaxExperienceYears',
                 ),
           onChanged: notifier.setExperience,
+        ),
+        ProviderTextField(
+          fieldKey: const ValueKey('onboarding-phone'),
+          label: t(
+            locale,
+            ru: 'Контактный телефон бизнеса',
+            kz: 'Бизнестің байланыс телефоны',
+            en: 'Business contact phone',
+          ),
+          hint: '+7 700 000 00 00',
+          helperText: t(
+            locale,
+            ru: 'Необязательно. Номер будет виден клиентам',
+            kz: 'Міндетті емес. Нөмірді клиенттер көреді',
+            en: 'Optional. Clients will see this number',
+          ),
+          controller: phone,
+          keyboardType: TextInputType.phone,
+          maxLength: 30,
+          onChanged: notifier.setPhone,
         ),
       ],
     );
@@ -1077,6 +1103,7 @@ class _PreviewStep extends ConsumerWidget {
                                   kz: 'тәжірибе ${_yearsLabel(locale, s.experienceYears!)}',
                                   en: '${_yearsLabel(locale, s.experienceYears!)} of experience',
                                 ),
+                              if (s.phone.trim().isNotEmpty) s.phone.trim(),
                             ].join(' · '),
                             key: const ValueKey('preview-meta'),
                             maxLines: 2,

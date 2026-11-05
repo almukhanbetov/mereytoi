@@ -4,6 +4,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../../core/config/api_config.dart';
 import '../../../core/theme/app_theme.dart';
 import '../../../core/utils/error_messages.dart';
+import '../../../state/categories_provider.dart';
 import '../../../state/listings_provider.dart';
 import '../../../state/locale_provider.dart';
 import '../../../widgets/app_card.dart';
@@ -62,7 +63,17 @@ class RestaurantAdminListScreen extends ConsumerWidget {
             onRetry: () => ref.invalidate(myListingsProvider),
           ),
         ),
-        data: (listings) {
+        data: (all) {
+          // The same account's ordinary services have no halls or menus.
+          final categories =
+              ref.watch(categoriesProvider).valueOrNull ?? const [];
+          final venueIds = {
+            for (final c in categories)
+              if (c.slug == 'venues') c.id,
+          };
+          final listings = venueIds.isEmpty
+              ? all
+              : all.where((l) => venueIds.contains(l.categoryId)).toList();
           if (listings.isEmpty) {
             return Center(
               child: Padding(

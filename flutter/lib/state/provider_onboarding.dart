@@ -43,6 +43,7 @@ class ProviderOnboardingState {
     this.displayName = '',
     this.description = '',
     this.experienceText = '',
+    this.phone = '',
     this.city,
     this.photos = const [],
     this.serviceName = '',
@@ -61,6 +62,10 @@ class ProviderOnboardingState {
   final String displayName;
   final String description;
   final String experienceText;
+
+  /// The business's public contact number: optional, and never filled in
+  /// from the account's private phone.
+  final String phone;
   final City? city;
   final List<OnboardingPhoto> photos;
   final String serviceName;
@@ -121,6 +126,7 @@ class ProviderOnboardingState {
     String? displayName,
     String? description,
     String? experienceText,
+    String? phone,
     City? city,
     List<OnboardingPhoto>? photos,
     String? serviceName,
@@ -140,6 +146,7 @@ class ProviderOnboardingState {
       displayName: displayName ?? this.displayName,
       description: description ?? this.description,
       experienceText: experienceText ?? this.experienceText,
+      phone: phone ?? this.phone,
       city: city ?? this.city,
       photos: photos ?? this.photos,
       serviceName: serviceName ?? this.serviceName,
@@ -179,6 +186,7 @@ class ProviderOnboardingController
   void setDisplayName(String v) => state = state.copyWith(displayName: v);
   void setDescription(String v) => state = state.copyWith(description: v);
   void setExperience(String v) => state = state.copyWith(experienceText: v);
+  void setPhone(String v) => state = state.copyWith(phone: v);
   void setCity(City city) => state = state.copyWith(city: city);
   void setServiceName(String v) => state = state.copyWith(serviceName: v);
   void setServiceDescription(String v) =>
@@ -239,6 +247,7 @@ class ProviderOnboardingController
           state.experienceText.isEmpty && provider.experienceYears != null
           ? '${provider.experienceYears}'
           : state.experienceText,
+      phone: state.phone.isEmpty ? provider.phone : state.phone,
       city: state.city ?? city,
     );
   }
@@ -300,8 +309,8 @@ class ProviderOnboardingController
           displayName: state.displayName.trim(),
           city: _cityName,
           description: state.description.trim(),
-          // Keep the contact details the profile already has.
-          phone: current.phone,
+          phone: state.phone.trim(),
+          // Keep the other contact details the profile already has.
           whatsapp: current.whatsapp,
           telegram: current.telegram,
           avatarUrl: current.avatarUrl,
@@ -318,6 +327,7 @@ class ProviderOnboardingController
           displayName: state.displayName.trim(),
           city: _cityName,
           description: state.description.trim(),
+          phone: state.phone.trim(),
           experienceYears: state.experienceYears,
         );
       } on ApiException catch (e) {

@@ -467,6 +467,24 @@ class AppTheme {
         onSurface: c.textPrimary,
       ),
       textTheme: textTheme,
+      // The back button on every pushed screen: a soft circle keeps it easy
+      // to spot, while the button around it stays 48dp to tap.
+      actionIconTheme: ActionIconThemeData(
+        backButtonIconBuilder: (_) => DecoratedBox(
+          decoration: BoxDecoration(
+            color: c.surfaceSoft,
+            shape: BoxShape.circle,
+          ),
+          child: SizedBox.square(
+            dimension: 36,
+            child: Icon(
+              Icons.arrow_back_rounded,
+              size: 20,
+              color: c.textPrimary,
+            ),
+          ),
+        ),
+      ),
       appBarTheme: AppBarTheme(
         backgroundColor: c.backgroundPrimary,
         surfaceTintColor: Colors.transparent,

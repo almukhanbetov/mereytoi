@@ -208,33 +208,42 @@ class _StickyCta extends ConsumerWidget {
               ],
               Row(
                 children: [
-                  // Sized to its own content (not Expanded) — the price is
-                  // short, so the button on the right gets the room it
-                  // actually needs for a full, un-truncated label.
-                  Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    mainAxisSize: MainAxisSize.min,
-                    children: [
-                      Text(
-                        isPerPerson
-                            ? '${formatPrice(listing.price)} / ${t(locale, ru: "чел.", kz: "адам", en: "guests")}'
-                            : t(
-                                locale,
-                                ru: 'Стоимость',
-                                kz: 'Құны',
-                                en: 'Cost',
-                              ),
-                        style: Theme.of(context).textTheme.bodySmall,
-                      ),
-                      AnimatedPriceText(
-                        text: formatPrice(total),
-                        style: TextStyle(
-                          color: context.mereytoiColors.goldSoft,
-                          fontWeight: FontWeight.w700,
-                          fontSize: 18,
+                  // Sized to its own content (not Expanded), so the button
+                  // gets the room its full label needs; capped so a long price
+                  // shrinks instead of pushing the button past the screen edge.
+                  ConstrainedBox(
+                    constraints: BoxConstraints(
+                      maxWidth: MediaQuery.sizeOf(context).width * 0.4,
+                    ),
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      mainAxisSize: MainAxisSize.min,
+                      children: [
+                        Text(
+                          isPerPerson
+                              ? '${formatPrice(listing.price)} / ${t(locale, ru: "чел.", kz: "адам", en: "guests")}'
+                              : t(
+                                  locale,
+                                  ru: 'Стоимость',
+                                  kz: 'Құны',
+                                  en: 'Cost',
+                                ),
+                          style: Theme.of(context).textTheme.bodySmall,
                         ),
-                      ),
-                    ],
+                        FittedBox(
+                          fit: BoxFit.scaleDown,
+                          alignment: Alignment.centerLeft,
+                          child: AnimatedPriceText(
+                            text: formatPrice(total),
+                            style: TextStyle(
+                              color: context.mereytoiColors.goldSoft,
+                              fontWeight: FontWeight.w700,
+                              fontSize: 18,
+                            ),
+                          ),
+                        ),
+                      ],
+                    ),
                   ),
                   const SizedBox(width: AppSpacing.xs),
                   // Brief section 10 — "Добавить в мой той": an icon-only
@@ -268,7 +277,7 @@ class _StickyCta extends ConsumerWidget {
                       style: ElevatedButton.styleFrom(
                         minimumSize: const Size(0, 48),
                         padding: const EdgeInsets.symmetric(
-                          horizontal: AppSpacing.md,
+                          horizontal: AppSpacing.sm,
                         ),
                       ),
                       onPressed: () {

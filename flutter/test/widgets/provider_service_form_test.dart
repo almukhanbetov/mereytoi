@@ -19,6 +19,8 @@ import 'package:mereytoi_app/state/provider_provider.dart';
 import 'package:mereytoi_app/state/providers.dart';
 import 'package:mereytoi_app/widgets/city_selector.dart';
 import 'package:mereytoi_app/widgets/services/services_category_grid.dart';
+import 'package:mereytoi_app/screens/profile/restaurant_admin/restaurant_manage_screen.dart';
+import 'package:mereytoi_app/screens/profile/provider/widgets/provider_profile_form_sheet.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 
 import '../helpers/city_fake_api.dart';
@@ -107,6 +109,8 @@ void main() {
     WidgetTester tester, {
     bool withListing = true,
     String providerCity = 'Астана',
+    String providerPhone = '',
+    String providerWhatsapp = '',
     Size size = const Size(390, 844),
     ThemeData Function()? theme,
     AppLocale locale = AppLocale.ru,
@@ -125,6 +129,8 @@ void main() {
         'user_id': 1,
         'display_name': 'Dana',
         'city': providerCity,
+        'phone': providerPhone,
+        'whatsapp': providerWhatsapp,
         'status': 'active',
       },
     );
@@ -252,6 +258,157 @@ void main() {
     },
   );
 
+  group('business contact in the service form', () {
+    Finder number() => find.byKey(const ValueKey('service-business-phone'));
+
+    testWidgets('shows the number clients will see', (tester) async {
+      await pump(tester, providerPhone: '+7 701 111 22 33');
+      await openCreate(tester);
+      await scrollTo(tester, number());
+      expect(tester.widget<Text>(number()).data, '+7 701 111 22 33');
+      expect(find.text('Этот номер увидят клиенты'), findsOneWidget);
+      expect(find.textContaining('Кнопка связи'), findsNothing);
+    });
+
+    testWidgets('says so when none is set', (tester) async {
+      await pump(tester);
+      await openCreate(tester);
+      await scrollTo(tester, number());
+      expect(tester.widget<Text>(number()).data, 'Не указан');
+    });
+
+    testWidgets('a messenger taking over the contact button is mentioned', (
+      tester,
+    ) async {
+      await pump(
+        tester,
+        providerPhone: '+7 701 111 22 33',
+        providerWhatsapp: '+7 702 000 00 00',
+      );
+      await openCreate(tester);
+      await scrollTo(tester, number());
+      expect(
+        find.text('Кнопка связи сейчас открывает WhatsApp'),
+        findsOneWidget,
+      );
+    });
+
+    testWidgets('editing it updates the card and keeps what was typed', (
+      tester,
+    ) async {
+      final (api, _, _) = await pump(tester);
+      await openCreate(tester);
+      await enter(tester, 'service-name', 'Черновик');
+      final edit = find.byKey(const ValueKey('service-business-phone-edit'));
+      await scrollTo(tester, edit);
+      await tester.tap(edit);
+      await settle(tester);
+
+      final phone = find.byKey(const ValueKey('provider-profile-phone'));
+      await tester.ensureVisible(phone);
+      await tester.enterText(phone, '+7 705 555 55 55');
+      await tester.pump();
+      final save = find.descendant(
+        of: find.byType(ProviderProfileFormSheet),
+        matching: find.byType(ElevatedButton),
+      );
+      await tester.ensureVisible(save.last);
+      await settle(tester);
+      await tester.tap(save.last);
+      await settle(tester);
+
+      expect(api.count('PUT /api/provider/me'), 1);
+      expect(api.provider!['phone'], '+7 705 555 55 55');
+      await scrollTo(tester, number());
+      expect(tester.widget<Text>(number()).data, '+7 705 555 55 55');
+      await scrollTo(tester, find.byKey(const ValueKey('service-name')));
+      expect(find.text('Черновик'), findsOneWidget);
+      // The number belongs to the business, not to the service.
+      expect(api.count('POST /api/provider/me/listings'), 0);
+    });
+  });
+
+  group('new restaurant', () {
+    Future<void> openRestaurant(WidgetTester tester) async {
+      openRestaurantForm(tester.element(find.byType(MyServicesScreen)));
+      await settle(tester);
+      expect(find.text('Новый ресторан'), findsOneWidget);
+    }
+
+    testWidgets(
+      'general data only: no category or price, city and phone filled',
+      (tester) async {
+        await pump(tester, providerPhone: '+7 701 111 22 33');
+        await openRestaurant(tester);
+        expect(find.byKey(const ValueKey('service-category')), findsNothing);
+        expect(find.byKey(const ValueKey('service-price')), findsNothing);
+        expect(
+          find.byKey(const ValueKey('service-business-phone')),
+          findsNothing,
+        );
+
+        final phone = find.byKey(const ValueKey('restaurant-phone'));
+        await scrollTo(tester, phone);
+        expect(
+          tester.widget<TextField>(phone).controller!.text,
+          '+7 701 111 22 33',
+        );
+        expect(
+          find.text('Необязательно. Номер будет виден клиентам'),
+          findsOneWidget,
+        );
+        final city = find.byKey(const ValueKey('service-city'));
+        await scrollTo(tester, city);
+        expect(
+          find.descendant(of: city, matching: find.text('Астана')),
+          findsOneWidget,
+        );
+      },
+    );
+
+    testWidgets('saves as venues, then opens halls and menus management', (
+      tester,
+    ) async {
+      final (api, _, _) = await pump(tester);
+      await openRestaurant(tester);
+      await enter(tester, 'service-name', 'Тест Холл');
+      await enter(tester, 'restaurant-phone', '+7 777 000 00 01');
+      await scrollTo(tester, submit());
+      expect(find.text('Опубликовать ресторан'), findsOneWidget);
+      await tester.tap(submit());
+      await settle(tester);
+
+      final body = lastCreateBody(api);
+      expect(
+        body['category_id'],
+        _categories.firstWhere((c) => c.slug == 'venues').id,
+      );
+      expect(body['name_ru'], 'Тест Холл');
+      expect(body['city'], 'Астана');
+      expect(body['phone'], '+7 777 000 00 01');
+      expect(body['price'], 0);
+      expect(
+        body.containsKey('user_id'),
+        isFalse,
+      ); // the owner comes from the JWT
+      expect(api.count('POST /api/provider/me/listings'), 1);
+      expect(find.byType(RestaurantManageScreen), findsOneWidget);
+      expect(find.byType(ProviderServiceFormScreen), findsNothing);
+    });
+
+    testWidgets('a name is required, and nothing is sent without it', (
+      tester,
+    ) async {
+      final (api, _, _) = await pump(tester);
+      await openRestaurant(tester);
+      await scrollTo(tester, submit());
+      await tester.tap(submit());
+      await settle(tester);
+      expect(api.count('POST /api/provider/me/listings'), 0);
+      expect(find.byType(ProviderServiceFormScreen), findsOneWidget);
+    });
+  });
+
   testWidgets('validation: errors next to the fields, nothing sent', (
     tester,
   ) async {
@@ -266,8 +423,9 @@ void main() {
     expect(find.byType(ProviderServiceFormScreen), findsOneWidget);
     expect(find.text('Укажите название'), findsOneWidget);
     expect(find.text('Укажите цену числом'), findsOneWidget);
-    await scrollTo(tester, find.byKey(const ValueKey('service-city')));
+    await scrollTo(tester, find.byKey(const ValueKey('service-category')));
     expect(find.text('Выберите категорию'), findsWidgets);
+    await scrollTo(tester, find.byKey(const ValueKey('service-city')));
     expect(find.text('Выберите город'), findsWidgets);
     expect(api.count('POST /api/provider/me/listings'), 0);
 

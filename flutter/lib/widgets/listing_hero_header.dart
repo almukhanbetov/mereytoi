@@ -51,14 +51,14 @@ List<Widget> listingHeroSlivers({
   return [
     SliverAppBar(
       pinned: true,
-      expandedHeight: 260,
       backgroundColor: context.mereytoiColors.backgroundPrimary,
-      leading: const Padding(
-        padding: EdgeInsets.only(left: AppSpacing.xs),
-        child: AppBackButton(onHero: true),
-      ),
-      flexibleSpace: FlexibleSpaceBar(
-        background: images.isEmpty
+      leading: const AppBackButton(),
+      title: Text(listing.name(locale)),
+    ),
+    SliverToBoxAdapter(
+      child: SizedBox(
+        height: 260,
+        child: images.isEmpty
             ? const NetworkImageBox(
                 url: null,
                 borderRadius: 0,
