@@ -5,7 +5,9 @@ import { T, useLang } from '@/context/AppProviders';
 import { providerApi } from '@/lib/providerApi';
 import { formatPrice } from '@/lib/format';
 import { mediaUrl } from '@/lib/media';
-import ProviderServiceForm from './ProviderServiceForm';
+import { isRestaurantCategory } from '@/lib/restaurantCategory';
+import ProviderServiceForm, { listingToPayload } from './ProviderServiceForm';
+import ProviderRestaurantManager from './ProviderRestaurantManager';
 
 const EMPTY_PROFILE = { display_name: '', city: '', description: '', experience_years: '', phone: '', whatsapp: '', telegram: '', avatar_url: '' };
 
@@ -27,7 +29,8 @@ export default function ProviderPanel() {
   const [profileSaving, setProfileSaving] = useState(false);
   const [avatarUploading, setAvatarUploading] = useState(false);
 
-  const [serviceForm, setServiceForm] = useState(null); // null | 'new' | listing object being edited
+  const [serviceForm, setServiceForm] = useState(null); // null | 'new' | 'new-restaurant' | listing object being edited
+  const [managingId, setManagingId] = useState(null); // the restaurant being managed
 
   function loadMine() {
     providerApi
@@ -131,6 +134,10 @@ export default function ProviderPanel() {
     }
   }
 
+  const venueCategory = categories.find(isRestaurantCategory);
+  const services = listings.filter((l) => l.category_id !== venueCategory?.id);
+  const restaurants = listings.filter((l) => l.category_id === venueCategory?.id);
+
   if (loading) return <p className="admin-table__empty">Загрузка…</p>;
 
   if (loadFailed) {
@@ -183,8 +190,9 @@ export default function ProviderPanel() {
             <input type="number" min="0" max="80" value={profileForm.experience_years} onChange={(e) => setProfileForm((v) => ({ ...v, experience_years: e.target.value }))} />
           </label>
           <label>
-            <span><T ru="Телефон" kz="Телефон" /></span>
+            <span><T ru="Контактный телефон бизнеса" kz="Бизнестің байланыс телефоны" en="Business contact phone" /></span>
             <input type="tel" value={profileForm.phone} onChange={(e) => setProfileForm((v) => ({ ...v, phone: e.target.value }))} placeholder="+7 700 000 00 00" />
+            <small><T ru="Необязательно. Номер будет виден клиентам" kz="Міндетті емес. Нөмірді клиенттер көреді" en="Optional. Clients will see this number" /></small>
           </label>
           <div className="form-row">
             <label>
@@ -221,8 +229,10 @@ export default function ProviderPanel() {
         </form>
       )}
 
-      {provider && !editingProfile && (
-        <>
+      {/* Stays mounted while the profile form is open: a service form reaches
+          it from its contact card, and what's typed there must survive. */}
+      {provider && (
+        <div hidden={editingProfile}>
           <div className="ws-events-head">
             <div style={{ display: 'flex', gap: 14, alignItems: 'center' }}>
               {provider.avatar_url && (
@@ -238,12 +248,15 @@ export default function ProviderPanel() {
                 )}
               </div>
             </div>
-            <div style={{ display: 'flex', gap: 10 }}>
+            <div style={{ display: 'flex', flexWrap: 'wrap', gap: 10 }}>
               <button type="button" className="btn btn--outline btn--sm" onClick={startEditProfile}>
                 <T ru="Профиль услугодателя" kz="Қызмет көрсетуші профилі" />
               </button>
               <button type="button" className="btn btn--gold btn--sm" onClick={() => setServiceForm('new')}>
                 + <T ru="Добавить услугу" kz="Қызмет қосу" />
+              </button>
+              <button type="button" className="btn btn--gold btn--sm" onClick={() => { setManagingId(null); setServiceForm('new-restaurant'); }} disabled={!venueCategory}>
+                + <T ru="Добавить ресторан" kz="Мейрамхана қосу" en="Add a restaurant" />
               </button>
             </div>
           </div>
@@ -251,10 +264,23 @@ export default function ProviderPanel() {
           {serviceForm && (
             <div style={{ margin: '20px 0' }}>
               <ProviderServiceForm
-                categories={categories}
-                listingId={serviceForm === 'new' ? undefined : serviceForm.id}
-                initial={serviceForm === 'new' ? { city: provider.city || '' } : listingToPayload(serviceForm)}
-                onSaved={() => {
+                key={serviceForm === 'new' || serviceForm === 'new-restaurant' ? serviceForm : serviceForm.id}
+                categories={categories.filter((c) => !isRestaurantCategory(c))}
+                restaurant={serviceForm === 'new-restaurant'}
+                provider={provider}
+                onEditContact={startEditProfile}
+                listingId={typeof serviceForm === 'string' ? undefined : serviceForm.id}
+                initial={
+                  serviceForm === 'new'
+                    ? { city: provider.city || '' }
+                    : serviceForm === 'new-restaurant'
+                      // The business's public number, as a starting point to edit.
+                      ? { city: provider.city || '', phone: provider.phone || '', category_id: venueCategory?.id }
+                      : listingToPayload(serviceForm)
+                }
+                onSaved={(saved) => {
+                  // A new restaurant goes straight on to its halls and menus.
+                  if (serviceForm === 'new-restaurant' && saved) setManagingId(saved.id);
                   setServiceForm(null);
                   loadMine();
                 }}
@@ -263,11 +289,55 @@ export default function ProviderPanel() {
             </div>
           )}
 
+          {managingId && (
+            <ProviderRestaurantManager
+              key={managingId}
+              listingId={managingId}
+              categories={categories}
+              onSaved={loadMine}
+              onClose={() => setManagingId(null)}
+            />
+          )}
+
+          {restaurants.length > 0 && (
+            <>
+              <h3 className="admin-section-title"><T ru="Мои рестораны" kz="Менің мейрамханаларым" en="My restaurants" /></h3>
+              <div className="admin-table-wrap">
+                <table className="admin-table">
+                  <tbody>
+                    {restaurants.map((l) => (
+                      <tr key={l.id}>
+                        <td className="admin-table__name-cell">
+                          {l.image_urls?.[0] ? <img src={mediaUrl(l.image_urls[0])} alt="" className="admin-table__thumb" /> : null}
+                          {lang === 'kz' ? l.name_kz : l.name_ru}
+                        </td>
+                        <td>{l.city || '—'}</td>
+                        <td>
+                          <button type="button" className="admin-table__link" onClick={() => handleToggleActive(l)}>
+                            {l.is_active ? <T ru="Опубликовано" kz="Жарияланды" /> : <T ru="Скрыто" kz="Жасырылған" />}
+                          </button>
+                        </td>
+                        <td className="admin-table__actions">
+                          <button type="button" className="admin-table__link" onClick={() => { setServiceForm(null); setManagingId(l.id); }}>
+                            <T ru="Управлять" kz="Басқару" en="Manage" />
+                          </button>
+                          <button type="button" className="admin-table__link admin-table__link--danger" onClick={() => handleDelete(l)}>
+                            <T ru="Удалить" kz="Жою" />
+                          </button>
+                        </td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              </div>
+            </>
+          )}
+
           <h3 className="admin-section-title"><T ru="Мои услуги" kz="Менің қызметтерім" /></h3>
-          {listings.length === 0 && (
+          {services.length === 0 && (
             <p className="admin-table__empty"><T ru="Пока нет ни одной услуги" kz="Әзірге қызмет жоқ" /></p>
           )}
-          {listings.length > 0 && (
+          {services.length > 0 && (
             <div className="admin-table-wrap">
               <table className="admin-table">
                 <thead>
@@ -280,7 +350,7 @@ export default function ProviderPanel() {
                   </tr>
                 </thead>
                 <tbody>
-                  {listings.map((l) => (
+                  {services.map((l) => (
                     <tr key={l.id}>
                       <td className="admin-table__name-cell">
                         {l.image_urls?.[0] ? <img src={mediaUrl(l.image_urls[0])} alt="" className="admin-table__thumb" /> : <span>{l.emoji}</span>}
@@ -307,30 +377,8 @@ export default function ProviderPanel() {
               </table>
             </div>
           )}
-        </>
+        </div>
       )}
     </div>
   );
-}
-
-// listingToPayload — reshapes a listing row (as returned by /me/listings or
-// the catalog) back into the flat input shape ProviderServiceForm/
-// providerApi.updateListing expects, e.g. when reopening it for editing or
-// re-sending every field alongside a plain is_active toggle (the backend's
-// PUT is a full replace, not a patch — see listing_handler.go's Update).
-function listingToPayload(l) {
-  return {
-    category_id: l.category_id,
-    name_ru: l.name_ru,
-    name_kz: l.name_kz,
-    description_ru: l.description_ru,
-    description_kz: l.description_kz,
-    city: l.city,
-    price: l.price,
-    price_type: l.price_type,
-    image_urls: l.image_urls || [],
-    emoji: l.emoji,
-    color_from: l.color_from,
-    color_to: l.color_to,
-  };
 }

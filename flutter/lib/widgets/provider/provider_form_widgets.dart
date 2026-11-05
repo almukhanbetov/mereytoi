@@ -47,6 +47,7 @@ class ProviderTextField extends StatelessWidget {
     this.maxLines = 1,
     this.errorText,
     this.suffixText,
+    this.helperText,
     this.fieldKey,
   });
 
@@ -61,6 +62,7 @@ class ProviderTextField extends StatelessWidget {
   final int maxLines;
   final String? errorText;
   final String? suffixText;
+  final String? helperText;
   final Key? fieldKey;
 
   @override
@@ -96,6 +98,8 @@ class ProviderTextField extends StatelessWidget {
             decoration: InputDecoration(
               hintText: hint,
               errorText: errorText,
+              helperText: helperText,
+              helperMaxLines: 3,
               suffixText: suffixText,
               counterText: '',
               filled: true,

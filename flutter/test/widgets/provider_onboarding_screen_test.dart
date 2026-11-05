@@ -368,6 +368,82 @@ void main() {
     expect(api.listings.single['city'], 'Астана');
   });
 
+  group('business contact phone', () {
+    Future<void> publish(WidgetTester tester, {String? phone}) async {
+      final c = containerOf(tester).read(providerOnboardingProvider.notifier);
+      c.selectCategory(4);
+      c.setDisplayName('Dana');
+      if (phone != null) c.setPhone(phone);
+      c.setCity(testCities.first);
+      c.setServiceName('Шоу');
+      c.setPrice('90000');
+      for (var i = 0; i < 5; i++) {
+        c.next();
+      }
+      await tester.pumpAndSettle();
+      await tapNext(tester);
+    }
+
+    testWidgets('optional, labelled as public, and starts empty', (
+      tester,
+    ) async {
+      await pumpWizard(tester);
+      final c = containerOf(tester).read(providerOnboardingProvider.notifier);
+      c.selectCategory(4);
+      c.next();
+      await tester.pumpAndSettle();
+      final field = find.byKey(const ValueKey('onboarding-phone'));
+      await tester.ensureVisible(field);
+      expect(find.text('Контактный телефон бизнеса'), findsOneWidget);
+      expect(
+        find.text('Необязательно. Номер будет виден клиентам'),
+        findsOneWidget,
+      );
+      // Never filled in from the account's private phone.
+      expect(tester.widget<TextField>(field).controller!.text, isEmpty);
+    });
+
+    testWidgets('a new profile can be published without it', (tester) async {
+      final api = await pumpWizard(tester);
+      await publish(tester);
+      expect(find.byType(ProviderOnboardingSuccessScreen), findsOneWidget);
+      expect((api.bodies['POST /api/provider']!.last! as Map)['phone'], '');
+    });
+
+    testWidgets('a new profile saves the number', (tester) async {
+      final api = await pumpWizard(tester);
+      await publish(tester, phone: ' +7 701 111 22 33 ');
+      expect(
+        (api.bodies['POST /api/provider']!.last! as Map)['phone'],
+        '+7 701 111 22 33',
+      );
+    });
+
+    testWidgets('an existing number is prefilled, and can be changed', (
+      tester,
+    ) async {
+      final api = await pumpWizard(
+        tester,
+        existingProvider: {
+          'id': 5,
+          'user_id': 1,
+          'display_name': 'Dana Events',
+          'city': 'Астана',
+          'phone': '+7 700 000 00 09',
+          'status': 'active',
+        },
+      );
+      await tester.pumpAndSettle();
+      expect(state(tester).phone, '+7 700 000 00 09');
+      await publish(tester, phone: '+7 700 000 00 10');
+      expect(api.count('POST /api/provider'), 0);
+      expect(
+        (api.bodies['PUT /api/provider/me']!.last! as Map)['phone'],
+        '+7 700 000 00 10',
+      );
+    });
+  });
+
   testWidgets('a failed publish shows a retry message; retry succeeds once', (
     tester,
   ) async {

@@ -462,6 +462,21 @@ void main() {
       },
     );
 
+    testWidgets('«Добавить ресторан» is there even with no restaurants yet', (
+      tester,
+    ) async {
+      final (container, api) = await pump(
+        tester,
+        const MyBusinessScreen(),
+        isProvider: true,
+      );
+      api.listings.removeWhere((l) => l['category_id'] == 1);
+      await tester.runAsync(() => container.refresh(myListingsProvider.future));
+      await tester.pumpAndSettle();
+      await openTile(tester, 'business-add-restaurant');
+      expect(find.text('Новый ресторан'), findsOneWidget);
+    });
+
     testWidgets('no restaurant tile without a restaurant', (tester) async {
       final (container, api) = await pump(
         tester,

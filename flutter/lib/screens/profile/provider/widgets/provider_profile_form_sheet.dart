@@ -343,11 +343,26 @@ class _ProviderProfileFormSheetState
         ),
         const SizedBox(height: AppSpacing.sm),
         TextFormField(
+          key: const ValueKey('provider-profile-phone'),
           controller: _phone,
           keyboardType: TextInputType.phone,
+          maxLength: 30,
           decoration: InputDecoration(
-            labelText: t(locale, ru: 'Телефон', kz: 'Телефон', en: 'Phone'),
+            counterText: '',
+            labelText: t(
+              locale,
+              ru: 'Контактный телефон бизнеса',
+              kz: 'Бизнестің байланыс телефоны',
+              en: 'Business contact phone',
+            ),
             hintText: '+7 700 000 00 00',
+            helperText: t(
+              locale,
+              ru: 'Необязательно. Номер будет виден клиентам',
+              kz: 'Міндетті емес. Нөмірді клиенттер көреді',
+              en: 'Optional. Clients will see this number',
+            ),
+            helperMaxLines: 2,
           ),
         ),
         const SizedBox(height: AppSpacing.sm),
