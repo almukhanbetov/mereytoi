@@ -7,6 +7,7 @@ import { useAdminAuth } from '@/context/AdminAuthContext';
 import { useTheme } from '@/context/AppProviders';
 import { adminApi } from '@/lib/adminApi';
 import NotificationBell from '@/components/NotificationBell';
+import SignOutButton from '@/components/SignOutButton';
 
 export default function AdminShell({ user, children }) {
   const pathname = usePathname();
@@ -103,7 +104,7 @@ export default function AdminShell({ user, children }) {
               <span className="theme-switch__icon theme-switch__icon--moon">☾</span>
             </button>
             <span className="admin-topbar__user">{user?.name || user?.email}</span>
-            <button className="btn btn--outline btn--sm" onClick={logout}>Выйти</button>
+            <SignOutButton className="btn btn--outline btn--sm" onConfirm={logout}>Выйти</SignOutButton>
           </div>
         </header>
 
