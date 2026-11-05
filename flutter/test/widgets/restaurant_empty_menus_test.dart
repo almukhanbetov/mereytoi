@@ -115,7 +115,7 @@ void main() {
       );
       await tester.pumpAndSettle();
 
-      expect(find.text('Panorama'), findsOneWidget);
+      expect(find.text('Panorama'), findsWidgets);
       expect(find.text('Залы пока не добавлены'), findsOneWidget);
       expect(find.text('Меню пока не добавлены'), findsOneWidget);
       // No menu exists to price/add to the cart from — the sticky CTA

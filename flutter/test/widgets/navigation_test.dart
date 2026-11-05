@@ -128,7 +128,7 @@ void main() {
   });
 
   testWidgets(
-    'Service Detail (loaded): the hero back button pops via Navigator.pop, not a hard redirect',
+    'Service Detail (loaded): the top back button pops via Navigator.pop, not a hard redirect',
     (tester) async {
       await _pumpPushed(
         tester,
@@ -141,11 +141,9 @@ void main() {
       );
       await tester.pumpAndSettle();
 
-      expect(find.text('AURORA QUINTET'), findsOneWidget);
-      expect(
-        find.byType(AppBackButton),
-        findsOneWidget,
-      ); // the styled hero back button, not the default BackButton
+      // In the top bar and again, in full, under the photo.
+      expect(find.text('AURORA QUINTET'), findsNWidgets(2));
+      expect(find.byType(AppBackButton), findsOneWidget);
 
       await tester.tap(find.byType(AppBackButton));
       await tester.pumpAndSettle();

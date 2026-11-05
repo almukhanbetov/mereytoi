@@ -271,7 +271,7 @@ void main() {
       await tester.pumpAndSettle();
 
       expect(tester.takeException(), isNull);
-      expect(find.textContaining('Sultan Palace'), findsOneWidget);
+      expect(find.textContaining('Sultan Palace'), findsWidgets);
     },
   );
 }

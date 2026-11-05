@@ -120,11 +120,6 @@ void main() {
     return adapter;
   }
 
-  ServicesCategoryTile tile(WidgetTester tester, String label) =>
-      tester.widget<ServicesCategoryTile>(
-        find.widgetWithText(ServicesCategoryTile, label),
-      );
-
   testWidgets('city card shows the «Город» caption and opens the city sheet', (
     tester,
   ) async {
@@ -163,37 +158,26 @@ void main() {
   });
 
   testWidgets(
-    'category grid: «Все» first and selected, collapsed to 6, expands to all 10, collapses back',
+    'category grid: no «Все» tile, collapsed to 6, expands to all 9, collapses',
     (tester) async {
       await pumpServices(tester);
       expect(find.byType(ServicesCategoryTile), findsNWidgets(6));
-      expect(tile(tester, 'Все').selected, isTrue);
+      expect(find.text('Все'), findsNothing);
       expect(find.text('Показать все'), findsOneWidget);
 
       // Two columns on a phone: tiles 1 and 2 share a row, tile 3 is below.
-      final all = tester.getTopLeft(find.text('Все'));
-      final venues = tester.getTopLeft(find.text('Рестораны и локации'));
-      final hosts = tester.getTopLeft(find.text('Ведущие'));
-      expect(
-        (tester.getCenter(find.widgetWithText(ServicesCategoryTile, 'Все')).dy -
-                tester
-                    .getCenter(
-                      find.widgetWithText(
-                        ServicesCategoryTile,
-                        'Рестораны и локации',
-                      ),
-                    )
-                    .dy)
-            .abs(),
-        lessThan(1),
-      );
-      expect(hosts.dy, greaterThan(all.dy));
-      expect(venues.dx, greaterThan(all.dx));
+      final tiles = find.byType(ServicesCategoryTile);
+      final first = tester.getCenter(tiles.at(0));
+      final second = tester.getCenter(tiles.at(1));
+      final third = tester.getCenter(tiles.at(2));
+      expect((first.dy - second.dy).abs(), lessThan(1));
+      expect(second.dx, greaterThan(first.dx));
+      expect(third.dy, greaterThan(first.dy));
 
       await tester.ensureVisible(find.text('Показать все'));
       await tester.tap(find.text('Показать все'));
       await tester.pumpAndSettle();
-      expect(find.byType(ServicesCategoryTile), findsNWidgets(10));
+      expect(find.byType(ServicesCategoryTile), findsNWidgets(9));
       expect(find.text('Свернуть'), findsOneWidget);
       expect(tester.takeException(), isNull);
 
@@ -268,20 +252,6 @@ void main() {
     });
   });
 
-  testWidgets('selecting keeps the name at the same size and weight', (
-    tester,
-  ) async {
-    await pumpServices(tester, size: const Size(393, 873), textScale: 1.25);
-    TextStyle style() =>
-        tester.widget<Text>(find.text('Артисты и исполнители')).style!;
-    final before = style();
-    await tester.tap(find.text('Артисты и исполнители'));
-    await tester.pumpAndSettle();
-    expect(tile(tester, 'Артисты и исполнители').selected, isTrue);
-    expect(style().fontSize, before.fontSize);
-    expect(style().fontWeight, before.fontWeight);
-  });
-
   testWidgets('every tile has the same height', (tester) async {
     await pumpServices(tester);
     final heights = tester
@@ -292,45 +262,23 @@ void main() {
     expect(double.parse(heights.single), greaterThanOrEqualTo(64));
   });
 
-  testWidgets(
-    'tapping a tile selects it and fetches that category; «Все» resets from cache',
-    (tester) async {
-      final adapter = await pumpServices(tester);
-      expect(adapter.listingRequests.last.queryParameters, isEmpty);
-
-      await tester.tap(find.text('Ведущие'));
-      await tester.pumpAndSettle();
-      expect(tile(tester, 'Ведущие').selected, isTrue);
-      expect(tile(tester, 'Все').selected, isFalse);
-      expect(adapter.listingRequests.last.queryParameters, {
-        'category': 'hosts',
-      });
-
-      // Back to «Все»: the unfiltered list is already cached, so it shows
-      // again without a second request.
-      await tester.tap(find.text('Все'));
-      await tester.pumpAndSettle();
-      expect(tile(tester, 'Все').selected, isTrue);
-      expect(
-        adapter.listingRequests.where((r) => r.queryParameters.isEmpty),
-        hasLength(1),
-      );
-    },
-  );
-
-  testWidgets('an active category past the first six starts expanded', (
+  testWidgets('tapping a tile fetches that category on a screen of its own', (
     tester,
   ) async {
-    await pumpServices(tester, initialCategorySlug: 'Interactiveequipment');
-    expect(find.byType(ServicesCategoryTile), findsNWidgets(10));
-    expect(tile(tester, 'Интерактивное оборудование').selected, isTrue);
+    final adapter = await pumpServices(tester);
+    expect(adapter.listingRequests.last.queryParameters, isEmpty);
+
+    await tester.tap(find.text('Ведущие'));
+    await tester.pumpAndSettle();
+    expect(adapter.listingRequests.last.queryParameters, {'category': 'hosts'});
+    expect(find.byType(ServicesCategoryTile), findsNothing);
+    expect(find.byType(BackButton), findsOneWidget);
   });
 
   testWidgets('three columns on a wide screen', (tester) async {
     await pumpServices(tester, size: const Size(700, 1000));
-    final y = ['Все', 'Рестораны и локации', 'Ведущие'].map(
-      (l) => tester.getCenter(find.widgetWithText(ServicesCategoryTile, l)).dy,
-    );
+    final tiles = find.byType(ServicesCategoryTile);
+    final y = [0, 1, 2].map((i) => tester.getCenter(tiles.at(i)).dy);
     expect(y.toSet(), hasLength(1));
     expect(tester.takeException(), isNull);
   });
@@ -372,7 +320,7 @@ void main() {
             await tester.ensureVisible(toggle);
             await tester.tap(toggle);
             await tester.pumpAndSettle();
-            expect(find.byType(ServicesCategoryTile), findsNWidgets(10));
+            expect(find.byType(ServicesCategoryTile), findsNWidgets(9));
             expect(tester.takeException(), isNull);
           });
         }
