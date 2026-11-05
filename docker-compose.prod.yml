@@ -42,6 +42,18 @@ services:
       DB_NAME: ${DB_NAME:-mereytoi_db}
       DB_SSLMODE: disable
       JWT_SECRET: ${JWT_SECRET:-changeme_local_only}
+      # Password recovery codes by email. Values live only in the VPS .env. The
+      # app offers this as soon as the switch is on, whether or not SMTP works,
+      # so set the SMTP values first. MAIL_ENABLED is deliberately not passed:
+      # notification emails stay off.
+      PASSWORD_EMAIL_OTP_ENABLED: ${PASSWORD_EMAIL_OTP_ENABLED:-false}
+      SMTP_HOST: ${SMTP_HOST:-}
+      SMTP_PORT: ${SMTP_PORT:-}
+      SMTP_USERNAME: ${SMTP_USERNAME:-}
+      SMTP_PASSWORD: ${SMTP_PASSWORD:-}
+      SMTP_FROM: ${SMTP_FROM:-}
+      SMTP_FROM_NAME: ${SMTP_FROM_NAME:-}
+      SMTP_USE_TLS: ${SMTP_USE_TLS:-}
       CORS_ORIGIN: ${CORS_ORIGIN:-https://mereytoi.kz,https://www.mereytoi.kz}
     volumes:
       - mereytoi_uploads:/app/uploads
