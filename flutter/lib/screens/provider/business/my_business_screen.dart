@@ -130,15 +130,15 @@ class _BusinessBody extends ConsumerWidget {
             onTap: () => push(const MyServicesScreen()),
           ),
           _HubTile(
-            key: const ValueKey('business-add-restaurant'),
+            key: const ValueKey('business-add-service'),
             icon: Icons.add_business_outlined,
             title: t(
               locale,
-              ru: 'Добавить ресторан',
-              kz: 'Мейрамхана қосу',
-              en: 'Add a restaurant',
+              ru: 'Добавить услугу',
+              kz: 'Қызмет қосу',
+              en: 'Add service',
             ),
-            onTap: () => openRestaurantForm(context),
+            onTap: () => openProviderServiceForm(context),
           ),
           if (ref.watch(hasOwnRestaurantProvider))
             _HubTile(

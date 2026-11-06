@@ -4,6 +4,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../../core/theme/app_theme.dart';
 import '../../../state/locale_provider.dart';
 import '../../profile/provider/my_services_screen.dart';
+import '../../profile/restaurant_admin/restaurant_manage_screen.dart';
 import '../business/my_business_screen.dart';
 import '../../profile/provider/widgets/provider_service_form_sheet.dart';
 
@@ -11,11 +12,19 @@ import '../../profile/provider/widgets/provider_service_form_sheet.dart';
 /// lead to the existing provider screens: «Мои услуги», or «Мои услуги»
 /// with the existing add-service form opened on top.
 class ProviderOnboardingSuccessScreen extends ConsumerWidget {
-  const ProviderOnboardingSuccessScreen({super.key, this.openBusiness = false});
+  const ProviderOnboardingSuccessScreen({
+    super.key,
+    this.openBusiness = false,
+    this.restaurantId,
+  });
 
   /// Reached from the «Для бизнеса» mode: the main button opens
   /// «Мой бизнес» instead of «Мои услуги».
   final bool openBusiness;
+
+  /// The listing just published is this restaurant: the main button goes on
+  /// to its halls and menus.
+  final int? restaurantId;
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
@@ -96,7 +105,27 @@ class ProviderOnboardingSuccessScreen extends ConsumerWidget {
                   const SizedBox(height: AppSpacing.xxl),
                   SizedBox(
                     height: 52,
-                    child: openBusiness
+                    child: restaurantId != null
+                        ? ElevatedButton(
+                            key: const ValueKey('success-restaurant-manage'),
+                            onPressed: () =>
+                                Navigator.of(context).pushReplacement(
+                                  MaterialPageRoute(
+                                    builder: (_) => RestaurantManageScreen(
+                                      listingId: restaurantId!,
+                                    ),
+                                  ),
+                                ),
+                            child: Text(
+                              t(
+                                locale,
+                                ru: 'Добавить залы и меню',
+                                kz: 'Залдар мен мәзір қосу',
+                                en: 'Add halls and menus',
+                              ),
+                            ),
+                          )
+                        : openBusiness
                         ? ElevatedButton(
                             key: const ValueKey('success-my-business'),
                             onPressed: () =>

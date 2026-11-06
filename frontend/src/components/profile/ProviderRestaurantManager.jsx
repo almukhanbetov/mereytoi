@@ -5,20 +5,18 @@ import { T } from '@/context/AppProviders';
 import { adminApi } from '@/lib/adminApi';
 import RestaurantHallsTab from '@/components/admin/RestaurantHallsTab';
 import RestaurantMenusTab from '@/components/admin/RestaurantMenusTab';
-import RestaurantAddressForm from '@/components/admin/RestaurantAddressForm';
 import ProviderServiceForm, { listingToPayload } from './ProviderServiceForm';
 
 const TABS = [
   { key: 'basic', ru: 'Основное', kz: 'Негізгі', en: 'General' },
   { key: 'halls', ru: 'Залы', kz: 'Залдар', en: 'Halls' },
   { key: 'menus', ru: 'Меню', kz: 'Мәзір', en: 'Menus' },
-  { key: 'address', ru: 'Адрес', kz: 'Мекенжай', en: 'Address' },
 ];
 
-/** The owner's restaurant management in the cabinet: the admin's own halls,
- * menus and address tabs, which the API already allows an owner to use. Only
- * «Основное» differs, since the admin form also edits admin-only fields. */
-export default function ProviderRestaurantManager({ listingId, categories, onSaved, onClose }) {
+/** The owner's restaurant management in the cabinet: the admin's own halls and
+ * menus tabs, which the API already allows an owner to use. «Основное» is the
+ * owner's form, with the address and the map point. */
+export default function ProviderRestaurantManager({ listingId, categories, provider, onEditContact, onSaved, onClose }) {
   const [tab, setTab] = useState('basic');
   const [listing, setListing] = useState(null);
   const [error, setError] = useState('');
@@ -65,20 +63,21 @@ export default function ProviderRestaurantManager({ listingId, categories, onSav
           {tab === 'basic' && (
             <ProviderServiceForm
               key={listing.updated_at}
-              restaurant
               categories={categories}
+              provider={provider}
+              onEditContact={onEditContact}
+              categoryLocked={(listing.halls || []).length > 0 || (listing.menus || []).length > 0}
               initial={listingToPayload(listing)}
               listingId={listingId}
-              onSaved={() => {
+              onSaved={(saved) => {
                 refresh();
-                onSaved();
+                onSaved(saved);
               }}
               onCancel={onClose}
             />
           )}
           {tab === 'halls' && <RestaurantHallsTab listingId={listingId} halls={listing.halls || []} refresh={refresh} />}
           {tab === 'menus' && <RestaurantMenusTab listingId={listingId} menus={listing.menus || []} halls={listing.halls || []} refresh={refresh} />}
-          {tab === 'address' && <RestaurantAddressForm listing={listing} listingId={listingId} onSaved={setListing} />}
         </>
       )}
     </section>

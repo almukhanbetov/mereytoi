@@ -13,10 +13,6 @@ import '../services/services_category_grid.dart';
 /// Shared building blocks of the provider forms (onboarding wizard and the
 /// add/edit service form), so both read as one premium, light system.
 
-/// Restaurants/venues have their own management flow (halls, menus) and
-/// aren't listed in «Мои услуги», so provider forms never offer them.
-const kExcludedProviderCategorySlugs = {'venues'};
-
 const kProviderCardRadius = 20.0;
 
 BoxDecoration providerCardDecoration(BuildContext context, {Color? border}) {
@@ -245,9 +241,7 @@ class ProviderCategoryGrid extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final items = categories
-        .where((c) => !kExcludedProviderCategorySlugs.contains(c.slug))
-        .toList();
+    final items = categories;
     final textScaler = MediaQuery.textScalerOf(
       context,
     ).clamp(maxScaleFactor: kServicesTileMaxTextScale);

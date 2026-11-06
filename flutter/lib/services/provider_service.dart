@@ -114,6 +114,9 @@ class ProviderService {
     int price = 0,
     String priceType = 'fixed',
     List<String> imageUrls = const [],
+    String address = '',
+    double? latitude,
+    double? longitude,
   }) async {
     final json = await _client.postJson('/api/provider/me/listings', {
       'category_id': categoryId,
@@ -126,6 +129,9 @@ class ProviderService {
       'price': price,
       'price_type': priceType,
       'image_urls': imageUrls,
+      'address': address,
+      'latitude': latitude,
+      'longitude': longitude,
     });
     return Listing.fromJson(Map<String, dynamic>.from(json['listing'] as Map));
   }

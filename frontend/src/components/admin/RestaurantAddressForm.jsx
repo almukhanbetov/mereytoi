@@ -2,32 +2,18 @@
 
 import { useEffect, useRef, useState } from 'react';
 import { adminApi } from '@/lib/adminApi';
+import { T } from '@/context/AppProviders';
 import { loadGoogleMapsScript, hasGoogleMapsKey } from '@/lib/googleMaps';
 
 const DEFAULT_CENTER = { lat: 43.238949, lng: 76.889709 }; // Алматы, used only when nothing is saved yet
 
-/** Brief section 1 (admin half) — Google Places autocomplete + an
- * interactive, draggable-marker preview map. Progressive enhancement: with
- * no NEXT_PUBLIC_GOOGLE_MAPS_API_KEY configured, this renders exactly the
- * plain manual city/address/lat/lng/place_id form this component already
- * had — nothing about saving changes, no script is ever requested, and no
- * admin workflow breaks for lack of a key.
- *
- * ListingHandler.Update expects the *whole* listingInput, not a partial
- * patch (same as ServiceForm's own submit already does) — so saving here
- * sends `listing` merged with just these fields changed, never touching
- * name/price/photos/etc. */
-export default function RestaurantAddressForm({ listing, listingId, onSaved }) {
-  const [values, setValues] = useState({
-    city: listing.city || '',
-    address: listing.address || '',
-    latitude: listing.latitude ?? '',
-    longitude: listing.longitude ?? '',
-    place_id: listing.place_id || '',
-  });
-  const [saving, setSaving] = useState(false);
-  const [saved, setSaved] = useState(false);
-  const [error, setError] = useState('');
+/** The address input, the Google map with its draggable marker, and the
+ * coordinates, as used by this admin form and the owner's restaurant form.
+ * Without NEXT_PUBLIC_GOOGLE_MAPS_API_KEY it's just the plain fields, and no
+ * script is requested. `onPatch` takes changed fields, or a function of the
+ * current values returning them. `leading` shares the address's row. `admin`
+ * adds the Place ID and the key diagnostics, meant only for an admin. */
+export function RestaurantAddressFields({ values, onPatch, addressInputRef, leading = null, admin = false }) {
   const [mapsError, setMapsError] = useState(false);
   // Places-specific diagnosis, separate from mapsError above: the Maps
   // JavaScript API script can load fine (map renders) while the *Places*
@@ -38,15 +24,9 @@ export default function RestaurantAddressForm({ listing, listingId, onSaved }) {
   // instead of leaving that failure invisible.
   const [placesStatus, setPlacesStatus] = useState(null);
 
-  const addressInputRef = useRef(null);
   const mapDivRef = useRef(null);
   const mapRef = useRef(null);
   const markerRef = useRef(null);
-
-  function set(key, value) {
-    setValues((v) => ({ ...v, [key]: value }));
-    setSaved(false);
-  }
 
   // Loads the script + wires up Autocomplete/Map exactly once — never if
   // no key is configured (see hasGoogleMapsKey's own doc comment). Reads
@@ -75,8 +55,7 @@ export default function RestaurantAddressForm({ listing, listingId, onSaved }) {
         // same lat/lng fields the plain form already had.
         marker.addListener('dragend', () => {
           const pos = marker.getPosition();
-          set('latitude', pos.lat());
-          set('longitude', pos.lng());
+          onPatch({ latitude: pos.lat(), longitude: pos.lng() });
         });
         mapRef.current = map;
         markerRef.current = marker;
@@ -113,8 +92,7 @@ export default function RestaurantAddressForm({ listing, listingId, onSaved }) {
             // suggestion the admin clearly selected is silently dropped on
             // save: the Autocomplete widget only writes it into the input's
             // raw DOM value, which this controlled field never sees.
-            setValues((v) => ({
-              ...v,
+            onPatch((v) => ({
               address: place.formatted_address || place.name || v.address,
               // place_id is now a read-only, autocomplete-only field (see
               // the input below) — it must always reflect the currently
@@ -124,7 +102,6 @@ export default function RestaurantAddressForm({ listing, listingId, onSaved }) {
               place_id: place.place_id || '',
               ...(loc ? { latitude: loc.lat(), longitude: loc.lng() } : {}),
             }));
-            setSaved(false);
             if (loc) {
               map.setCenter({ lat: loc.lat(), lng: loc.lng() });
               map.setZoom(16);
@@ -155,6 +132,119 @@ export default function RestaurantAddressForm({ listing, listingId, onSaved }) {
     mapRef.current.setCenter(pos);
   }, [values.latitude, values.longitude]);
 
+  const mapsOn = hasGoogleMapsKey();
+  const addressLabel = (
+    <span>
+      <T ru="Адрес" kz="Мекенжай" en="Address" />
+      {mapsOn && <> (<T ru="начните вводить — появятся подсказки Google" kz="теру кезінде Google ұсыныстары шығады" en="start typing for Google suggestions" />)</>}
+    </span>
+  );
+
+  return (
+    <>
+      <div className="form-row">
+        {leading}
+        <label>
+          {addressLabel}
+          <input
+            ref={addressInputRef}
+            value={values.address}
+            onChange={(e) => onPatch({ address: e.target.value })}
+            placeholder="ул. Абая, 1"
+            autoComplete="off"
+          />
+        </label>
+      </div>
+
+      {mapsOn && (
+        <div style={{ marginBottom: 18 }}>
+          {mapsError ? (
+            <p className="admin-login__error">
+              {admin
+                ? 'Не удалось загрузить Google Maps — проверьте NEXT_PUBLIC_GOOGLE_MAPS_API_KEY и ограничения ключа.'
+                : <T ru="Не удалось загрузить карту. Точку можно указать координатами." kz="Картаны жүктеу мүмкін болмады. Нүктені координатамен көрсетуге болады." en="Couldn’t load the map. You can enter the coordinates instead." />}
+            </p>
+          ) : (
+            <>
+              <div ref={mapDivRef} className="admin-map-preview" />
+              <p className="admin-upload-status" style={{ fontSize: 12 }}>
+                <T ru="Перетащите маркер, чтобы уточнить точку на карте" kz="Картадағы нүктені нақтылау үшін маркерді жылжытыңыз" en="Drag the marker to refine the point on the map" />
+              </p>
+              {admin && placesStatus && (
+                <p className="admin-login__error" style={{ marginTop: 8 }}>
+                  Подсказки адреса Google не работают (Places API: {placesStatus}). Карта грузится через отдельный
+                  Maps JavaScript API — включите Places API (и биллинг) для этого ключа в Google Cloud Console,
+                  либо задайте координаты вручную/перетаскиванием маркера.
+                </p>
+              )}
+            </>
+          )}
+        </div>
+      )}
+
+      <div className="form-row">
+        <label>
+          <span><T ru="Широта (latitude)" kz="Ендік (latitude)" en="Latitude" /></span>
+          <input type="number" step="any" value={values.latitude} onChange={(e) => onPatch({ latitude: e.target.value })} placeholder="43.238293" />
+        </label>
+        <label>
+          <span><T ru="Долгота (longitude)" kz="Бойлық (longitude)" en="Longitude" /></span>
+          <input type="number" step="any" value={values.longitude} onChange={(e) => onPatch({ longitude: e.target.value })} placeholder="76.945465" />
+        </label>
+      </div>
+
+      {admin && (
+        <label>
+          <span>Google Place ID</span>
+          <input
+            value={values.place_id}
+            placeholder="Заполнится автоматически"
+            readOnly
+            style={{ cursor: 'default', background: 'var(--surface-tint)', color: 'var(--text-muted)' }}
+          />
+          <small style={{ fontWeight: 400, fontSize: 12, color: 'var(--text-muted)', marginTop: 2 }}>
+            Заполняется автоматически после выбора адреса из подсказок Google
+          </small>
+        </label>
+      )}
+    </>
+  );
+}
+
+/** Brief section 1 (admin half) — Google Places autocomplete + an
+ * interactive, draggable-marker preview map. Progressive enhancement: with
+ * no NEXT_PUBLIC_GOOGLE_MAPS_API_KEY configured, this renders exactly the
+ * plain manual city/address/lat/lng/place_id form this component already
+ * had — nothing about saving changes, no script is ever requested, and no
+ * admin workflow breaks for lack of a key.
+ *
+ * ListingHandler.Update expects the *whole* listingInput, not a partial
+ * patch (same as ServiceForm's own submit already does) — so saving here
+ * sends `listing` merged with just these fields changed, never touching
+ * name/price/photos/etc. */
+export default function RestaurantAddressForm({ listing, listingId, onSaved }) {
+  const [values, setValues] = useState({
+    city: listing.city || '',
+    address: listing.address || '',
+    latitude: listing.latitude ?? '',
+    longitude: listing.longitude ?? '',
+    place_id: listing.place_id || '',
+  });
+  const [saving, setSaving] = useState(false);
+  const [saved, setSaved] = useState(false);
+  const [error, setError] = useState('');
+  const addressInputRef = useRef(null);
+
+  function set(key, value) {
+    setValues((v) => ({ ...v, [key]: value }));
+    setSaved(false);
+  }
+
+  function patch(update) {
+    setValues((v) => ({ ...v, ...(typeof update === 'function' ? update(v) : update) }));
+    setSaved(false);
+  }
+
   async function handleSubmit(e) {
     e.preventDefault();
     setSaving(true);
@@ -184,70 +274,20 @@ export default function RestaurantAddressForm({ listing, listingId, onSaved }) {
     }
   }
 
-  const mapsOn = hasGoogleMapsKey();
-
   return (
     <form className="contacts__form admin-form" onSubmit={handleSubmit}>
-      <div className="form-row">
-        <label>
-          <span>Город</span>
-          <input value={values.city} onChange={(e) => set('city', e.target.value)} />
-        </label>
-        <label>
-          <span>Адрес{mapsOn && ' (начните вводить — появятся подсказки Google)'}</span>
-          <input
-            ref={addressInputRef}
-            value={values.address}
-            onChange={(e) => set('address', e.target.value)}
-            placeholder="ул. Абая, 1"
-            autoComplete="off"
-          />
-        </label>
-      </div>
-
-      {mapsOn && (
-        <div style={{ marginBottom: 18 }}>
-          {mapsError ? (
-            <p className="admin-login__error">Не удалось загрузить Google Maps — проверьте NEXT_PUBLIC_GOOGLE_MAPS_API_KEY и ограничения ключа.</p>
-          ) : (
-            <>
-              <div ref={mapDivRef} className="admin-map-preview" />
-              <p className="admin-upload-status" style={{ fontSize: 12 }}>Перетащите маркер, чтобы уточнить точку на карте</p>
-              {placesStatus && (
-                <p className="admin-login__error" style={{ marginTop: 8 }}>
-                  Подсказки адреса Google не работают (Places API: {placesStatus}). Карта грузится через отдельный
-                  Maps JavaScript API — включите Places API (и биллинг) для этого ключа в Google Cloud Console,
-                  либо задайте координаты вручную/перетаскиванием маркера.
-                </p>
-              )}
-            </>
-          )}
-        </div>
-      )}
-
-      <div className="form-row">
-        <label>
-          <span>Широта (latitude)</span>
-          <input type="number" step="any" value={values.latitude} onChange={(e) => set('latitude', e.target.value)} placeholder="43.238293" />
-        </label>
-        <label>
-          <span>Долгота (longitude)</span>
-          <input type="number" step="any" value={values.longitude} onChange={(e) => set('longitude', e.target.value)} placeholder="76.945465" />
-        </label>
-      </div>
-
-      <label>
-        <span>Google Place ID</span>
-        <input
-          value={values.place_id}
-          placeholder="Заполнится автоматически"
-          readOnly
-          style={{ cursor: 'default', background: 'var(--surface-tint)', color: 'var(--text-muted)' }}
-        />
-        <small style={{ fontWeight: 400, fontSize: 12, color: 'var(--text-muted)', marginTop: 2 }}>
-          Заполняется автоматически после выбора адреса из подсказок Google
-        </small>
-      </label>
+      <RestaurantAddressFields
+        values={values}
+        onPatch={patch}
+        addressInputRef={addressInputRef}
+        admin
+        leading={(
+          <label>
+            <span>Город</span>
+            <input value={values.city} onChange={(e) => set('city', e.target.value)} />
+          </label>
+        )}
+      />
 
       {error && <p className="admin-login__error">{error}</p>}
 

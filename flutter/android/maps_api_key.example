@@ -9,10 +9,7 @@
 # Google Cloud console → APIs & Services:
 #   1. Enable "Maps SDK for Android" (billing must be active on the project).
 #   2. Credentials → the key → Application restrictions: Android apps:
-#        package name: kz.mereytoi.mereytoi_app
-#        SHA-1:        the certificate that signs the APK you install
-#                      (keytool -list -v -keystore <keystore>; for a Play
-#                      release also add the Play App Signing SHA-1).
+#        every package + SHA-1 pair listed in docs/android-builds.md.
 #   3. API restrictions: Maps SDK for Android only.
 #
 # Without a key the app still builds and runs; the map area stays blank.

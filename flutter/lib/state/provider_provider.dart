@@ -122,6 +122,9 @@ class ProviderActions {
     int price = 0,
     String priceType = 'fixed',
     List<String> imageUrls = const [],
+    String address = '',
+    double? latitude,
+    double? longitude,
   }) async {
     final listing = await _ref
         .read(providerServiceProvider)
@@ -136,6 +139,9 @@ class ProviderActions {
           price: price,
           priceType: priceType,
           imageUrls: imageUrls,
+          address: address,
+          latitude: latitude,
+          longitude: longitude,
         );
     _invalidateMyListings();
     return listing;
@@ -153,6 +159,10 @@ class ProviderActions {
     List<String>? imageUrls,
     bool? isActive,
     int? categoryId,
+    String? phone,
+    String? address,
+    double? latitude,
+    double? longitude,
   }) async {
     final listing = await _ref
         .read(listingManagementServiceProvider)
@@ -168,7 +178,12 @@ class ProviderActions {
           priceType: priceType,
           imageUrls: imageUrls,
           isActive: isActive,
+          phone: phone,
+          address: address,
+          latitude: latitude,
+          longitude: longitude,
         );
+    _ref.invalidate(listingDetailProvider(current.id));
     _invalidateMyListings();
     return listing;
   }

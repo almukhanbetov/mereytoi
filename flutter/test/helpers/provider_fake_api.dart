@@ -21,6 +21,13 @@ class ProviderFakeApi implements HttpClientAdapter {
   /// GET /api/users/me/listings returns).
   final listings = <Map<String, dynamic>>[];
 
+  /// Listing id → what its halls and menus endpoints return.
+  final halls = <int, List<Map<String, dynamic>>>{};
+  final menus = <int, List<Map<String, dynamic>>>{};
+
+  /// Halls and menus endpoints answer HTTP 500.
+  bool failListingChildren = false;
+
   /// What GET /api/provider/me/bookings returns for a provider.
   final bookings = <Map<String, dynamic>>[];
 
@@ -74,6 +81,28 @@ class ProviderFakeApi implements HttpClientAdapter {
     if ((failWith500[key] ?? 0) > 0) {
       failWith500[key] = failWith500[key]! - 1;
       return _json({'error': 'boom'}, 500);
+    }
+
+    final listingPath = RegExp(
+      r'^/api/listings/(\d+)(?:/(.+))?$',
+    ).firstMatch(options.path);
+    if (options.method == 'GET' && listingPath != null) {
+      final id = int.parse(listingPath.group(1)!);
+      final child = listingPath.group(2);
+      if (child == null) {
+        final i = listings.indexWhere((l) => l['id'] == id);
+        return i < 0
+            ? _json({'error': 'listing not found'}, 404)
+            : _json({
+                'listing': {...listings[i], 'halls': halls[id] ?? const []},
+              }, 200);
+      }
+      if (failListingChildren) {
+        return _json({'error': 'boom'}, 500);
+      }
+      if (child == 'menus') {
+        return _json({'menus': menus[id] ?? const []}, 200);
+      }
     }
 
     final (Object body, int status) = switch (key) {

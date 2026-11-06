@@ -7,7 +7,9 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../../core/theme/app_theme.dart';
 import '../../../core/utils/error_messages.dart';
 import '../../../core/utils/format.dart';
+import '../../../domain/restaurant/restaurant_category.dart';
 import '../../../models/category.dart';
+import '../../../models/listing.dart';
 import '../../../state/categories_provider.dart';
 import '../../../state/city_provider.dart';
 import '../../../state/locale_provider.dart';
@@ -18,6 +20,7 @@ import '../../../widgets/app_skeleton.dart';
 import '../../../widgets/city_selector.dart';
 import '../../../widgets/provider/provider_form_widgets.dart';
 import '../../../widgets/services/services_category_grid.dart';
+import '../../profile/provider/widgets/location_picker_screen.dart';
 import 'provider_onboarding_success_screen.dart';
 
 String _yearsLabel(AppLocale locale, int years) {
@@ -66,6 +69,7 @@ class _ProviderOnboardingScreenState
   final _serviceName = TextEditingController();
   final _serviceDescription = TextEditingController();
   final _price = TextEditingController();
+  final _address = TextEditingController();
 
   @override
   void initState() {
@@ -103,6 +107,7 @@ class _ProviderOnboardingScreenState
       _serviceName,
       _serviceDescription,
       _price,
+      _address,
     ]) {
       c.dispose();
     }
@@ -120,10 +125,12 @@ class _ProviderOnboardingScreenState
     final ok = await notifier.publish();
     if (!mounted) return;
     if (ok) {
+      final done = ref.read(providerOnboardingProvider);
       await Navigator.of(context).pushReplacement(
         MaterialPageRoute(
           builder: (_) => ProviderOnboardingSuccessScreen(
             openBusiness: widget.openBusinessWhenDone,
+            restaurantId: done.restaurant ? done.createdListing?.id : null,
           ),
         ),
       );
@@ -183,6 +190,7 @@ class _ProviderOnboardingScreenState
                     name: _serviceName,
                     description: _serviceDescription,
                     price: _price,
+                    address: _address,
                   ),
                   _PreviewStep(locale: locale),
                 ],
@@ -451,7 +459,10 @@ class _CategoryStep extends ConsumerWidget {
             categories: list,
             selectedId: selected,
             locale: locale,
-            onSelect: (c) => notifier.selectCategory(c.id),
+            onSelect: (c) => notifier.selectCategory(
+              c.id,
+              restaurant: isRestaurantCategory(c.slug),
+            ),
           ),
         ),
       ],
@@ -887,12 +898,14 @@ class _ServiceStep extends ConsumerWidget {
     required this.name,
     required this.description,
     required this.price,
+    required this.address,
   });
 
   final AppLocale locale;
   final TextEditingController name;
   final TextEditingController description;
   final TextEditingController price;
+  final TextEditingController address;
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
@@ -901,12 +914,19 @@ class _ServiceStep extends ConsumerWidget {
     final category = _categoryOf(ref, s.categoryId);
 
     return _StepScaffold(
-      title: t(
-        locale,
-        ru: 'Создайте первую услугу',
-        kz: 'Алғашқы қызметті жасаңыз',
-        en: 'Create your first service',
-      ),
+      title: s.restaurant
+          ? t(
+              locale,
+              ru: 'Расскажите о ресторане',
+              kz: 'Мейрамхана туралы айтыңыз',
+              en: 'Tell us about the restaurant',
+            )
+          : t(
+              locale,
+              ru: 'Создайте первую услугу',
+              kz: 'Алғашқы қызметті жасаңыз',
+              en: 'Create your first service',
+            ),
       subtitle: t(
         locale,
         ru: 'Её увидят клиенты в каталоге',
@@ -933,18 +953,27 @@ class _ServiceStep extends ConsumerWidget {
         const SizedBox(height: AppSpacing.md),
         ProviderTextField(
           fieldKey: const ValueKey('onboarding-service-name'),
-          label: t(
-            locale,
-            ru: 'Название услуги',
-            kz: 'Қызмет атауы',
-            en: 'Service name',
-          ),
-          hint: t(
-            locale,
-            ru: 'Например, Проведение тоя',
-            kz: 'Мысалы, Той жүргізу',
-            en: 'e.g. Wedding hosting',
-          ),
+          label: s.restaurant
+              ? t(locale, ru: 'Название', kz: 'Атауы', en: 'Name')
+              : t(
+                  locale,
+                  ru: 'Название услуги',
+                  kz: 'Қызмет атауы',
+                  en: 'Service name',
+                ),
+          hint: s.restaurant
+              ? t(
+                  locale,
+                  ru: 'Например, Банкетный зал «Алтын»',
+                  kz: 'Мысалы, «Алтын» банкет залы',
+                  en: 'e.g. Altyn banquet hall',
+                )
+              : t(
+                  locale,
+                  ru: 'Например, Проведение тоя',
+                  kz: 'Мысалы, Той жүргізу',
+                  en: 'e.g. Wedding hosting',
+                ),
           controller: name,
           maxLength: 200,
           onChanged: notifier.setServiceName,
@@ -958,17 +987,56 @@ class _ServiceStep extends ConsumerWidget {
           maxLines: 6,
           onChanged: notifier.setServiceDescription,
         ),
-        ProviderTextField(
-          fieldKey: const ValueKey('onboarding-price'),
-          label: t(locale, ru: 'Цена', kz: 'Бағасы', en: 'Price'),
-          hint: '50 000',
-          suffixText: '₸',
-          controller: price,
-          keyboardType: TextInputType.number,
-          inputFormatters: [FilteringTextInputFormatter.digitsOnly],
-          maxLength: 9,
-          onChanged: notifier.setPrice,
-        ),
+        if (s.restaurant) ...[
+          ProviderTextField(
+            fieldKey: const ValueKey('onboarding-address'),
+            label: t(locale, ru: 'Адрес', kz: 'Мекенжай', en: 'Address'),
+            hint: t(
+              locale,
+              ru: 'Например, ул. Абая, 1',
+              kz: 'Мысалы, Абай к-сі, 1',
+              en: 'e.g. 1 Abai St',
+            ),
+            controller: address,
+            maxLength: 300,
+            onChanged: notifier.setAddress,
+          ),
+          ProviderPickerCard(
+            tapKey: const ValueKey('onboarding-map-point'),
+            icon: Icons.map_outlined,
+            value: isValidCoordinate(s.latitude, s.longitude)
+                ? mapPointLabel(locale, s.latitude!, s.longitude!)
+                : null,
+            placeholder: t(
+              locale,
+              ru: 'Выбрать точку на карте',
+              kz: 'Картадан нүкте таңдау',
+              en: 'Choose a point on the map',
+            ),
+            onTap: () async {
+              final point = await showLocationPicker(
+                context,
+                locale: locale,
+                latitude: s.latitude,
+                longitude: s.longitude,
+              );
+              if (point != null) {
+                notifier.setPoint(point.latitude, point.longitude);
+              }
+            },
+          ),
+        ] else
+          ProviderTextField(
+            fieldKey: const ValueKey('onboarding-price'),
+            label: t(locale, ru: 'Цена', kz: 'Бағасы', en: 'Price'),
+            hint: '50 000',
+            suffixText: '₸',
+            controller: price,
+            keyboardType: TextInputType.number,
+            inputFormatters: [FilteringTextInputFormatter.digitsOnly],
+            maxLength: 9,
+            onChanged: notifier.setPrice,
+          ),
       ],
     );
   }
@@ -1194,7 +1262,13 @@ class _PreviewStep extends ConsumerWidget {
                             if (s.city != null)
                               Expanded(
                                 child: Text(
-                                  s.city!.name(locale),
+                                  [
+                                    s.city!.name(locale),
+                                    if (s.restaurant &&
+                                        s.address.trim().isNotEmpty)
+                                      s.address.trim(),
+                                  ].join(', '),
+                                  key: const ValueKey('preview-place'),
                                   maxLines: 1,
                                   overflow: TextOverflow.ellipsis,
                                   style: textTheme.bodySmall,
@@ -1202,21 +1276,22 @@ class _PreviewStep extends ConsumerWidget {
                               )
                             else
                               const Spacer(),
-                            Flexible(
-                              child: FittedBox(
-                                fit: BoxFit.scaleDown,
-                                alignment: Alignment.centerRight,
-                                child: Text(
-                                  formatPrice(s.price ?? 0),
-                                  key: const ValueKey('preview-price'),
-                                  style: TextStyle(
-                                    color: colors.goldSoft,
-                                    fontWeight: FontWeight.w700,
-                                    fontSize: 16,
+                            if (!s.restaurant)
+                              Flexible(
+                                child: FittedBox(
+                                  fit: BoxFit.scaleDown,
+                                  alignment: Alignment.centerRight,
+                                  child: Text(
+                                    formatPrice(s.price ?? 0),
+                                    key: const ValueKey('preview-price'),
+                                    style: TextStyle(
+                                      color: colors.goldSoft,
+                                      fontWeight: FontWeight.w700,
+                                      fontSize: 16,
+                                    ),
                                   ),
                                 ),
                               ),
-                            ),
                           ],
                         ),
                       ],

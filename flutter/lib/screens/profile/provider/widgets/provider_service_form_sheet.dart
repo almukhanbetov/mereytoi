@@ -7,11 +7,13 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../../../core/config/api_config.dart';
 import '../../../../core/theme/app_theme.dart';
 import '../../../../core/utils/error_messages.dart';
+import '../../../../domain/restaurant/restaurant_category.dart';
 import '../../../../models/category.dart';
 import '../../../../models/city.dart';
 import '../../../../models/listing.dart';
 import '../../../../state/categories_provider.dart';
 import '../../../../state/city_provider.dart';
+import '../../../../state/listing_management_actions.dart';
 import '../../../../state/listings_provider.dart';
 import '../../../../state/locale_provider.dart';
 import '../../../../state/provider_onboarding.dart';
@@ -22,6 +24,7 @@ import '../../../../widgets/network_image_box.dart';
 import '../../../../widgets/provider/provider_form_widgets.dart';
 import '../../../../widgets/services/services_category_grid.dart';
 import '../../restaurant_admin/restaurant_manage_screen.dart';
+import 'location_picker_screen.dart';
 import 'provider_profile_form_sheet.dart';
 
 const _priceTypes = [
@@ -40,33 +43,33 @@ const _priceTypes = [
 /// Photos per service, same cap as the onboarding.
 const _maxPhotos = kMaxOnboardingPhotos;
 
-/// «Добавить услугу» / «Изменить услугу» — opens the full-screen service
-/// form. Pass [existing] to edit. Resolves to true once saved.
+/// «Добавить услугу» — the API's category list first, then the form for that
+/// category. Pass [existing] to edit: its saved category picks the form. Resolves
+/// to true once saved and back on the calling screen.
 Future<bool?> openProviderServiceForm(
   BuildContext context, {
   Listing? existing,
-}) {
+}) async {
+  Category? initialCategory;
+  if (existing == null) {
+    initialCategory = await showProviderCategoryPicker(context);
+    if (initialCategory == null || !context.mounted) return null;
+  }
   return Navigator.of(context).push<bool>(
     MaterialPageRoute(
       fullscreenDialog: true,
-      builder: (_) => ProviderServiceFormScreen(existing: existing),
+      builder: (_) => ProviderServiceFormScreen(
+        existing: existing,
+        initialCategory: initialCategory,
+      ),
     ),
   );
 }
 
-/// «Добавить ресторан»: the same form for a restaurant's general data, then
-/// straight on to the existing halls and menus management.
-Future<void> openRestaurantForm(BuildContext context) {
-  return Navigator.of(context).push<void>(
-    MaterialPageRoute(
-      fullscreenDialog: true,
-      builder: (_) => const ProviderServiceFormScreen(restaurant: true),
-    ),
-  );
-}
-
-/// The provider's own add/edit service form, in the onboarding's premium
-/// style: Основное, Стоимость, Категория, Город, Фотографии, Дополнительно.
+/// The provider's own add/edit form, in the onboarding's premium style. The
+/// category decides the fields: a service has a price and the business's
+/// contact, a restaurant has an address, a map point and its own phone (its
+/// prices live in the menus). Switching keeps everything already typed.
 /// The city comes only from the directory (canonical name saved), the
 /// category from the same tiles as the onboarding, and photos upload as
 /// they're picked (preview, delete, reorder, retry). The service is always
@@ -76,14 +79,13 @@ class ProviderServiceFormScreen extends ConsumerStatefulWidget {
   const ProviderServiceFormScreen({
     super.key,
     this.existing,
-    this.restaurant = false,
+    this.initialCategory,
   });
 
   final Listing? existing;
 
-  /// A new restaurant: its category is fixed and it has its own phone. Its
-  /// prices live in the menus, so there's no price here.
-  final bool restaurant;
+  /// A new listing's category, already picked from the list.
+  final Category? initialCategory;
 
   @override
   ConsumerState<ProviderServiceFormScreen> createState() =>
@@ -200,7 +202,13 @@ class _ProviderServiceFormScreenState
   late final TextEditingController _price;
   late final TextEditingController _nameKz;
   late final TextEditingController _descriptionKz;
-  final _phone = TextEditingController();
+  late final TextEditingController _phone;
+  late final TextEditingController _address;
+  double? _latitude;
+  double? _longitude;
+  // Until known otherwise: halls and menus only work under the restaurant
+  // category, so a restaurant that has any keeps it.
+  late bool _categoryLocked;
   Category? _category;
   City? _city;
   late String _priceType;
@@ -210,7 +218,7 @@ class _ProviderServiceFormScreenState
   String? _error;
 
   bool get _isEdit => widget.existing != null;
-  bool get _isRestaurant => widget.restaurant;
+  bool get _isRestaurant => isRestaurantCategory(_category?.slug);
 
   @override
   void initState() {
@@ -230,6 +238,12 @@ class _ProviderServiceFormScreenState
           ? e.descriptionKz
           : '',
     );
+    _phone = TextEditingController(text: e?.phone ?? '');
+    _address = TextEditingController(text: e?.address ?? '');
+    _latitude = e?.latitude;
+    _longitude = e?.longitude;
+    _categoryLocked = e != null;
+    _category = widget.initialCategory;
     _priceType = e?.priceType?.isNotEmpty == true ? e!.priceType! : 'fixed';
     _photos = [
       for (final u in e?.imageUrls ?? const <String>[]) _FormPhoto(url: u),
@@ -237,43 +251,24 @@ class _ProviderServiceFormScreenState
     _prefillSelections();
   }
 
-  /// Category: the service's own, or (new service) the provider's latest
-  /// one. City: the service's own, or the provider profile's, matched to
-  /// the directory so the canonical name is saved.
+  /// Category: the saved one (a new listing's is already picked). City: the
+  /// listing's own, or the provider profile's, matched to the directory so
+  /// the canonical name is saved.
   Future<void> _prefillSelections() async {
     final e = widget.existing;
     try {
-      final categories = await ref.read(categoriesProvider.future);
-      int? categoryId = e?.categoryId;
-      if (categoryId == null && !_isRestaurant) {
-        final mine = ref.read(myListingsProvider).valueOrNull ?? const [];
-        final candidates = mine.where(
-          (l) => !categories.any(
-            (c) =>
-                c.id == l.categoryId &&
-                kExcludedProviderCategorySlugs.contains(c.slug),
-          ),
-        );
-        if (candidates.isNotEmpty) categoryId = candidates.last.categoryId;
-      }
-      final category = categories
-          .where(
-            (c) =>
-                c.id == categoryId &&
-                !kExcludedProviderCategorySlugs.contains(c.slug),
-          )
-          .firstOrNull;
-      if (mounted && _category == null && category != null) {
-        setState(() => _category = category);
+      if (e != null) {
+        final categories = await ref.read(categoriesProvider.future);
+        final category = categories
+            .where((c) => c.id == e.categoryId)
+            .firstOrNull;
+        if (mounted && _category == null && category != null) {
+          setState(() => _category = category);
+        }
+        if (category != null) await _checkCategoryLock(e, category);
       }
     } catch (_) {}
-    if (_isRestaurant) {
-      try {
-        // The business's public number, as a starting point to edit.
-        final provider = await ref.read(providerProfileProvider.future);
-        if (mounted && _phone.text.isEmpty) _phone.text = provider?.phone ?? '';
-      } catch (_) {}
-    }
+    if (e == null && _isRestaurant) await _prefillRestaurantPhone();
     try {
       final cities = await ref.read(citiesProvider.future);
       var wanted = e?.city ?? '';
@@ -297,6 +292,45 @@ class _ProviderServiceFormScreenState
     } catch (_) {}
   }
 
+  /// A failed check leaves the category locked: nothing is at risk that way.
+  Future<void> _checkCategoryLock(Listing e, Category category) async {
+    var locked = false;
+    if (isRestaurantCategory(category.slug)) {
+      final halls = await ref.read(listingAllHallsProvider(e.id).future);
+      final menus = await ref.read(listingMenusProvider(e.id).future);
+      locked = halls.isNotEmpty || menus.isNotEmpty;
+    }
+    if (mounted) setState(() => _categoryLocked = locked);
+  }
+
+  /// The business's public number, as a starting point to edit.
+  Future<void> _prefillRestaurantPhone() async {
+    try {
+      final provider = await ref.read(providerProfileProvider.future);
+      if (mounted && _phone.text.isEmpty) _phone.text = provider?.phone ?? '';
+    } catch (_) {}
+  }
+
+  void _selectCategory(Category category) {
+    if (category.id == _category?.id) return;
+    setState(() => _category = category);
+    if (isRestaurantCategory(category.slug)) _prefillRestaurantPhone();
+  }
+
+  Future<void> _pickPoint() async {
+    final point = await showLocationPicker(
+      context,
+      locale: _locale,
+      latitude: _latitude,
+      longitude: _longitude,
+    );
+    if (point == null || !mounted) return;
+    setState(() {
+      _latitude = point.latitude;
+      _longitude = point.longitude;
+    });
+  }
+
   @override
   void dispose() {
     for (final c in [
@@ -306,6 +340,7 @@ class _ProviderServiceFormScreenState
       _nameKz,
       _descriptionKz,
       _phone,
+      _address,
     ]) {
       c.dispose();
     }
@@ -360,7 +395,8 @@ class _ProviderServiceFormScreenState
 
   bool get _valid =>
       _nameError == null &&
-      (_isRestaurant || (_priceError == null && _categoryError == null)) &&
+      _categoryError == null &&
+      (_isRestaurant || _priceError == null) &&
       _cityError == null;
 
   // ---- photos ----
@@ -447,29 +483,65 @@ class _ProviderServiceFormScreenState
     final descriptionKz = _descriptionKz.text.trim().isEmpty
         ? description
         : _descriptionKz.text.trim();
-    final price = _isRestaurant ? 0 : int.parse(_price.text.trim());
+    final restaurant = _isRestaurant;
+    final existing = widget.existing;
+    // A restaurant's form has no price: an edit keeps the stored one.
+    final price = restaurant
+        ? existing?.price ?? 0
+        : int.parse(_price.text.trim());
     final imageUrls = [for (final p in _photos) p.url!];
 
     try {
       final actions = ref.read(providerActionsProvider);
-      if (_isRestaurant) {
-        final categories = await ref.read(categoriesProvider.future);
-        final venues = categories.firstWhere((c) => c.slug == 'venues');
-        final created = await actions.createListing(
-          categoryId: venues.id,
+      final categories = ref.read(categoriesProvider).valueOrNull ?? const [];
+      final wasRestaurant =
+          existing != null &&
+          categories.any(
+            (c) => c.id == existing.categoryId && isRestaurantCategory(c.slug),
+          );
+      final Listing saved;
+      if (existing != null) {
+        // A service's form doesn't show these, so they stay as stored.
+        saved = await actions.updateListing(
+          existing,
+          categoryId: _category!.id,
           nameRu: name,
           nameKz: nameKz,
           descriptionRu: description,
           descriptionKz: descriptionKz,
           city: _city!.nameRu,
-          phone: _phone.text.trim(),
+          price: price,
+          priceType: _priceType,
           imageUrls: imageUrls,
+          phone: restaurant ? _phone.text.trim() : null,
+          address: restaurant ? _address.text.trim() : null,
+          latitude: restaurant ? _latitude : null,
+          longitude: restaurant ? _longitude : null,
         );
-        if (!mounted) return;
-        // Not awaited: this form is gone once the management screen opens.
+      } else {
+        saved = await actions.createListing(
+          categoryId: _category!.id,
+          nameRu: name,
+          nameKz: nameKz,
+          descriptionRu: description,
+          descriptionKz: descriptionKz,
+          city: _city!.nameRu,
+          price: price,
+          priceType: _priceType,
+          imageUrls: imageUrls,
+          phone: restaurant ? _phone.text.trim() : '',
+          address: restaurant ? _address.text.trim() : '',
+          latitude: restaurant ? _latitude : null,
+          longitude: restaurant ? _longitude : null,
+        );
+      }
+      if (!mounted) return;
+      // Newly a restaurant: straight on to its halls and menus. Not awaited:
+      // this form is gone once the management screen opens.
+      if (restaurant && !wasRestaurant) {
         navigator.pushReplacement(
           MaterialPageRoute<void>(
-            builder: (_) => RestaurantManageScreen(listingId: created.id),
+            builder: (_) => RestaurantManageScreen(listingId: saved.id),
           ),
         );
         messenger.showSnackBar(
@@ -478,42 +550,15 @@ class _ProviderServiceFormScreenState
             content: Text(
               t(
                 locale,
-                ru: 'Ресторан опубликован. Добавьте залы и меню',
-                kz: 'Мейрамхана жарияланды. Залдар мен мәзір қосыңыз',
-                en: 'Restaurant published. Add halls and menus',
+                ru: 'Ресторан сохранён. Добавьте залы и меню',
+                kz: 'Мейрамхана сақталды. Залдар мен мәзір қосыңыз',
+                en: 'Restaurant saved. Add halls and menus',
               ),
             ),
           ),
         );
         return;
       }
-      if (_isEdit) {
-        await actions.updateListing(
-          widget.existing!,
-          categoryId: _category!.id,
-          nameRu: name,
-          nameKz: nameKz,
-          descriptionRu: description,
-          descriptionKz: descriptionKz,
-          city: _city!.nameRu,
-          price: price,
-          priceType: _priceType,
-          imageUrls: imageUrls,
-        );
-      } else {
-        await actions.createListing(
-          categoryId: _category!.id,
-          nameRu: name,
-          nameKz: nameKz,
-          descriptionRu: description,
-          descriptionKz: descriptionKz,
-          city: _city!.nameRu,
-          price: price,
-          priceType: _priceType,
-          imageUrls: imageUrls,
-        );
-      }
-      if (!mounted) return;
       navigator.pop(true);
       messenger.showSnackBar(
         SnackBar(
@@ -562,7 +607,14 @@ class _ProviderServiceFormScreenState
           onPressed: _saving ? null : () => Navigator.of(context).pop(),
         ),
         title: Text(
-          _isRestaurant
+          _isRestaurant && _isEdit
+              ? t(
+                  locale,
+                  ru: 'Изменить ресторан',
+                  kz: 'Мейрамхананы өзгерту',
+                  en: 'Edit restaurant',
+                )
+              : _isRestaurant
               ? t(
                   locale,
                   ru: 'Новый ресторан',
@@ -596,6 +648,62 @@ class _ProviderServiceFormScreenState
                 AppSpacing.xl,
               ),
               children: [
+                _Section(
+                  title: t(
+                    locale,
+                    ru: 'Категория',
+                    kz: 'Санат',
+                    en: 'Category',
+                  ),
+                  plain: true,
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      IgnorePointer(
+                        ignoring: _categoryLocked,
+                        child: ProviderPickerCard(
+                          tapKey: const ValueKey('service-category'),
+                          icon: _category == null
+                              ? Icons.category_outlined
+                              : servicesCategoryIcon(_category!.slug),
+                          value: _category?.name(locale),
+                          placeholder: t(
+                            locale,
+                            ru: 'Выберите категорию',
+                            kz: 'Санатты таңдаңыз',
+                            en: 'Select a category',
+                          ),
+                          errorText: show ? _categoryError : null,
+                          onTap: () async {
+                            final picked = await showProviderCategoryPicker(
+                              context,
+                              selectedId: _category?.id,
+                            );
+                            if (picked != null) _selectCategory(picked);
+                          },
+                        ),
+                      ),
+                      if (_isRestaurant && _categoryLocked)
+                        Padding(
+                          padding: const EdgeInsets.only(
+                            left: AppSpacing.sm,
+                            top: 6,
+                          ),
+                          child: Text(
+                            t(
+                              locale,
+                              ru: 'Категорию нельзя изменить: у ресторана есть залы или меню',
+                              kz: 'Санатты өзгерту мүмкін емес: мейрамхананың залдары немесе мәзірі бар',
+                              en: 'The category can\'t be changed: this restaurant has halls or menus',
+                            ),
+                            key: const ValueKey('service-category-locked'),
+                            style: Theme.of(context).textTheme.bodySmall
+                                ?.copyWith(color: colors.textSecondary),
+                          ),
+                        ),
+                    ],
+                  ),
+                ),
                 _Section(
                   title: t(locale, ru: 'Основное', kz: 'Негізгі', en: 'Basics'),
                   child: Column(
@@ -696,37 +804,6 @@ class _ProviderServiceFormScreenState
                       ],
                     ),
                   ),
-                if (!_isRestaurant)
-                  _Section(
-                    title: t(
-                      locale,
-                      ru: 'Категория',
-                      kz: 'Санат',
-                      en: 'Category',
-                    ),
-                    plain: true,
-                    child: ProviderPickerCard(
-                      tapKey: const ValueKey('service-category'),
-                      icon: _category == null
-                          ? Icons.category_outlined
-                          : servicesCategoryIcon(_category!.slug),
-                      value: _category?.name(locale),
-                      placeholder: t(
-                        locale,
-                        ru: 'Выберите категорию',
-                        kz: 'Санатты таңдаңыз',
-                        en: 'Select a category',
-                      ),
-                      errorText: show ? _categoryError : null,
-                      onTap: () async {
-                        final picked = await showProviderCategoryPicker(
-                          context,
-                          selectedId: _category?.id,
-                        );
-                        if (picked != null) setState(() => _category = picked);
-                      },
-                    ),
-                  ),
                 _Section(
                   title: t(locale, ru: 'Город', kz: 'Қала', en: 'City'),
                   plain: true,
@@ -750,6 +827,54 @@ class _ProviderServiceFormScreenState
                     },
                   ),
                 ),
+                if (_isRestaurant)
+                  _Section(
+                    title: t(
+                      locale,
+                      ru: 'Адрес',
+                      kz: 'Мекенжай',
+                      en: 'Address',
+                    ),
+                    child: Column(
+                      children: [
+                        ProviderTextField(
+                          fieldKey: const ValueKey('restaurant-address'),
+                          label: t(
+                            locale,
+                            ru: 'Адрес',
+                            kz: 'Мекенжай',
+                            en: 'Address',
+                          ),
+                          hint: t(
+                            locale,
+                            ru: 'Например, ул. Абая, 1',
+                            kz: 'Мысалы, Абай к-сі, 1',
+                            en: 'e.g. 1 Abai St',
+                          ),
+                          controller: _address,
+                          maxLength: 300,
+                          onChanged: (_) {},
+                        ),
+                        Padding(
+                          padding: const EdgeInsets.only(bottom: AppSpacing.sm),
+                          child: ProviderPickerCard(
+                            tapKey: const ValueKey('restaurant-map-point'),
+                            icon: Icons.map_outlined,
+                            value: isValidCoordinate(_latitude, _longitude)
+                                ? mapPointLabel(locale, _latitude!, _longitude!)
+                                : null,
+                            placeholder: t(
+                              locale,
+                              ru: 'Выбрать точку на карте',
+                              kz: 'Картадан нүкте таңдау',
+                              en: 'Choose a point on the map',
+                            ),
+                            onTap: _pickPoint,
+                          ),
+                        ),
+                      ],
+                    ),
+                  ),
                 _Section(
                   title: t(
                     locale,
