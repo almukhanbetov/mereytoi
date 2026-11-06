@@ -20,7 +20,11 @@ export default async function ServicePage({ params }) {
   const sameCategory = listing.category
     ? await fetchListingsByCategory(listing.category.slug)
     : [];
-  const related = sameCategory.filter((l) => l.id !== listing.id).slice(0, 4);
+  // The API lists newest first; «related» stays the best rated of the category.
+  const related = sameCategory
+    .filter((l) => l.id !== listing.id)
+    .sort((a, b) => b.rating - a.rating)
+    .slice(0, 4);
 
   return <ServiceDetail listing={listing} related={related} />;
 }

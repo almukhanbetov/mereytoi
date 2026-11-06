@@ -252,12 +252,13 @@ void main() {
 
   testWidgets('a popular card opens that service', (tester) async {
     await pumpHome(tester);
-    await tapVisible(tester, find.byKey(const ValueKey('home-popular-3')));
+    // All rated the same here, so the newest come first.
+    await tapVisible(tester, find.byKey(const ValueKey('home-popular-10')));
     expect(
       tester
           .widget<ServiceDetailScreen>(find.byType(ServiceDetailScreen))
           .listingId,
-      3,
+      10,
     );
   });
 

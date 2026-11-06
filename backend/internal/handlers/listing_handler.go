@@ -117,8 +117,11 @@ func (h *ListingHandler) List(c *gin.Context) {
 		query = query.Where("city IN ?", matched)
 	}
 
+	// Newest first, by when a listing was added: editing one (updated_at) must
+	// not lift it, and id keeps rows created at the same moment in a stable
+	// order. This is the whole list, there is no pagination after it.
 	var listings []models.Listing
-	if err := query.Order("rating desc").Find(&listings).Error; err != nil {
+	if err := query.Order("created_at desc, id desc").Find(&listings).Error; err != nil {
 		c.JSON(http.StatusInternalServerError, gin.H{"error": "failed to fetch listings"})
 		return
 	}

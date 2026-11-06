@@ -2,6 +2,7 @@ import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
+import '../../models/listing.dart';
 import '../../core/theme/app_theme.dart';
 import '../../core/utils/error_messages.dart';
 import '../../core/utils/format.dart';
@@ -660,6 +661,19 @@ class _CategoriesSection extends ConsumerWidget {
 /// How many categories and popular services Home shows — a glimpse, not
 /// the catalog.
 const _homeCategoryLimit = 4;
+
+/// «Популярное» is the highest rated, whatever order the catalog comes in
+/// (the API lists newest first). Ties go to the newest.
+@visibleForTesting
+List<Listing> homePopularListings(List<Listing> listings) {
+  final ranked = [...listings]
+    ..sort((a, b) {
+      final byRating = b.rating.compareTo(a.rating);
+      return byRating != 0 ? byRating : b.id.compareTo(a.id);
+    });
+  return ranked.take(_homePopularLimit).toList();
+}
+
 const _homePopularLimit = 4;
 
 /// Opens the services catalog — filtered to [categorySlug], or showing
@@ -753,7 +767,7 @@ class _PopularSection extends ConsumerWidget {
                   onRetry: () => ref.invalidate(listingsProvider(null)),
                 ),
                 data: (list) {
-                  final shown = list.take(_homePopularLimit).toList();
+                  final shown = homePopularListings(list);
                   return grid(
                     shown.length,
                     (i) => FadeSlideIn(
