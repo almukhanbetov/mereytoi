@@ -468,6 +468,14 @@ class ServiceGridCard extends StatelessWidget {
                               left: AppSpacing.xs,
                               child: _RatingBadge(rating: listing.rating),
                             ),
+                          Positioned(
+                            left: AppSpacing.xs,
+                            bottom: AppSpacing.xs,
+                            child: _ViewCountBadge(
+                              count: listing.viewCount,
+                              locale: locale,
+                            ),
+                          ),
                         ],
                       ),
                     ),
@@ -537,6 +545,51 @@ class ServiceGridCard extends StatelessWidget {
               },
             ),
           ),
+        ),
+      ),
+    );
+  }
+}
+
+/// A listing's view total over its photo: the same dark pill as the rating, so
+/// it reads the same on any photo and in either theme.
+class _ViewCountBadge extends StatelessWidget {
+  const _ViewCountBadge({required this.count, required this.locale});
+
+  final int count;
+  final AppLocale locale;
+
+  @override
+  Widget build(BuildContext context) {
+    final label = formatCount(count);
+    return Semantics(
+      label: viewCountSemantics(locale, count),
+      excludeSemantics: true,
+      child: Container(
+        key: const ValueKey('service-view-count'),
+        padding: const EdgeInsets.symmetric(horizontal: 7, vertical: 4),
+        decoration: BoxDecoration(
+          color: Colors.black.withValues(alpha: 0.55),
+          borderRadius: BorderRadius.circular(AppRadius.chip),
+        ),
+        child: Row(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            const Icon(
+              Icons.visibility_outlined,
+              size: 12,
+              color: Colors.white,
+            ),
+            const SizedBox(width: 3),
+            Text(
+              label,
+              style: const TextStyle(
+                color: Colors.white,
+                fontSize: 11,
+                fontWeight: FontWeight.w700,
+              ),
+            ),
+          ],
         ),
       ),
     );

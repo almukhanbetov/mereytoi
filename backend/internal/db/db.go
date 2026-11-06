@@ -35,6 +35,9 @@ func Connect(cfg config.Config) *gorm.DB {
 
 	if err := database.AutoMigrate(
 		&models.User{}, &models.Category{}, &models.Listing{}, &models.Booking{}, &models.Comment{}, &models.Client{}, &models.SiteStatistics{},
+		// Who was recently counted for a listing's views — see
+		// models/listing_view.go.
+		&models.ListingView{},
 		// Password reset/change one-time codes — see models/password_reset_code.go.
 		&models.PasswordResetCode{},
 		// Backup-code recovery throttle — see models/recovery_attempt.go

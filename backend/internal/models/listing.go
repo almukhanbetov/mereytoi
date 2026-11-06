@@ -24,8 +24,11 @@ type Listing struct {
 	ImageURLs     []string  `gorm:"serializer:json" json:"image_urls"`
 	VideoURLs     []string  `gorm:"serializer:json" json:"video_urls"`
 	IsActive      bool      `gorm:"not null;default:true" json:"is_active"`
-	CreatedAt     time.Time `json:"created_at"`
-	UpdatedAt     time.Time `json:"updated_at"`
+	// ViewCount — how many times the listing's page was opened, see
+	// handlers.RecordView, the only writer. Not part of listingInput.
+	ViewCount uint      `gorm:"not null;default:0" json:"view_count"`
+	CreatedAt time.Time `json:"created_at"`
+	UpdatedAt time.Time `json:"updated_at"`
 
 	// Address/Latitude/Longitude/PlaceID/Capacity — additive location
 	// fields from the restaurant/venue audit. City above is unchanged and

@@ -48,6 +48,8 @@ type providerBrief struct {
 
 type ListingHandler struct {
 	DB *gorm.DB
+	// ViewSecret keys the hash of who viewed a listing (RecordView).
+	ViewSecret string
 }
 
 func NewListingHandler(db *gorm.DB) *ListingHandler {
@@ -664,7 +666,8 @@ func (h *ListingHandler) Update(c *gin.Context) {
 		listing.IsActive = *in.IsActive
 	}
 
-	if err := h.DB.Save(&listing).Error; err != nil {
+	// Omit: a view counted while this edit was in flight must not be lost.
+	if err := h.DB.Omit("ViewCount").Save(&listing).Error; err != nil {
 		c.JSON(http.StatusInternalServerError, gin.H{"error": "failed to update listing"})
 		return
 	}

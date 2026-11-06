@@ -71,6 +71,16 @@ class _RestaurantDetailScreenState
   final Set<int> _selectedExtraIds = {};
 
   @override
+  void initState() {
+    super.initState();
+    // Here, not in build: a rebuild must not count another view.
+    recordListingView(
+      ProviderScope.containerOf(context, listen: false),
+      widget.listingId,
+    );
+  }
+
+  @override
   void dispose() {
     _pageController.dispose();
     super.dispose();

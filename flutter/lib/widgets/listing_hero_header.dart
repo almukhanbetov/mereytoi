@@ -6,6 +6,7 @@ import '../core/theme/app_theme.dart';
 import '../core/utils/whatsapp.dart';
 import '../models/listing.dart';
 import '../screens/provider/provider_profile_screen.dart';
+import '../core/utils/format.dart';
 import '../state/locale_provider.dart';
 import 'app_back_button.dart';
 import 'app_chip.dart';
@@ -211,6 +212,15 @@ List<Widget> listingHeroSlivers({
                       label: listing.rating.toStringAsFixed(1),
                       iconColor: context.mereytoiColors.goldPrimary,
                     ),
+                  Semantics(
+                    label: viewCountSemantics(locale, listing.viewCount),
+                    excludeSemantics: true,
+                    child: AppMetaChip(
+                      key: const ValueKey('listing-view-count'),
+                      icon: Icons.visibility_outlined,
+                      label: formatCount(listing.viewCount),
+                    ),
+                  ),
                   if (listing.phone.isNotEmpty)
                     AppMetaChip(
                       icon: Icons.call_outlined,

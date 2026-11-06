@@ -26,6 +26,18 @@ final listingsProvider = FutureProvider.family<List<Listing>, String?>((
       .fetchListings(categorySlug: categorySlug, cityId: cityId);
 });
 
+/// Counts one view of a listing's page: call it once, from the screen's
+/// initState, so a rebuild doesn't repeat it. The number shown always comes
+/// back from the API. A failed count must never bother the person viewing.
+Future<void> recordListingView(ProviderContainer container, int id) async {
+  try {
+    if (await container.read(listingServiceProvider).recordView(id)) {
+      container.invalidate(listingDetailProvider(id));
+      container.invalidate(listingsProvider);
+    }
+  } catch (_) {}
+}
+
 final listingDetailProvider = FutureProvider.family<Listing, int>((ref, id) {
   return ref.watch(listingServiceProvider).fetchById(id);
 });
