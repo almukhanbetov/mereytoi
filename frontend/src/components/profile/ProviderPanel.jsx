@@ -29,7 +29,7 @@ export default function ProviderPanel() {
   const [profileSaving, setProfileSaving] = useState(false);
   const [avatarUploading, setAvatarUploading] = useState(false);
 
-  const [serviceForm, setServiceForm] = useState(null); // null | 'new' | 'new-restaurant' | listing object being edited
+  const [serviceForm, setServiceForm] = useState(null); // null | 'new' | listing object being edited
   const [managingId, setManagingId] = useState(null); // the restaurant being managed
 
   function loadMine() {
@@ -252,11 +252,8 @@ export default function ProviderPanel() {
               <button type="button" className="btn btn--outline btn--sm" onClick={startEditProfile}>
                 <T ru="Профиль услугодателя" kz="Қызмет көрсетуші профилі" />
               </button>
-              <button type="button" className="btn btn--gold btn--sm" onClick={() => setServiceForm('new')}>
+              <button type="button" className="btn btn--gold btn--sm" onClick={() => { setManagingId(null); setServiceForm('new'); }}>
                 + <T ru="Добавить услугу" kz="Қызмет қосу" />
-              </button>
-              <button type="button" className="btn btn--gold btn--sm" onClick={() => { setManagingId(null); setServiceForm('new-restaurant'); }} disabled={!venueCategory}>
-                + <T ru="Добавить ресторан" kz="Мейрамхана қосу" en="Add a restaurant" />
               </button>
             </div>
           </div>
@@ -264,23 +261,19 @@ export default function ProviderPanel() {
           {serviceForm && (
             <div style={{ margin: '20px 0' }}>
               <ProviderServiceForm
-                key={serviceForm === 'new' || serviceForm === 'new-restaurant' ? serviceForm : serviceForm.id}
-                categories={categories.filter((c) => !isRestaurantCategory(c))}
-                restaurant={serviceForm === 'new-restaurant'}
+                key={serviceForm === 'new' ? serviceForm : serviceForm.id}
+                categories={categories}
                 provider={provider}
                 onEditContact={startEditProfile}
                 listingId={typeof serviceForm === 'string' ? undefined : serviceForm.id}
                 initial={
                   serviceForm === 'new'
                     ? { city: provider.city || '' }
-                    : serviceForm === 'new-restaurant'
-                      // The business's public number, as a starting point to edit.
-                      ? { city: provider.city || '', phone: provider.phone || '', category_id: venueCategory?.id }
-                      : listingToPayload(serviceForm)
+                    : listingToPayload(serviceForm)
                 }
                 onSaved={(saved) => {
-                  // A new restaurant goes straight on to its halls and menus.
-                  if (serviceForm === 'new-restaurant' && saved) setManagingId(saved.id);
+                  // Newly a restaurant: straight on to its halls and menus.
+                  if (saved?.category_id === venueCategory?.id) setManagingId(saved.id);
                   setServiceForm(null);
                   loadMine();
                 }}
@@ -294,7 +287,13 @@ export default function ProviderPanel() {
               key={managingId}
               listingId={managingId}
               categories={categories}
-              onSaved={loadMine}
+              provider={provider}
+              onEditContact={startEditProfile}
+              onSaved={(saved) => {
+                loadMine();
+                // Now an ordinary service: nothing left to manage here.
+                if (saved && saved.category_id !== venueCategory?.id) setManagingId(null);
+              }}
               onClose={() => setManagingId(null)}
             />
           )}
@@ -364,7 +363,7 @@ export default function ProviderPanel() {
                         </button>
                       </td>
                       <td className="admin-table__actions">
-                        <button type="button" className="admin-table__link" onClick={() => setServiceForm(l)}>
+                        <button type="button" className="admin-table__link" onClick={() => { setManagingId(null); setServiceForm(l); }}>
                           <T ru="Изменить" kz="Өзгерту" />
                         </button>
                         <button type="button" className="admin-table__link admin-table__link--danger" onClick={() => handleDelete(l)}>

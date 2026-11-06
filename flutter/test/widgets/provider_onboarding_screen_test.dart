@@ -16,6 +16,9 @@ import 'package:mereytoi_app/services/upload_service.dart';
 import 'package:mereytoi_app/state/providers.dart';
 import 'package:mereytoi_app/widgets/city_selector.dart';
 import 'package:mereytoi_app/widgets/services/services_category_grid.dart';
+import 'package:google_maps_flutter/google_maps_flutter.dart' show LatLng;
+import 'package:mereytoi_app/screens/profile/provider/widgets/location_picker_screen.dart';
+import 'package:mereytoi_app/screens/profile/restaurant_admin/restaurant_manage_screen.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 
 import '../helpers/city_fake_api.dart';
@@ -146,11 +149,11 @@ void main() {
     (tester) async {
       final api = await pumpWizard(tester);
 
-      // Step 1 — category. Restaurants aren't offered here.
+      // Step 1 — category: the same list as everywhere else.
       expect(progress(tester), '1 из 6');
       expect(find.text('Чем вы занимаетесь?'), findsOneWidget);
-      expect(find.text('Рестораны и локации'), findsNothing);
-      expect(find.byType(ServicesCategoryTile), findsNWidgets(3));
+      expect(find.text('Рестораны и локации'), findsOneWidget);
+      expect(find.byType(ServicesCategoryTile), findsNWidgets(4));
       expect(nextEnabled(tester), isFalse);
       await tester.tap(find.text('Ведущие'));
       await tester.pump();
@@ -314,9 +317,113 @@ void main() {
     for (var i = 0; i < 10; i++) {
       await tester.pump(const Duration(milliseconds: 100));
     }
+    // «Добавить услугу» starts from the category list.
+    await tester.tap(find.byType(ServicesCategoryTile).first);
+    for (var i = 0; i < 10; i++) {
+      await tester.pump(const Duration(milliseconds: 100));
+    }
     // The form is a full-screen route on top of «Мои услуги».
     expect(find.byType(MyServicesScreen, skipOffstage: false), findsOneWidget);
     expect(find.byType(ProviderServiceFormScreen), findsOneWidget);
+  });
+
+  testWidgets(
+    'a restaurant: own fields, no price, publishes and goes on to management',
+    (tester) async {
+      LocationPickerScreen.debugMapBuilder = (point, onPick) => TextButton(
+        key: const ValueKey('fake-map'),
+        onPressed: () => onPick(const LatLng(43.1, 76.9)),
+        child: const Text('map'),
+      );
+      addTearDown(() => LocationPickerScreen.debugMapBuilder = null);
+      final api = await pumpWizard(tester);
+      await tester.tap(find.text('Рестораны и локации'));
+      await tester.pump();
+      await tapNext(tester);
+      await tester.enterText(
+        find.byKey(const ValueKey('onboarding-name')),
+        'Дана',
+      );
+      await tester.enterText(
+        find.byKey(const ValueKey('onboarding-phone')),
+        '+7 701 111 22 33',
+      );
+      await tester.pump();
+      await tapNext(tester);
+      await tester.tap(find.byKey(const ValueKey('onboarding-city')));
+      await tester.pumpAndSettle();
+      await tester.tap(find.text('Астана').last);
+      await tester.pumpAndSettle();
+      await tapNext(tester);
+      await tapNext(tester); // photos are optional
+
+      expect(find.text('Расскажите о ресторане'), findsOneWidget);
+      expect(find.byKey(const ValueKey('onboarding-price')), findsNothing);
+      expect(nextEnabled(tester), isFalse);
+      await tester.enterText(
+        find.byKey(const ValueKey('onboarding-service-name')),
+        'Алтын',
+      );
+      await tester.enterText(
+        find.byKey(const ValueKey('onboarding-address')),
+        'ул. Абая, 1',
+      );
+      await tester.pump();
+      expect(nextEnabled(tester), isTrue); // no price needed
+
+      final point = find.byKey(const ValueKey('onboarding-map-point'));
+      await tester.ensureVisible(point);
+      await tester.pumpAndSettle();
+      await tester.tap(point);
+      await tester.pumpAndSettle();
+      await tester.tap(find.byKey(const ValueKey('fake-map')));
+      await tester.pump();
+      await tester.tap(find.byKey(const ValueKey('location-picker-confirm')));
+      await tester.pumpAndSettle();
+      expect(find.text('Точка: 43.10000, 76.90000'), findsOneWidget);
+
+      await tapNext(tester);
+      expect(find.byKey(const ValueKey('preview-price')), findsNothing);
+      expect(find.textContaining('ул. Абая, 1'), findsWidgets);
+      await tester.tap(find.byKey(const ValueKey('onboarding-next')));
+      await tester.pumpAndSettle();
+
+      final body = api.bodies['POST /api/provider/me/listings']!.single! as Map;
+      expect(body['category_id'], 1);
+      expect(body['price'], 0);
+      expect(body['address'], 'ул. Абая, 1');
+      expect(body['phone'], '+7 701 111 22 33');
+      expect(body['latitude'], 43.1);
+      expect(body['longitude'], 76.9);
+
+      await tester.tap(find.byKey(const ValueKey('success-restaurant-manage')));
+      await tester.pumpAndSettle();
+      expect(find.byType(RestaurantManageScreen), findsOneWidget);
+    },
+  );
+
+  testWidgets('a restaurant chosen and then changed: a plain service', (
+    tester,
+  ) async {
+    final api = await pumpWizard(tester);
+    await tester.tap(find.text('Рестораны и локации'));
+    await tester.pump();
+    await tester.tap(find.text('Ведущие'));
+    await tester.pump();
+    await tapNext(tester);
+    await tester.enterText(find.byKey(const ValueKey('onboarding-name')), 'Д');
+    await tester.pump();
+    await tapNext(tester);
+    await tester.tap(find.byKey(const ValueKey('onboarding-city')));
+    await tester.pumpAndSettle();
+    await tester.tap(find.text('Астана').last);
+    await tester.pumpAndSettle();
+    await tapNext(tester);
+    await tapNext(tester);
+    expect(find.text('Создайте первую услугу'), findsOneWidget);
+    expect(find.byKey(const ValueKey('onboarding-address')), findsNothing);
+    expect(find.byKey(const ValueKey('onboarding-price')), findsOneWidget);
+    expect(api.count('POST /api/provider/me/listings'), 0);
   });
 
   testWidgets('system back steps back instead of closing', (tester) async {

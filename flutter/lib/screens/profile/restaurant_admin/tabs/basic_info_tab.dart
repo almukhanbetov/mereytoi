@@ -3,9 +3,12 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../../../../core/theme/app_theme.dart';
 import '../../../../core/utils/error_messages.dart';
+import '../../../../domain/restaurant/restaurant_category.dart';
 import '../../../../models/listing.dart';
 import '../../../../state/listing_management_actions.dart';
+import '../../../../state/listings_provider.dart';
 import '../../../../state/locale_provider.dart';
+import '../../provider/widgets/provider_service_form_sheet.dart';
 
 /// "Основное" tab — the listing's own core fields, via the same
 /// full-replace `PUT /api/listings/:id` the "Адрес" tab also writes
@@ -64,6 +67,35 @@ class _BasicInfoTabState extends ConsumerState<BasicInfoTab> {
     super.dispose();
   }
 
+  /// The form with the category, photos and map point. These fields then
+  /// show what it saved, so a later save here can't bring back old values.
+  Future<void> _openFullForm() async {
+    final saved = await openProviderServiceForm(
+      context,
+      existing: widget.listing,
+    );
+    if (saved != true || !mounted) return;
+    final Listing fresh;
+    try {
+      fresh = await ref.read(listingDetailProvider(widget.listing.id).future);
+    } catch (_) {
+      return;
+    }
+    if (!mounted) return;
+    // Now an ordinary service: nothing left to manage here.
+    if (fresh.category != null && !isRestaurantCategory(fresh.category!.slug)) {
+      Navigator.of(context).pop();
+      return;
+    }
+    _nameRu.text = fresh.nameRu;
+    _nameKz.text = fresh.nameKz;
+    _descriptionRu.text = fresh.descriptionRu;
+    _descriptionKz.text = fresh.descriptionKz;
+    _city.text = fresh.city;
+    _phone.text = fresh.phone;
+    _price.text = '${fresh.price}';
+  }
+
   Future<void> _save() async {
     setState(() {
       _saving = true;
@@ -112,6 +144,36 @@ class _BasicInfoTabState extends ConsumerState<BasicInfoTab> {
             96,
           ),
           children: [
+            if (widget.listing.category != null) ...[
+              Text(
+                t(locale, ru: 'Категория', kz: 'Санат', en: 'Category'),
+                style: Theme.of(context).textTheme.labelLarge?.copyWith(
+                  color: context.mereytoiColors.textSecondary,
+                ),
+              ),
+              const SizedBox(height: AppSpacing.xxs),
+              Text(
+                widget.listing.category!.name(locale),
+                key: const ValueKey('basic-info-category'),
+                style: Theme.of(context).textTheme.titleMedium,
+              ),
+              const SizedBox(height: AppSpacing.xs),
+            ],
+            OutlinedButton.icon(
+              key: const ValueKey('basic-info-open-form'),
+              style: OutlinedButton.styleFrom(minimumSize: const Size(48, 48)),
+              onPressed: _openFullForm,
+              icon: const Icon(Icons.edit_outlined, size: 18),
+              label: Text(
+                t(
+                  locale,
+                  ru: 'Категория, фото и точка на карте',
+                  kz: 'Санат, фото және картадағы нүкте',
+                  en: 'Category, photos and map point',
+                ),
+              ),
+            ),
+            const SizedBox(height: AppSpacing.md),
             TextFormField(
               controller: _nameRu,
               decoration: InputDecoration(

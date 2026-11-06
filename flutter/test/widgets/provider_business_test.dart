@@ -10,6 +10,7 @@ import 'package:mereytoi_app/models/site_statistics.dart';
 import 'package:mereytoi_app/models/user.dart';
 import 'package:mereytoi_app/screens/auth/login_screen.dart';
 import 'package:mereytoi_app/screens/home/home_screen.dart';
+import 'package:mereytoi_app/widgets/services/services_category_grid.dart';
 import 'package:mereytoi_app/screens/profile/profile_screen.dart';
 import 'package:mereytoi_app/screens/profile/provider/my_services_screen.dart';
 import 'package:mereytoi_app/screens/profile/provider/widgets/provider_profile_form_sheet.dart';
@@ -462,20 +463,30 @@ void main() {
       },
     );
 
-    testWidgets('«Добавить ресторан» is there even with no restaurants yet', (
-      tester,
-    ) async {
-      final (container, api) = await pump(
-        tester,
-        const MyBusinessScreen(),
-        isProvider: true,
-      );
-      api.listings.removeWhere((l) => l['category_id'] == 1);
-      await tester.runAsync(() => container.refresh(myListingsProvider.future));
-      await tester.pumpAndSettle();
-      await openTile(tester, 'business-add-restaurant');
-      expect(find.text('Новый ресторан'), findsOneWidget);
-    });
+    testWidgets(
+      '«Добавить услугу» offers restaurants in the one category list',
+      (tester) async {
+        final (container, api) = await pump(
+          tester,
+          const MyBusinessScreen(),
+          isProvider: true,
+        );
+        api.listings.removeWhere((l) => l['category_id'] == 1);
+        await tester.runAsync(
+          () => container.refresh(myListingsProvider.future),
+        );
+        await tester.pumpAndSettle();
+        expect(
+          find.byKey(const ValueKey('business-add-restaurant')),
+          findsNothing,
+        );
+        await openTile(tester, 'business-add-service');
+        expect(find.text('Новый ресторан'), findsNothing);
+        await tester.tap(find.byType(ServicesCategoryTile).first);
+        await tester.pumpAndSettle();
+        expect(find.text('Новый ресторан'), findsOneWidget);
+      },
+    );
 
     testWidgets('no restaurant tile without a restaurant', (tester) async {
       final (container, api) = await pump(

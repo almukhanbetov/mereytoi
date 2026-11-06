@@ -21,6 +21,8 @@ import 'package:mereytoi_app/widgets/city_selector.dart';
 import 'package:mereytoi_app/widgets/services/services_category_grid.dart';
 import 'package:mereytoi_app/screens/profile/restaurant_admin/restaurant_manage_screen.dart';
 import 'package:mereytoi_app/screens/profile/provider/widgets/provider_profile_form_sheet.dart';
+import 'package:mereytoi_app/screens/profile/provider/widgets/location_picker_screen.dart';
+import 'package:google_maps_flutter/google_maps_flutter.dart' show LatLng;
 import 'package:shared_preferences/shared_preferences.dart';
 
 import '../helpers/city_fake_api.dart';
@@ -160,11 +162,43 @@ void main() {
     return (api, uploads, container);
   }
 
-  Future<void> openCreate(WidgetTester tester) async {
+  /// «Добавить услугу» → the category list → the form. Tile 0 is
+  /// «Рестораны и локации», tile 1 «Ведущие».
+  Future<void> openCreate(WidgetTester tester, {int tile = 1}) async {
     await tester.tap(find.byKey(const ValueKey('my-services-add')));
+    await settle(tester);
+    expect(find.byType(ProviderServiceFormScreen), findsNothing);
+    await tester.tap(find.byType(ServicesCategoryTile).at(tile));
     await settle(tester);
     expect(find.byType(ProviderServiceFormScreen), findsOneWidget);
   }
+
+  Finder categoryCard() => find.byKey(const ValueKey('service-category'));
+
+  /// Edit [listing] directly, the way «Мои услуги» and «Основное» open it.
+  Future<void> openEdit(
+    WidgetTester tester,
+    Map<String, dynamic> listing,
+  ) async {
+    openProviderServiceForm(
+      tester.element(find.byType(MyServicesScreen)),
+      existing: Listing.fromJson(listing),
+    );
+    await settle(tester);
+    expect(find.byType(ProviderServiceFormScreen), findsOneWidget);
+  }
+
+  Map<String, dynamic> restaurant(int id) => {
+    ..._listing(id, categoryId: 1, name: 'Алтын', nameKz: 'Алтын'),
+    'phone': '+7 777 123 45 67',
+    'address': 'ул. Абая, 1',
+    'latitude': 43.25,
+    'longitude': 76.95,
+    'price': 5000,
+    'min_guests': 20,
+    'max_guests': 300,
+    'capacity': 300,
+  };
 
   /// Scrolls the form (either direction) until [f] is built and visible.
   Future<void> scrollTo(WidgetTester tester, Finder f) async {
@@ -208,7 +242,7 @@ void main() {
       await openCreate(tester);
       expect(find.text('Новая услуга'), findsOneWidget);
       expect(find.text('Опубликовать услугу'), findsOneWidget);
-      // Defaults: the provider's latest category and the profile's city.
+      // The category just picked and the profile's city.
       final category = find.byKey(const ValueKey('service-category'));
       await scrollTo(tester, category);
       expect(
@@ -330,21 +364,34 @@ void main() {
 
   group('new restaurant', () {
     Future<void> openRestaurant(WidgetTester tester) async {
-      openRestaurantForm(tester.element(find.byType(MyServicesScreen)));
-      await settle(tester);
+      await openCreate(tester, tile: 0);
       expect(find.text('Новый ресторан'), findsOneWidget);
     }
 
     testWidgets(
-      'general data only: no category or price, city and phone filled',
+      'its own fields: address, map point, phone; no price or business card',
       (tester) async {
         await pump(tester, providerPhone: '+7 701 111 22 33');
         await openRestaurant(tester);
-        expect(find.byKey(const ValueKey('service-category')), findsNothing);
+        expect(
+          find.descendant(
+            of: categoryCard(),
+            matching: find.text('Рестораны и локации'),
+          ),
+          findsOneWidget,
+        );
         expect(find.byKey(const ValueKey('service-price')), findsNothing);
         expect(
           find.byKey(const ValueKey('service-business-phone')),
           findsNothing,
+        );
+        await scrollTo(
+          tester,
+          find.byKey(const ValueKey('restaurant-address')),
+        );
+        await scrollTo(
+          tester,
+          find.byKey(const ValueKey('restaurant-map-point')),
         );
 
         final phone = find.byKey(const ValueKey('restaurant-phone'));
@@ -366,6 +413,40 @@ void main() {
       },
     );
 
+    testWidgets('the map point and address are saved', (tester) async {
+      LocationPickerScreen.debugMapBuilder = (point, onPick) => TextButton(
+        key: const ValueKey('fake-map'),
+        onPressed: () => onPick(const LatLng(43.1, 76.9)),
+        child: Text('$point'),
+      );
+      addTearDown(() => LocationPickerScreen.debugMapBuilder = null);
+      final (api, _, _) = await pump(tester);
+      await openRestaurant(tester);
+      await enter(tester, 'service-name', 'Тест Холл');
+      await enter(tester, 'restaurant-address', 'ул. Абая, 1');
+      final point = find.byKey(const ValueKey('restaurant-map-point'));
+      await scrollTo(tester, point);
+      await tester.tap(point);
+      await settle(tester);
+
+      final confirm = find.byKey(const ValueKey('location-picker-confirm'));
+      expect(tester.widget<ElevatedButton>(confirm).onPressed, isNull);
+      await tester.tap(find.byKey(const ValueKey('fake-map')));
+      await settle(tester);
+      await tester.tap(confirm);
+      await settle(tester);
+      await scrollTo(tester, point);
+      expect(find.text('Точка: 43.10000, 76.90000'), findsOneWidget);
+
+      await scrollTo(tester, submit());
+      await tester.tap(submit());
+      await settle(tester);
+      final body = lastCreateBody(api);
+      expect(body['address'], 'ул. Абая, 1');
+      expect(body['latitude'], 43.1);
+      expect(body['longitude'], 76.9);
+    });
+
     testWidgets('saves as venues, then opens halls and menus management', (
       tester,
     ) async {
@@ -374,6 +455,7 @@ void main() {
       await enter(tester, 'service-name', 'Тест Холл');
       await enter(tester, 'restaurant-phone', '+7 777 000 00 01');
       await scrollTo(tester, submit());
+      expect(find.text('Опубликовать услугу'), findsNothing);
       expect(find.text('Опубликовать ресторан'), findsOneWidget);
       await tester.tap(submit());
       await settle(tester);
@@ -423,8 +505,6 @@ void main() {
     expect(find.byType(ProviderServiceFormScreen), findsOneWidget);
     expect(find.text('Укажите название'), findsOneWidget);
     expect(find.text('Укажите цену числом'), findsOneWidget);
-    await scrollTo(tester, find.byKey(const ValueKey('service-category')));
-    expect(find.text('Выберите категорию'), findsWidgets);
     await scrollTo(tester, find.byKey(const ValueKey('service-city')));
     expect(find.text('Выберите город'), findsWidgets);
     expect(api.count('POST /api/provider/me/listings'), 0);
@@ -433,23 +513,280 @@ void main() {
     expect(find.text('Укажите название'), findsNothing);
   });
 
-  testWidgets('category picker: same tiles, no venues, selection shown', (
-    tester,
-  ) async {
-    await pump(tester, withListing: false);
-    await openCreate(tester);
-    final card = find.byKey(const ValueKey('service-category'));
-    await scrollTo(tester, card);
-    await tester.tap(card);
-    await settle(tester);
-    expect(find.text('Выберите категорию'), findsWidgets);
-    expect(find.text('Рестораны и локации'), findsNothing);
-    expect(find.byType(ServicesCategoryTile), findsNWidgets(2));
-    await tester.tap(find.text('Артисты и исполнители'));
-    await settle(tester);
-    expect(
-      find.descendant(of: card, matching: find.text('Артисты и исполнители')),
-      findsOneWidget,
+  group('one category list', () {
+    testWidgets('«Добавить услугу» lists every category from the API once', (
+      tester,
+    ) async {
+      await pump(tester, withListing: false);
+      await tester.tap(find.byKey(const ValueKey('my-services-add')));
+      await settle(tester);
+      expect(find.byType(ServicesCategoryTile), findsNWidgets(3));
+      expect(find.text('Рестораны и локации'), findsOneWidget);
+      expect(find.text('Ведущие'), findsOneWidget);
+      expect(find.text('Артисты и исполнители'), findsOneWidget);
+    });
+
+    testWidgets('closing the list opens no form and sends nothing', (
+      tester,
+    ) async {
+      final (api, _, _) = await pump(tester, withListing: false);
+      await tester.tap(find.byKey(const ValueKey('my-services-add')));
+      await settle(tester);
+      await tester.tapAt(const Offset(10, 10));
+      await settle(tester);
+      expect(find.byType(ServicesCategoryTile), findsNothing);
+      expect(find.byType(ProviderServiceFormScreen), findsNothing);
+      expect(api.count('POST /api/provider/me/listings'), 0);
+    });
+
+    testWidgets('an ordinary category opens the ordinary form', (tester) async {
+      await pump(tester, withListing: false);
+      await openCreate(tester);
+      expect(find.text('Новая услуга'), findsOneWidget);
+      await scrollTo(tester, find.byKey(const ValueKey('service-price')));
+      await scrollTo(
+        tester,
+        find.byKey(const ValueKey('service-business-phone')),
+      );
+      expect(find.byKey(const ValueKey('restaurant-address')), findsNothing);
+      expect(find.byKey(const ValueKey('restaurant-phone')), findsNothing);
+    });
+
+    testWidgets('switching category swaps the fields and keeps the typing', (
+      tester,
+    ) async {
+      final (api, _, _) = await pump(tester, withListing: false);
+      await openCreate(tester);
+      await enter(tester, 'service-name', 'Черновик');
+      await enter(tester, 'service-price', '45000');
+
+      await scrollTo(tester, categoryCard());
+      await tester.tap(categoryCard());
+      await settle(tester);
+      await tester.tap(find.byType(ServicesCategoryTile).at(0));
+      await settle(tester);
+      expect(find.text('Новый ресторан'), findsOneWidget);
+      expect(find.byKey(const ValueKey('service-price')), findsNothing);
+      await enter(tester, 'restaurant-address', 'ул. Абая, 1');
+      await scrollTo(tester, find.byKey(const ValueKey('service-name')));
+      expect(find.text('Черновик'), findsOneWidget);
+
+      await scrollTo(tester, categoryCard());
+      await tester.tap(categoryCard());
+      await settle(tester);
+      await tester.tap(find.byType(ServicesCategoryTile).at(2));
+      await settle(tester);
+      expect(
+        find.descendant(
+          of: categoryCard(),
+          matching: find.text('Артисты и исполнители'),
+        ),
+        findsOneWidget,
+      );
+      final price = find.byKey(const ValueKey('service-price'));
+      await scrollTo(tester, price);
+      expect(tester.widget<TextField>(price).controller!.text, '45000');
+
+      // What only the restaurant's form showed isn't sent with a service.
+      await scrollTo(tester, submit());
+      await tester.tap(submit());
+      await settle(tester);
+      final body = lastCreateBody(api);
+      expect(body['category_id'], 4);
+      expect(body['price'], 45000);
+      expect(body['address'], '');
+      expect(body['phone'], '');
+    });
+
+    testWidgets(
+      'a price typed for a service isn\'t saved on a new restaurant',
+      (tester) async {
+        final (api, _, _) = await pump(tester, withListing: false);
+        await openCreate(tester);
+        await enter(tester, 'service-name', 'Черновик');
+        await enter(tester, 'service-price', '45000');
+        await scrollTo(tester, categoryCard());
+        await tester.tap(categoryCard());
+        await settle(tester);
+        await tester.tap(find.byType(ServicesCategoryTile).at(0));
+        await settle(tester);
+        await scrollTo(tester, submit());
+        await tester.tap(submit());
+        await settle(tester);
+        expect(lastCreateBody(api)['price'], 0);
+      },
+    );
+  });
+
+  group('editing and changing the category', () {
+    Map<dynamic, dynamic> lastPut(ProviderFakeApi api, int id) =>
+        api.bodies['PUT /api/listings/$id']!.last! as Map;
+
+    testWidgets('a restaurant shows its saved category and its own fields', (
+      tester,
+    ) async {
+      final (api, _, _) = await pump(tester);
+      final saved = restaurant(200);
+      api.listings.add(saved);
+      await openEdit(tester, saved);
+      expect(find.text('Изменить ресторан'), findsOneWidget);
+      expect(
+        find.descendant(
+          of: categoryCard(),
+          matching: find.text('Рестораны и локации'),
+        ),
+        findsOneWidget,
+      );
+      expect(find.byKey(const ValueKey('service-price')), findsNothing);
+      final address = find.byKey(const ValueKey('restaurant-address'));
+      await scrollTo(tester, address);
+      expect(tester.widget<TextField>(address).controller!.text, 'ул. Абая, 1');
+      final phone = find.byKey(const ValueKey('restaurant-phone'));
+      await scrollTo(tester, phone);
+      expect(
+        tester.widget<TextField>(phone).controller!.text,
+        '+7 777 123 45 67',
+      );
+
+      await scrollTo(tester, submit());
+      await tester.tap(submit());
+      await settle(tester);
+      expect(find.byType(ProviderServiceFormScreen), findsNothing);
+      final body = lastPut(api, 200);
+      expect(body['category_id'], 1);
+      expect(body['price'], 5000); // no field for it here, and not reset
+      expect(body['latitude'], 43.25);
+      expect(body['min_guests'], 20);
+      expect(body['capacity'], 300);
+    });
+
+    for (final child in ['halls', 'menus']) {
+      testWidgets('a restaurant with $child keeps its category', (
+        tester,
+      ) async {
+        final (api, _, _) = await pump(tester);
+        final saved = restaurant(200);
+        api.listings.add(saved);
+        (child == 'halls' ? api.halls : api.menus)[200] = [
+          {'id': 1, 'listing_id': 200, 'name_ru': 'Зал', 'name_kz': 'Зал'},
+        ];
+        await openEdit(tester, saved);
+        expect(
+          find.byKey(const ValueKey('service-category-locked')),
+          findsOneWidget,
+        );
+        await tester.tap(categoryCard(), warnIfMissed: false);
+        await settle(tester);
+        expect(find.byType(ServicesCategoryTile), findsNothing);
+      });
+    }
+
+    testWidgets('if the halls can\'t be checked, the category stays locked', (
+      tester,
+    ) async {
+      final (api, _, _) = await pump(tester);
+      final saved = restaurant(200);
+      api.listings.add(saved);
+      api.failListingChildren = true;
+      await openEdit(tester, saved);
+      await tester.tap(categoryCard(), warnIfMissed: false);
+      await settle(tester);
+      expect(find.byType(ServicesCategoryTile), findsNothing);
+    });
+
+    testWidgets('an empty restaurant can become a service, keeping its data', (
+      tester,
+    ) async {
+      final (api, _, _) = await pump(tester);
+      final saved = restaurant(200);
+      api.listings.add(saved);
+      await openEdit(tester, saved);
+      await tester.tap(categoryCard());
+      await settle(tester);
+      await tester.tap(find.byType(ServicesCategoryTile).at(1));
+      await settle(tester);
+      expect(find.text('Изменить услугу'), findsOneWidget);
+      final price = find.byKey(const ValueKey('service-price'));
+      await scrollTo(tester, price);
+      expect(tester.widget<TextField>(price).controller!.text, '5000');
+
+      await scrollTo(tester, submit());
+      await tester.tap(submit());
+      await settle(tester);
+      final body = lastPut(api, 200);
+      expect(body['category_id'], 2);
+      expect(body['price'], 5000);
+      expect(body['address'], 'ул. Абая, 1');
+      expect(body['phone'], '+7 777 123 45 67');
+      expect(body['latitude'], 43.25);
+      expect(body['longitude'], 76.95);
+      expect(find.byType(RestaurantManageScreen), findsNothing);
+    });
+
+    testWidgets(
+      'a service that becomes a restaurant goes on to its management',
+      (tester) async {
+        final (api, _, _) = await pump(tester);
+        await tester.tap(
+          find.descendant(
+            of: find.byKey(const ValueKey('my-service-101')),
+            matching: find.text('Проведение тоя'),
+          ),
+        );
+        await settle(tester);
+        await scrollTo(tester, categoryCard());
+        await tester.tap(categoryCard());
+        await settle(tester);
+        await tester.tap(find.byType(ServicesCategoryTile).at(0));
+        await settle(tester);
+        await enter(tester, 'restaurant-address', 'ул. Абая, 1');
+        await scrollTo(tester, submit());
+        await tester.tap(submit());
+        await settle(tester);
+        final body = lastPut(api, 101);
+        expect(body['category_id'], 1);
+        expect(body['price'], 150000); // kept for the case it changes back
+        expect(body['address'], 'ул. Абая, 1');
+        expect(find.byType(RestaurantManageScreen), findsOneWidget);
+      },
+    );
+
+    testWidgets(
+      '«Основное» shows the category and picks up the form\'s edits',
+      (tester) async {
+        final (api, _, _) = await pump(tester);
+        api.listings.add({
+          ...restaurant(200),
+          'category': {
+            'id': 1,
+            'slug': 'venues',
+            'name_ru': 'Рестораны и локации',
+            'name_kz': 'Мейрамханалар',
+          },
+        });
+        Navigator.of(tester.element(find.byType(MyServicesScreen))).push(
+          MaterialPageRoute<void>(
+            builder: (_) => const RestaurantManageScreen(listingId: 200),
+          ),
+        );
+        await settle(tester);
+        expect(
+          tester
+              .widget<Text>(find.byKey(const ValueKey('basic-info-category')))
+              .data,
+          'Рестораны и локации',
+        );
+        await tester.tap(find.byKey(const ValueKey('basic-info-open-form')));
+        await settle(tester);
+        expect(find.text('Изменить ресторан'), findsOneWidget);
+        await enter(tester, 'service-name', 'Алтын Новый');
+        await scrollTo(tester, submit());
+        await tester.tap(submit());
+        await settle(tester);
+        expect(find.byType(ProviderServiceFormScreen), findsNothing);
+        expect(find.byType(RestaurantManageScreen), findsOneWidget);
+        expect(find.widgetWithText(TextFormField, 'Алтын Новый'), findsWidgets);
+      },
     );
   });
 
@@ -660,6 +997,9 @@ void main() {
             );
             await tester.tap(find.byKey(const ValueKey('my-services-add')));
             await settle(tester);
+            expect(tester.takeException(), isNull); // the category list
+            await tester.tap(find.byType(ServicesCategoryTile).at(1));
+            await settle(tester);
             final (title, cta) = titles[locale]!;
             expect(find.text(title), findsOneWidget);
             expect(find.text(cta), findsOneWidget);
@@ -678,6 +1018,40 @@ void main() {
             );
             expect(tester.takeException(), isNull);
           });
+        }
+      }
+    }
+  });
+
+  group('restaurant form: no overflow', () {
+    for (final dark in [false, true]) {
+      for (final width in [320.0, 390.0, 430.0]) {
+        for (final locale in AppLocale.values) {
+          testWidgets(
+            '${dark ? 'dark' : 'light'} · ${width.toInt()} · ${locale.name}',
+            (tester) async {
+              await pump(
+                tester,
+                size: Size(width, 760),
+                theme: dark ? () => AppTheme.dark : () => AppTheme.light,
+                locale: locale,
+                withListing: false,
+                providerCity: '',
+              );
+              await openCreate(tester, tile: 0);
+              await tester.tap(submit());
+              await settle(tester);
+              await scrollTo(
+                tester,
+                find.byKey(const ValueKey('restaurant-map-point')),
+              );
+              await scrollTo(
+                tester,
+                find.byKey(const ValueKey('restaurant-phone')),
+              );
+              expect(tester.takeException(), isNull);
+            },
+          );
         }
       }
     }

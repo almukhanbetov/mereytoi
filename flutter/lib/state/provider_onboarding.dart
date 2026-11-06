@@ -40,6 +40,7 @@ class ProviderOnboardingState {
   const ProviderOnboardingState({
     this.step = 0,
     this.categoryId,
+    this.restaurant = false,
     this.displayName = '',
     this.description = '',
     this.experienceText = '',
@@ -49,6 +50,9 @@ class ProviderOnboardingState {
     this.serviceName = '',
     this.serviceDescription = '',
     this.priceText = '',
+    this.address = '',
+    this.latitude,
+    this.longitude,
     this.existingProvider,
     this.providerReady = false,
     this.listingAttempted = false,
@@ -59,6 +63,10 @@ class ProviderOnboardingState {
 
   final int step;
   final int? categoryId;
+
+  /// The chosen category is the restaurants one: the first listing then has
+  /// an address and a map point instead of a price (prices live in its menus).
+  final bool restaurant;
   final String displayName;
   final String description;
   final String experienceText;
@@ -71,6 +79,9 @@ class ProviderOnboardingState {
   final String serviceName;
   final String serviceDescription;
   final String priceText;
+  final String address;
+  final double? latitude;
+  final double? longitude;
 
   /// The caller's provider profile if one already existed when the wizard
   /// opened (or was found during publish) — then it's updated, never
@@ -112,7 +123,7 @@ class ProviderOnboardingState {
       case 3:
         return true; // photos are optional
       case 4:
-        return serviceName.trim().isNotEmpty && price != null;
+        return serviceName.trim().isNotEmpty && (restaurant || price != null);
       default:
         return List.generate(5, (i) => i).every(stepComplete);
     }
@@ -123,6 +134,7 @@ class ProviderOnboardingState {
   ProviderOnboardingState copyWith({
     int? step,
     int? categoryId,
+    bool? restaurant,
     String? displayName,
     String? description,
     String? experienceText,
@@ -132,6 +144,9 @@ class ProviderOnboardingState {
     String? serviceName,
     String? serviceDescription,
     String? priceText,
+    String? address,
+    double? latitude,
+    double? longitude,
     ProviderProfile? existingProvider,
     bool? providerReady,
     bool? listingAttempted,
@@ -143,6 +158,7 @@ class ProviderOnboardingState {
     return ProviderOnboardingState(
       step: step ?? this.step,
       categoryId: categoryId ?? this.categoryId,
+      restaurant: restaurant ?? this.restaurant,
       displayName: displayName ?? this.displayName,
       description: description ?? this.description,
       experienceText: experienceText ?? this.experienceText,
@@ -152,6 +168,9 @@ class ProviderOnboardingState {
       serviceName: serviceName ?? this.serviceName,
       serviceDescription: serviceDescription ?? this.serviceDescription,
       priceText: priceText ?? this.priceText,
+      address: address ?? this.address,
+      latitude: latitude ?? this.latitude,
+      longitude: longitude ?? this.longitude,
       existingProvider: existingProvider ?? this.existingProvider,
       providerReady: providerReady ?? this.providerReady,
       listingAttempted: listingAttempted ?? this.listingAttempted,
@@ -182,7 +201,8 @@ class ProviderOnboardingController
 
   // ---- step data ----
 
-  void selectCategory(int id) => state = state.copyWith(categoryId: id);
+  void selectCategory(int id, {bool restaurant = false}) =>
+      state = state.copyWith(categoryId: id, restaurant: restaurant);
   void setDisplayName(String v) => state = state.copyWith(displayName: v);
   void setDescription(String v) => state = state.copyWith(description: v);
   void setExperience(String v) => state = state.copyWith(experienceText: v);
@@ -192,6 +212,9 @@ class ProviderOnboardingController
   void setServiceDescription(String v) =>
       state = state.copyWith(serviceDescription: v);
   void setPrice(String v) => state = state.copyWith(priceText: v);
+  void setAddress(String v) => state = state.copyWith(address: v);
+  void setPoint(double latitude, double longitude) =>
+      state = state.copyWith(latitude: latitude, longitude: longitude);
 
   void addPhotos(List<String> paths) {
     final room = kMaxOnboardingPhotos - state.photos.length;
@@ -367,7 +390,8 @@ class ProviderOnboardingController
   Future<void> _ensureListing() async {
     if (state.createdListing != null) return;
     final name = state.serviceName.trim();
-    final price = state.price ?? 0;
+    final restaurant = state.restaurant;
+    final price = restaurant ? 0 : state.price ?? 0;
     final categoryId = state.categoryId!;
 
     if (state.listingAttempted) {
@@ -399,6 +423,11 @@ class ProviderOnboardingController
           city: _cityName,
           price: price,
           imageUrls: [for (final p in state.photos) p.url!],
+          // A restaurant's own contact starts as the business's number.
+          phone: restaurant ? state.phone.trim() : '',
+          address: restaurant ? state.address.trim() : '',
+          latitude: restaurant ? state.latitude : null,
+          longitude: restaurant ? state.longitude : null,
         );
     state = state.copyWith(createdListing: listing);
   }

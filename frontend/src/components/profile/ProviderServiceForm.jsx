@@ -1,9 +1,11 @@
 'use client';
 
-import { useState } from 'react';
+import { useRef, useState } from 'react';
 import { providerApi } from '@/lib/providerApi';
 import { mediaUrl } from '@/lib/media';
-import { T } from '@/context/AppProviders';
+import { isRestaurantCategory } from '@/lib/restaurantCategory';
+import { T, useLang } from '@/context/AppProviders';
+import { RestaurantAddressFields } from '@/components/admin/RestaurantAddressForm';
 
 const EMPTY = {
   category_id: '',
@@ -13,6 +15,10 @@ const EMPTY = {
   description_kz: '',
   city: '',
   phone: '',
+  address: '',
+  latitude: '',
+  longitude: '',
+  place_id: '',
   price: 0,
   price_type: 'fixed',
   image_urls: [],
@@ -32,21 +38,45 @@ const PRICE_TYPES = [
 // description, price + price type, photo. No rating/emoji/color/guest-
 // range/video — those stay admin-only fields on ServiceForm.jsx, untouched.
 //
-// `restaurant` is the same form for a restaurant's general data: its category
-// is fixed, it has its own phone, and its prices live in its menus.
-// `provider`/`onEditContact` show a service's contact: the business's number.
-export default function ProviderServiceForm({ categories, initial, listingId, onSaved, onCancel, restaurant = false, provider, onEditContact }) {
+// The category comes first and decides the fields: a service has a price and
+// the business's contact, a restaurant has an address, a map point and its own
+// phone (its prices live in its menus). Switching keeps what's already typed.
+// `categoryLocked`: a restaurant with halls or menus keeps its category, since
+// those only work under it. `provider`/`onEditContact`: the business's number.
+export default function ProviderServiceForm({ categories, initial, listingId, onSaved, onCancel, categoryLocked = false, provider, onEditContact }) {
+  const { lang } = useLang();
   const [values, setValues] = useState(() => ({
     ...EMPTY,
     ...initial,
+    address: initial?.address || '',
+    latitude: initial?.latitude ?? '',
+    longitude: initial?.longitude ?? '',
+    place_id: initial?.place_id || '',
     image_urls: initial?.image_urls || [],
   }));
+  const addressInputRef = useRef(null);
+  const category = categories.find((c) => String(c.id) === String(values.category_id));
+  const restaurant = isRestaurantCategory(category);
   const [error, setError] = useState('');
   const [submitting, setSubmitting] = useState(false);
   const [uploading, setUploading] = useState(false);
 
   function set(key, value) {
     setValues((v) => ({ ...v, [key]: value }));
+  }
+
+  function patchAddress(update) {
+    setValues((v) => ({ ...v, ...(typeof update === 'function' ? update(v) : update) }));
+  }
+
+  function selectCategory(id) {
+    const next = categories.find((c) => String(c.id) === id);
+    setValues((v) => ({
+      ...v,
+      category_id: id,
+      // The business's public number, as a starting point to edit.
+      phone: isRestaurantCategory(next) && !v.phone ? provider?.phone || '' : v.phone,
+    }));
   }
 
   async function handleFiles(e) {
@@ -81,7 +111,16 @@ export default function ProviderServiceForm({ categories, initial, listingId, on
       const payload = {
         ...values,
         category_id: Number(values.category_id),
-        price: Number(values.price) || 0,
+        // A restaurant's form has no price: an edit keeps the stored one.
+        // What a service's form doesn't show stays as stored too.
+        price: restaurant ? Number(listingId ? initial?.price : 0) || 0 : Number(values.price) || 0,
+        phone: restaurant ? values.phone : initial?.phone || '',
+        // Google's autocomplete writes into the input without firing onChange,
+        // so the live value is the one the owner sees.
+        address: restaurant ? (addressInputRef.current?.value ?? values.address).trim() : initial?.address || '',
+        latitude: restaurant ? toCoordinate(values.latitude) : initial?.latitude ?? null,
+        longitude: restaurant ? toCoordinate(values.longitude) : initial?.longitude ?? null,
+        place_id: restaurant ? values.place_id || null : initial?.place_id ?? null,
         // Every card needs some fallback visual when there's no photo yet —
         // the compact form doesn't expose emoji/gradient pickers (admin's
         // ServiceForm still can, for anyone who wants to fine-tune it
@@ -101,8 +140,39 @@ export default function ProviderServiceForm({ categories, initial, listingId, on
     }
   }
 
+  const categoryField = (
+    <label>
+      <span><T ru="Категория" kz="Санат" en="Category" /></span>
+      <select value={values.category_id} onChange={(e) => selectCategory(e.target.value)} disabled={categoryLocked} required>
+        <option value="" disabled>{lang === 'kz' ? 'Санатты таңдаңыз' : 'Выберите категорию'}</option>
+        {categories.map((c) => (
+          <option key={c.id} value={c.id}>{lang === 'kz' ? c.name_kz : c.name_ru}</option>
+        ))}
+      </select>
+      {categoryLocked && (
+        <small><T ru="Категорию нельзя изменить: у ресторана есть залы или меню" kz="Санатты өзгерту мүмкін емес: мейрамхананың залдары немесе мәзірі бар" en="The category can’t be changed: this restaurant has halls or menus" /></small>
+      )}
+    </label>
+  );
+
+  // The category first, then the form for it.
+  if (!category) {
+    return (
+      <form className="contacts__form admin-form provider-listing-form" onSubmit={(e) => e.preventDefault()}>
+        {categoryField}
+        <div style={{ display: 'flex', gap: 14 }}>
+          <button type="button" className="btn btn--outline" onClick={onCancel}>
+            <T ru="Отмена" kz="Бас тарту" en="Cancel" />
+          </button>
+        </div>
+      </form>
+    );
+  }
+
   return (
-    <form className="contacts__form admin-form" onSubmit={handleSubmit}>
+    <form className="contacts__form admin-form provider-listing-form" onSubmit={handleSubmit}>
+      {categoryField}
+
       <div className="form-row">
         <label>
           <span>Название (рус)</span>
@@ -113,18 +183,6 @@ export default function ProviderServiceForm({ categories, initial, listingId, on
           <input value={values.name_kz} onChange={(e) => set('name_kz', e.target.value)} required />
         </label>
       </div>
-
-      {!restaurant && (
-      <label>
-        <span>Категория</span>
-        <select value={values.category_id} onChange={(e) => set('category_id', e.target.value)} required>
-          <option value="" disabled>Выберите категорию</option>
-          {categories.map((c) => (
-            <option key={c.id} value={c.id}>{c.name_ru}</option>
-          ))}
-        </select>
-      </label>
-      )}
 
       <label>
         <span>Описание (рус)</span>
@@ -141,11 +199,14 @@ export default function ProviderServiceForm({ categories, initial, listingId, on
       </label>
 
       {restaurant ? (
+        <>
+        <RestaurantAddressFields values={values} onPatch={patchAddress} addressInputRef={addressInputRef} />
         <label>
           <span><T ru="Телефон ресторана" kz="Мейрамхана телефоны" en="Restaurant phone" /></span>
           <input type="tel" maxLength={30} value={values.phone} onChange={(e) => set('phone', e.target.value)} placeholder="+7 700 000 00 00" />
           <small><T ru="Необязательно. Номер будет виден клиентам" kz="Міндетті емес. Нөмірді клиенттер көреді" en="Optional. Clients will see this number" /></small>
         </label>
+        </>
       ) : (
         <>
           <label>
@@ -188,9 +249,9 @@ export default function ProviderServiceForm({ categories, initial, listingId, on
 
       {error && <p className="admin-login__error">{error}</p>}
 
-      <div style={{ display: 'flex', gap: 14 }}>
+      <div style={{ display: 'flex', flexWrap: 'wrap', gap: 14 }}>
         <button type="submit" className="btn btn--gold" disabled={submitting || uploading}>
-          {submitting ? 'Сохраняем…' : listingId ? 'Сохранить изменения' : 'Создать услугу'}
+          {submitting ? 'Сохраняем…' : listingId ? 'Сохранить изменения' : restaurant ? <T ru="Создать ресторан" kz="Мейрамхана құру" en="Create the restaurant" /> : 'Создать услугу'}
         </button>
         <button type="button" className="btn btn--outline" onClick={onCancel}>
           Отмена
@@ -198,6 +259,10 @@ export default function ProviderServiceForm({ categories, initial, listingId, on
       </div>
     </form>
   );
+}
+
+function toCoordinate(value) {
+  return value === '' || value == null ? null : Number(value);
 }
 
 // The business's number as clients get it. It belongs to the business, not to

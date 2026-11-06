@@ -2661,6 +2661,12 @@ a.ws-chip:hover, button.ws-chip:hover{ border-color: var(--gold); }
   .signout-dialog__body{ padding:22px 20px calc(22px + env(safe-area-inset-bottom)); }
 }
 
+/* ---------- Provider listing form: stays inside its card on a narrow phone ---------- */
+.provider-listing-form .form-row > *{ min-width:0; }
+.provider-listing-form input,
+.provider-listing-form select,
+.provider-listing-form textarea{ width:100%; min-width:0; box-sizing:border-box; }
+
 /* ---------- Provider form: the business's contact ---------- */
 .provider-contact{ display:flex; flex-direction:column; align-items:flex-start; gap:4px; }
 .provider-contact > span{ color: var(--text-muted); font-size:13.5px; }

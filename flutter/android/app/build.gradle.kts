@@ -45,6 +45,12 @@ if (!hasReleaseKeystore &&
     )
 }
 
+// MEREYTOI TEST: the side-by-side copy (see docs/android-builds.md). The real
+// app's package, label and signing don't change unless this is passed, and it
+// is signed by the same upload key, so its Google Maps entry stays valid across
+// rebuilds. Use flutter/tool/build_test_apk.sh rather than passing it by hand.
+val mereytoiTest = project.hasProperty("mereytoiTest")
+
 android {
     namespace = "kz.mereytoi.mereytoi_app"
     compileSdk = flutter.compileSdkVersion
@@ -63,6 +69,8 @@ android {
         minSdk = flutter.minSdkVersion
         targetSdk = flutter.targetSdkVersion
         manifestPlaceholders["MAPS_API_KEY"] = mapsApiKey
+        manifestPlaceholders["appLabel"] = if (mereytoiTest) "MEREYTOI TEST" else "MEREYTOI"
+        if (mereytoiTest) applicationIdSuffix = ".qa"
         versionCode = flutter.versionCode
         versionName = flutter.versionName
     }
