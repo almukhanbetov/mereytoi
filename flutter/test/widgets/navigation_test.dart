@@ -8,9 +8,12 @@ import 'package:mereytoi_app/models/category.dart';
 import 'package:mereytoi_app/models/listing.dart';
 import 'package:mereytoi_app/screens/service_detail/service_detail_screen.dart';
 import 'package:mereytoi_app/screens/services/services_screen.dart';
+import 'package:mereytoi_app/state/providers.dart';
 import 'package:mereytoi_app/state/categories_provider.dart';
 import 'package:mereytoi_app/state/listings_provider.dart';
 import 'package:mereytoi_app/widgets/app_back_button.dart';
+
+import '../helpers/city_fake_api.dart';
 
 /// `ServicesScreen` always watches these — every test that pumps it (even
 /// only to check for a back button) needs them stubbed so it never makes a
@@ -29,8 +32,10 @@ final _noNetworkOverrides = [
 /// tap-to-pop to confirm `Navigator.pop` (not a hard redirect) is what
 /// actually runs.
 Widget _wrap(Widget home, {List<Override> overrides = const []}) {
+  // The detail screens record a view when they open: no real network here.
+  final (client, _) = fakeCityApi();
   return ProviderScope(
-    overrides: overrides,
+    overrides: [apiClientProvider.overrideWithValue(client), ...overrides],
     child: MaterialApp(theme: AppTheme.dark, home: home),
   );
 }
@@ -121,7 +126,8 @@ void main() {
         ),
       ],
     );
-    await tester.pump(); // let the error state settle in
+    // Let the error state settle in and the view request finish.
+    await tester.pump(const Duration(seconds: 1));
 
     expect(find.byType(BackButton), findsOneWidget);
     expect(tester.takeException(), isNull);

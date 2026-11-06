@@ -71,6 +71,7 @@ export const providerApi = {
   updateListing: (id, payload) => request(`/api/listings/${id}`, { method: 'PUT', body: payload }),
   deleteListing: (id) => request(`/api/listings/${id}`, { method: 'DELETE' }),
   listing: (id) => request(`/api/listings/${id}`, { auth: false }),
+  recordView: (id) => request(`/api/listings/${id}/view`, { method: 'POST' }),
 
   uploadImages,
 };

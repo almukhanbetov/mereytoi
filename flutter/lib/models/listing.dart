@@ -41,6 +41,7 @@ class Listing {
     this.longitude,
     this.placeId,
     this.capacity = 0,
+    this.viewCount = 0,
     this.hallCount,
     this.menuCount,
     this.minMenuPricePerGuest,
@@ -93,6 +94,9 @@ class Listing {
   final double? longitude;
   final String? placeId;
   final int capacity;
+
+  /// How many times this listing's page was opened: the API's shared total.
+  final int viewCount;
 
   // ---- List-endpoint-only aggregates (listingOut). Both null on a
   // Listing parsed from the detail endpoint, and null for a listing with
@@ -155,6 +159,7 @@ class Listing {
       longitude: (json['longitude'] as num?)?.toDouble(),
       placeId: json['place_id'] as String?,
       capacity: json['capacity'] as int? ?? 0,
+      viewCount: json['view_count'] as int? ?? 0,
       hallCount: json['hall_count'] as int?,
       menuCount: json['menu_count'] as int?,
       minMenuPricePerGuest: json['min_menu_price_per_guest'] as int?,

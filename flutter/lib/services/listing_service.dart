@@ -41,6 +41,13 @@ class ListingService {
         .toList();
   }
 
+  /// POST /api/listings/:id/view. True when the server counted a new view (a
+  /// repeat from the same viewer within its window isn't).
+  Future<bool> recordView(int id) async {
+    final json = await _client.postJson('/api/listings/$id/view', const {});
+    return json['counted'] == true;
+  }
+
   Future<Listing> fetchById(int id) async {
     final json = await _client.getJson('/api/listings/$id');
     return Listing.fromJson(Map<String, dynamic>.from(json['listing'] as Map));

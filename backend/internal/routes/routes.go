@@ -106,6 +106,7 @@ func RegisterWithOptions(r *gin.Engine, database *gorm.DB, cfg config.Config, op
 	categoryHandler := handlers.NewCategoryHandler(database)
 	cityHandler := handlers.NewCityHandler()
 	listingHandler := handlers.NewListingHandler(database)
+	listingHandler.ViewSecret = cfg.JWTSecret
 	listingHallHandler := handlers.NewListingHallHandler(database)
 	listingMenuHandler := handlers.NewListingMenuHandler(database)
 	listingManagerHandler := handlers.NewListingManagerHandler(database)
@@ -214,6 +215,7 @@ func RegisterWithOptions(r *gin.Engine, database *gorm.DB, cfg config.Config, op
 		{
 			listings.GET("", listingHandler.List)
 			listings.GET("/:id", listingHandler.Get)
+			listings.POST("/:id/view", middleware.OptionalAuth(cfg.JWTSecret), listingHandler.RecordView)
 			listings.GET("/:id/comments", commentHandler.ListApproved)
 			listings.POST("/:id/comments", middleware.RequireAuth(cfg.JWTSecret), commentHandler.Create)
 			// Restaurant/venue halls & menus — public read (brief section

@@ -1,6 +1,6 @@
 'use client';
 
-import { useMemo, useState } from 'react';
+import { useEffect, useMemo, useState } from 'react';
 import Link from 'next/link';
 import Reveal from '@/components/Reveal';
 import ServiceCard from '@/components/services/ServiceCard';
@@ -14,9 +14,29 @@ import AddToEventMenu from '@/components/profile/AddToEventMenu';
 import RestaurantMenus from '@/components/services/RestaurantMenus';
 import RestaurantLocation from '@/components/services/RestaurantLocation';
 import { isRestaurantCategory } from '@/lib/restaurantCategory';
+import ViewCount from '@/components/services/ViewCount';
+import { providerApi } from '@/lib/providerApi';
 
 export default function ServiceDetail({ listing, related }) {
   const { lang } = useLang();
+  const [recordedViews, setRecordedViews] = useState(null);
+
+  // Once per opened listing, from the browser: re-renders don't repeat it, and
+  // the server counts a reload within its window only once.
+  useEffect(() => {
+    let cancelled = false;
+    providerApi
+      .recordView(listing.id)
+      .then((d) => {
+        if (!cancelled) setRecordedViews({ id: listing.id, count: d.view_count });
+      })
+      .catch(() => {});
+    return () => {
+      cancelled = true;
+    };
+  }, [listing.id]);
+  const viewCount = recordedViews?.id === listing.id ? recordedViews.count : listing.view_count;
+
   const { addItem } = useCart();
   const { openChat } = useManagerChat();
   const category = listing.category;
@@ -101,6 +121,7 @@ export default function ServiceDetail({ listing, related }) {
           <div className="product-detail__info">
             <span className="product-detail__cat">{categoryLabel}</span>
             <h1 className="product-detail__title">{lang === 'kz' ? listing.name_kz : listing.name_ru}</h1>
+            <ViewCount count={viewCount} className="view-count--detail" />
 
             {!isPerPerson && (
               <div className="product-detail__price">

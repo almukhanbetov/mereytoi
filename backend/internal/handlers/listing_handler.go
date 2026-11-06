@@ -48,6 +48,8 @@ type providerBrief struct {
 
 type ListingHandler struct {
 	DB *gorm.DB
+	// ViewSecret keys the hash of who viewed a listing (RecordView).
+	ViewSecret string
 }
 
 func NewListingHandler(db *gorm.DB) *ListingHandler {
@@ -117,8 +119,11 @@ func (h *ListingHandler) List(c *gin.Context) {
 		query = query.Where("city IN ?", matched)
 	}
 
+	// Newest first, by when a listing was added: editing one (updated_at) must
+	// not lift it, and id keeps rows created at the same moment in a stable
+	// order. This is the whole list, there is no pagination after it.
 	var listings []models.Listing
-	if err := query.Order("rating desc").Find(&listings).Error; err != nil {
+	if err := query.Order("created_at desc, id desc").Find(&listings).Error; err != nil {
 		c.JSON(http.StatusInternalServerError, gin.H{"error": "failed to fetch listings"})
 		return
 	}
@@ -661,7 +666,8 @@ func (h *ListingHandler) Update(c *gin.Context) {
 		listing.IsActive = *in.IsActive
 	}
 
-	if err := h.DB.Save(&listing).Error; err != nil {
+	// Omit: a view counted while this edit was in flight must not be lost.
+	if err := h.DB.Omit("ViewCount").Save(&listing).Error; err != nil {
 		c.JSON(http.StatusInternalServerError, gin.H{"error": "failed to update listing"})
 		return
 	}

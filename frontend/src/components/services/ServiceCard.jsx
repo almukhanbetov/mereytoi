@@ -5,6 +5,7 @@ import Reveal from '@/components/Reveal';
 import { useLang } from '@/context/AppProviders';
 import { formatPrice, pluralRu } from '@/lib/format';
 import { mediaUrl } from '@/lib/media';
+import ViewCount from '@/components/services/ViewCount';
 
 export default function ServiceCard({ listing, categoryLabel, delay = 0 }) {
   const router = useRouter();
@@ -47,6 +48,7 @@ export default function ServiceCard({ listing, categoryLabel, delay = 0 }) {
           </p>
         )}
         {listing.city && <p className="listing-card__city">📍 {listing.city}</p>}
+        <ViewCount count={listing.view_count} />
         {listing.provider?.display_name && (
           <p className="product-card__provider">👤 {listing.provider.display_name}</p>
         )}
