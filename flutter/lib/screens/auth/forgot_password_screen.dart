@@ -300,7 +300,7 @@ class _ForgotPasswordScreenState extends ConsumerState<ForgotPasswordScreen> {
           height: 18,
           child: CircularProgressIndicator(
             strokeWidth: 2.2,
-            color: context.mereytoiColors.onGold,
+            color: context.mereytoiColors.onGoldDisabled,
           ),
         )
       : Text(label);

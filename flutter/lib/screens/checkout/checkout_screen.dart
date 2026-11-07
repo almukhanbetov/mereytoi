@@ -295,7 +295,7 @@ class _CheckoutScreenState extends ConsumerState<CheckoutScreen> {
                             height: 16,
                             child: CircularProgressIndicator(
                               strokeWidth: 2.2,
-                              color: context.mereytoiColors.onGold,
+                              color: context.mereytoiColors.onGoldDisabled,
                             ),
                           )
                         : const Icon(Icons.check_rounded, size: 18),

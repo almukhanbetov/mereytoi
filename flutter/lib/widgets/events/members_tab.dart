@@ -373,7 +373,7 @@ class _InviteSheetState extends ConsumerState<_InviteSheet> {
                             height: 18,
                             child: CircularProgressIndicator(
                               strokeWidth: 2.2,
-                              color: context.mereytoiColors.onGold,
+                              color: context.mereytoiColors.onGoldDisabled,
                             ),
                           )
                         : Text(

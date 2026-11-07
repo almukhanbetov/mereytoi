@@ -255,7 +255,7 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
                           height: 18,
                           child: CircularProgressIndicator(
                             strokeWidth: 2.2,
-                            color: context.mereytoiColors.onGold,
+                            color: context.mereytoiColors.onGoldDisabled,
                           ),
                         )
                       : Text(t(locale, ru: 'Войти', kz: 'Кіру', en: 'Sign in')),
