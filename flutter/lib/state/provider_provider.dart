@@ -171,10 +171,11 @@ class ProviderActions {
     int? minGuests,
     int? maxGuests,
   }) async {
+    final fresh = await _stored(current.id);
     final listing = await _ref
         .read(listingManagementServiceProvider)
         .updateListing(
-          current,
+          fresh,
           categoryId: categoryId,
           nameRu: nameRu,
           nameKz: nameKz,
@@ -197,6 +198,22 @@ class ProviderActions {
     _invalidateMyListings();
     return listing;
   }
+
+  /// Shows or hides a service, leaving everything else as stored.
+  Future<Listing> setListingActive(int id, bool active) async {
+    final fresh = await _stored(id);
+    final listing = await _ref
+        .read(listingManagementServiceProvider)
+        .updateListing(fresh, isActive: active);
+    _ref.invalidate(listingDetailProvider(id));
+    _invalidateMyListings();
+    return listing;
+  }
+
+  /// PUT replaces the whole row, so anything sent unchanged must come from the
+  /// server: a copy from an open list would undo what an admin saved since.
+  Future<Listing> _stored(int id) =>
+      _ref.read(listingServiceProvider).fetchById(id);
 
   Future<void> deleteListing(int id) async {
     await _ref.read(listingManagementServiceProvider).deleteListing(id);

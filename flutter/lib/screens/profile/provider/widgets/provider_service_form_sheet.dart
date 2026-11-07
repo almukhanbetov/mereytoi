@@ -1,4 +1,5 @@
 import 'dart:io';
+import 'dart:math' as math;
 
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
@@ -43,6 +44,10 @@ const _priceTypes = [
 
 /// Photos per service, same cap as the onboarding.
 const _maxPhotos = kMaxOnboardingPhotos;
+
+/// The API has no limit: a longer description saved in the admin must survive
+/// editing here, since a text field cuts its text down to its limit.
+int _descriptionLimit(String? stored) => math.max(2000, stored?.length ?? 0);
 
 /// «Добавить услугу» — the API's category list first, then the form for that
 /// category. Pass [existing] to edit: its saved category picks the form. Resolves
@@ -372,8 +377,12 @@ class _ProviderServiceFormScreenState
         )
       : null;
 
+  bool get _priceOptional => _priceType == 'negotiable';
+
   String? get _priceError {
-    final v = int.tryParse(_price.text.trim());
+    final text = _price.text.trim();
+    if (text.isEmpty && _priceOptional) return null;
+    final v = int.tryParse(text);
     return v == null || v < 0
         ? t(
             _locale,
@@ -782,7 +791,9 @@ class _ProviderServiceFormScreenState
                           en: 'What\'s included, duration, highlights',
                         ),
                         controller: _description,
-                        maxLength: 2000,
+                        maxLength: _descriptionLimit(
+                          widget.existing?.descriptionRu,
+                        ),
                         minLines: 3,
                         maxLines: 6,
                         onChanged: (_) {},
@@ -798,12 +809,19 @@ class _ProviderServiceFormScreenState
                       children: [
                         ProviderTextField(
                           fieldKey: const ValueKey('service-price'),
-                          label: t(
-                            locale,
-                            ru: 'Цена',
-                            kz: 'Бағасы',
-                            en: 'Price',
-                          ),
+                          label: _priceOptional
+                              ? t(
+                                  locale,
+                                  ru: 'Цена, необязательно',
+                                  kz: 'Баға, міндетті емес',
+                                  en: 'Price, optional',
+                                )
+                              : t(
+                                  locale,
+                                  ru: 'Цена',
+                                  kz: 'Бағасы',
+                                  en: 'Price',
+                                ),
                           hint: '50 000',
                           suffixText: '₸',
                           controller: _price,
@@ -1083,7 +1101,9 @@ class _ProviderServiceFormScreenState
                           en: 'Description in Kazakh',
                         ),
                         controller: _descriptionKz,
-                        maxLength: 2000,
+                        maxLength: _descriptionLimit(
+                          widget.existing?.descriptionKz,
+                        ),
                         minLines: 2,
                         maxLines: 5,
                         onChanged: (_) {},
