@@ -9,9 +9,7 @@ import '../../../../state/locale_provider.dart';
 
 /// "Адрес" tab — `Listing.address/latitude/longitude/place_id`, the same
 /// four location fields `RestaurantLocationCard` (public screen) already
-/// reads. No map/geocoding picker exists anywhere in this app yet, so
-/// latitude/longitude are plain numeric fields here — never a fabricated
-/// map UI this stage didn't actually build.
+/// reads, typed by hand; the map point is chosen in the full form.
 class AddressTab extends ConsumerStatefulWidget {
   const AddressTab({super.key, required this.listing});
 
@@ -53,6 +51,23 @@ class _AddressTabState extends ConsumerState<AddressTab> {
   }
 
   Future<void> _save() async {
+    final locale = ref.read(localeProvider);
+    final latText = _latitude.text.trim(), lngText = _longitude.text.trim();
+    final clear = latText.isEmpty && lngText.isEmpty;
+    final lat = double.tryParse(latText.replaceAll(',', '.'));
+    final lng = double.tryParse(lngText.replaceAll(',', '.'));
+    if (!clear && !isValidCoordinate(lat, lng)) {
+      setState(() {
+        _saved = false;
+        _error = t(
+          locale,
+          ru: 'Укажите обе координаты: широта от -90 до 90, долгота от -180 до 180',
+          kz: 'Екі координатаны да көрсетіңіз: ендік -90-нан 90-ға дейін, бойлық -180-нен 180-ге дейін',
+          en: 'Enter both coordinates: latitude -90 to 90, longitude -180 to 180',
+        );
+      });
+      return;
+    }
     setState(() {
       _saving = true;
       _error = null;
@@ -64,9 +79,10 @@ class _AddressTabState extends ConsumerState<AddressTab> {
           .updateListing(
             widget.listing,
             address: _address.text.trim(),
-            latitude: double.tryParse(_latitude.text.trim()),
-            longitude: double.tryParse(_longitude.text.trim()),
-            placeId: _placeId.text.trim().isEmpty ? null : _placeId.text.trim(),
+            latitude: lat,
+            longitude: lng,
+            clearCoordinates: clear,
+            placeId: _placeId.text.trim(),
             capacity:
                 int.tryParse(_capacity.text.trim()) ?? widget.listing.capacity,
           );

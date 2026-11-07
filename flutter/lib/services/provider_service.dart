@@ -117,6 +117,8 @@ class ProviderService {
     String address = '',
     double? latitude,
     double? longitude,
+    int minGuests = 0,
+    int maxGuests = 0,
   }) async {
     final json = await _client.postJson('/api/provider/me/listings', {
       'category_id': categoryId,
@@ -132,6 +134,13 @@ class ProviderService {
       'address': address,
       'latitude': latitude,
       'longitude': longitude,
+      'min_guests': minGuests,
+      'max_guests': maxGuests,
+      // The card's look with no photo: the admin picks it, an owner's form
+      // doesn't, so the same defaults as the web's owner form.
+      'emoji': '✨',
+      'color_from': '#3a1420',
+      'color_to': '#d4af6a',
     });
     return Listing.fromJson(Map<String, dynamic>.from(json['listing'] as Map));
   }

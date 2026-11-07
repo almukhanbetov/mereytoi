@@ -125,6 +125,8 @@ class ProviderActions {
     String address = '',
     double? latitude,
     double? longitude,
+    int minGuests = 0,
+    int maxGuests = 0,
   }) async {
     final listing = await _ref
         .read(providerServiceProvider)
@@ -142,6 +144,8 @@ class ProviderActions {
           address: address,
           latitude: latitude,
           longitude: longitude,
+          minGuests: minGuests,
+          maxGuests: maxGuests,
         );
     _invalidateMyListings();
     return listing;
@@ -163,6 +167,9 @@ class ProviderActions {
     String? address,
     double? latitude,
     double? longitude,
+    String? placeId,
+    int? minGuests,
+    int? maxGuests,
   }) async {
     final listing = await _ref
         .read(listingManagementServiceProvider)
@@ -182,6 +189,9 @@ class ProviderActions {
           address: address,
           latitude: latitude,
           longitude: longitude,
+          placeId: placeId,
+          minGuests: minGuests,
+          maxGuests: maxGuests,
         );
     _ref.invalidate(listingDetailProvider(current.id));
     _invalidateMyListings();

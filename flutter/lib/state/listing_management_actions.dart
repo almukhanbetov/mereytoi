@@ -1,5 +1,6 @@
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
+import '../domain/restaurant/menu_text_import.dart';
 import '../models/listing.dart';
 import '../models/listing_hall.dart';
 import '../models/listing_menu.dart';
@@ -63,6 +64,7 @@ class ListingManagementActions {
     double? longitude,
     String? placeId,
     int? capacity,
+    bool clearCoordinates = false,
   }) async {
     final result = await _ref
         .read(listingManagementServiceProvider)
@@ -82,6 +84,7 @@ class ListingManagementActions {
           longitude: longitude,
           placeId: placeId,
           capacity: capacity,
+          clearCoordinates: clearCoordinates,
         );
     _invalidateListing(current.id);
     return result;
@@ -95,6 +98,7 @@ class ListingManagementActions {
     String descriptionKz = '',
     int capacity = 0,
     int price = 0,
+    List<String> imageUrls = const [],
     bool isActive = true,
     int sortOrder = 0,
   }) async {
@@ -108,6 +112,7 @@ class ListingManagementActions {
           descriptionKz: descriptionKz,
           capacity: capacity,
           price: price,
+          imageUrls: imageUrls,
           isActive: isActive,
           sortOrder: sortOrder,
         );
@@ -124,6 +129,7 @@ class ListingManagementActions {
     String descriptionKz = '',
     int capacity = 0,
     int price = 0,
+    List<String>? imageUrls,
     bool isActive = true,
     int sortOrder = 0,
   }) async {
@@ -138,7 +144,7 @@ class ListingManagementActions {
           descriptionKz: descriptionKz,
           capacity: capacity,
           price: price,
-          imageUrls: current.imageUrls,
+          imageUrls: imageUrls ?? current.imageUrls,
           isActive: isActive,
           sortOrder: sortOrder,
         );
@@ -361,6 +367,8 @@ class ListingManagementActions {
     required String titleKz,
     int price = 0,
     String unit = '',
+    String descriptionRu = '',
+    String descriptionKz = '',
     int sortOrder = 0,
   }) async {
     final result = await _ref
@@ -373,6 +381,8 @@ class ListingManagementActions {
           titleKz: titleKz,
           price: price,
           unit: unit,
+          descriptionRu: descriptionRu,
+          descriptionKz: descriptionKz,
           sortOrder: sortOrder,
         );
     _invalidateListing(listingId);
@@ -388,6 +398,8 @@ class ListingManagementActions {
     required String titleKz,
     int price = 0,
     String unit = '',
+    String descriptionRu = '',
+    String descriptionKz = '',
     int sortOrder = 0,
   }) async {
     final result = await _ref
@@ -401,6 +413,8 @@ class ListingManagementActions {
           titleKz: titleKz,
           price: price,
           unit: unit,
+          descriptionRu: descriptionRu,
+          descriptionKz: descriptionKz,
           sortOrder: sortOrder,
         );
     _invalidateListing(listingId);
@@ -413,6 +427,262 @@ class ListingManagementActions {
         .deleteExtra(listingId, menuId, extraId);
     _invalidateListing(listingId);
   }
+
+  // ---- list commands the admin offers: show/hide, order, copy, import ----
+
+  bool _running = false;
+
+  /// One list command at a time, so a second tap can't interleave its writes.
+  Future<void> _exclusive(
+    int listingId,
+    Future<void> Function() command,
+  ) async {
+    if (_running) return;
+    _running = true;
+    try {
+      await command();
+    } finally {
+      _running = false;
+      _invalidateListing(listingId);
+    }
+  }
+
+  Future<void> _putHall(
+    int listingId,
+    ListingHall h, {
+    bool? isActive,
+    int? sortOrder,
+  }) {
+    return _ref
+        .read(listingManagementServiceProvider)
+        .updateHall(
+          listingId,
+          h.id,
+          nameRu: h.nameRu,
+          nameKz: h.nameKz,
+          descriptionRu: h.descriptionRu,
+          descriptionKz: h.descriptionKz,
+          capacity: h.capacity,
+          price: h.price,
+          imageUrls: h.imageUrls,
+          isActive: isActive ?? h.isActive,
+          sortOrder: sortOrder ?? h.sortOrder,
+        );
+  }
+
+  Future<void> _putMenu(
+    int listingId,
+    ListingMenu m, {
+    bool? isActive,
+    int? sortOrder,
+  }) {
+    return _ref
+        .read(listingManagementServiceProvider)
+        .updateMenu(
+          listingId,
+          m.id,
+          hallId: m.hallId,
+          nameRu: m.nameRu,
+          nameKz: m.nameKz,
+          descriptionRu: m.descriptionRu,
+          descriptionKz: m.descriptionKz,
+          pricePerGuest: m.pricePerGuest,
+          minGuests: m.minGuests,
+          maxGuests: m.maxGuests,
+          isActive: isActive ?? m.isActive,
+          sortOrder: sortOrder ?? m.sortOrder,
+          validFrom: m.validFrom,
+          validUntil: m.validUntil,
+        );
+  }
+
+  Future<void> setHallActive(int listingId, ListingHall hall, bool active) =>
+      _exclusive(listingId, () => _putHall(listingId, hall, isActive: active));
+
+  Future<void> setMenuActive(int listingId, ListingMenu menu, bool active) =>
+      _exclusive(listingId, () => _putMenu(listingId, menu, isActive: active));
+
+  // Reorders write each row's position, not a swap of two values: rows created
+  // earlier in the app may all share sort_order 0, and a swap wouldn't move them.
+  Future<void> reorderHalls(int listingId, List<ListingHall> ordered) =>
+      _exclusive(listingId, () async {
+        for (var i = 0; i < ordered.length; i++) {
+          if (ordered[i].sortOrder != i) {
+            await _putHall(listingId, ordered[i], sortOrder: i);
+          }
+        }
+      });
+
+  Future<void> reorderMenus(int listingId, List<ListingMenu> ordered) =>
+      _exclusive(listingId, () async {
+        for (var i = 0; i < ordered.length; i++) {
+          if (ordered[i].sortOrder != i) {
+            await _putMenu(listingId, ordered[i], sortOrder: i);
+          }
+        }
+      });
+
+  Future<void> reorderSections(
+    int listingId,
+    int menuId,
+    List<ListingMenuSection> ordered,
+  ) => _exclusive(listingId, () async {
+    final service = _ref.read(listingManagementServiceProvider);
+    for (var i = 0; i < ordered.length; i++) {
+      final s = ordered[i];
+      if (s.sortOrder == i) continue;
+      await service.updateSection(
+        listingId,
+        menuId,
+        s.id,
+        titleRu: s.titleRu,
+        titleKz: s.titleKz,
+        sortOrder: i,
+      );
+    }
+  });
+
+  Future<void> reorderItems(
+    int listingId,
+    int menuId,
+    int sectionId,
+    List<ListingMenuItem> ordered,
+  ) => _exclusive(listingId, () async {
+    final service = _ref.read(listingManagementServiceProvider);
+    for (var i = 0; i < ordered.length; i++) {
+      final item = ordered[i];
+      if (item.sortOrder == i) continue;
+      await service.updateItem(
+        listingId,
+        menuId,
+        sectionId,
+        item.id,
+        nameRu: item.nameRu,
+        nameKz: item.nameKz,
+        descriptionRu: item.descriptionRu,
+        descriptionKz: item.descriptionKz,
+        quantityText: item.quantityText,
+        sortOrder: i,
+      );
+    }
+  });
+
+  /// A hidden copy at the end of the list, as in the admin.
+  Future<void> duplicateHall(
+    int listingId,
+    ListingHall h, {
+    required int count,
+  }) => _exclusive(listingId, () async {
+    await _ref
+        .read(listingManagementServiceProvider)
+        .createHall(
+          listingId,
+          nameRu: '${h.nameRu} (копия)',
+          nameKz: h.nameKz.isNotEmpty
+              ? '${h.nameKz} (көшірме)'
+              : '${h.nameRu} (көшірме)',
+          descriptionRu: h.descriptionRu,
+          descriptionKz: h.descriptionKz,
+          capacity: h.capacity,
+          price: h.price,
+          imageUrls: h.imageUrls,
+          isActive: false,
+          sortOrder: count,
+        );
+  });
+
+  /// A hidden copy with its sections, items and extras, as in the admin.
+  Future<void> duplicateMenu(
+    int listingId,
+    ListingMenu m, {
+    required int count,
+  }) => _exclusive(listingId, () async {
+    final service = _ref.read(listingManagementServiceProvider);
+    final copy = await service.createMenu(
+      listingId,
+      hallId: m.hallId,
+      nameRu: '${m.nameRu} — копия',
+      nameKz: m.nameKz.isNotEmpty
+          ? '${m.nameKz} — көшірме'
+          : '${m.nameRu} — көшірме',
+      descriptionRu: m.descriptionRu,
+      descriptionKz: m.descriptionKz,
+      pricePerGuest: m.pricePerGuest,
+      minGuests: m.minGuests,
+      maxGuests: m.maxGuests,
+      isActive: false,
+      sortOrder: count,
+      validFrom: m.validFrom,
+      validUntil: m.validUntil,
+    );
+    for (final section in m.sections) {
+      final newSection = await service.createSection(
+        listingId,
+        copy.id,
+        titleRu: section.titleRu,
+        titleKz: section.titleKz,
+        sortOrder: section.sortOrder,
+      );
+      for (final item in section.items) {
+        await service.createItem(
+          listingId,
+          copy.id,
+          newSection.id,
+          nameRu: item.nameRu,
+          nameKz: item.nameKz,
+          descriptionRu: item.descriptionRu,
+          descriptionKz: item.descriptionKz,
+          quantityText: item.quantityText,
+          sortOrder: item.sortOrder,
+        );
+      }
+    }
+    for (final extra in m.extras) {
+      await service.createExtra(
+        listingId,
+        copy.id,
+        type: extra.type,
+        titleRu: extra.titleRu,
+        titleKz: extra.titleKz,
+        price: extra.price,
+        unit: extra.unit,
+        descriptionRu: extra.descriptionRu,
+        descriptionKz: extra.descriptionKz,
+        sortOrder: extra.sortOrder,
+      );
+    }
+  });
+
+  Future<void> importMenuSections(
+    int listingId,
+    int menuId,
+    List<MenuTextSection> sections, {
+    required int existingSectionCount,
+  }) => _exclusive(listingId, () async {
+    final service = _ref.read(listingManagementServiceProvider);
+    var order = existingSectionCount;
+    for (final section in sections) {
+      final created = await service.createSection(
+        listingId,
+        menuId,
+        titleRu: section.title,
+        titleKz: section.title,
+        sortOrder: order++,
+      );
+      for (var i = 0; i < section.items.length; i++) {
+        final item = section.items[i];
+        await service.createItem(
+          listingId,
+          menuId,
+          created.id,
+          nameRu: item.name,
+          nameKz: item.name,
+          quantityText: item.quantityText,
+          sortOrder: i,
+        );
+      }
+    }
+  });
 }
 
 final listingManagementActionsProvider = Provider<ListingManagementActions>(

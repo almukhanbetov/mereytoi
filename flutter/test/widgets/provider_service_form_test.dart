@@ -232,6 +232,14 @@ void main() {
 
   Finder submit() => find.byKey(const ValueKey('service-submit'));
 
+  /// The gallery, then the check of what it returned, then «Загрузить».
+  Future<void> addPhotos(WidgetTester tester) async {
+    await tester.tap(find.byKey(const ValueKey('service-add-photo')));
+    await settle(tester);
+    await tester.tap(find.byKey(const ValueKey('picked-photos-confirm')));
+    await settle(tester);
+  }
+
   Map<dynamic, dynamic> lastCreateBody(ProviderFakeApi api) =>
       api.bodies['POST /api/provider/me/listings']!.last! as Map;
 
@@ -263,7 +271,7 @@ void main() {
       await scrollTo(tester, perEvent);
       await tester.tap(perEvent);
       await scrollTo(tester, find.byKey(const ValueKey('service-add-photo')));
-      await tester.tap(find.byKey(const ValueKey('service-add-photo')));
+      await addPhotos(tester);
       await settle(tester);
       expect(uploads.calls, hasLength(1));
       expect(find.text('Обложка'), findsOneWidget);
@@ -478,6 +486,40 @@ void main() {
       expect(find.byType(ProviderServiceFormScreen), findsNothing);
     });
 
+    testWidgets('optional price and guests are saved; the look has defaults', (
+      tester,
+    ) async {
+      final (api, _, _) = await pump(tester);
+      await openRestaurant(tester);
+      await enter(tester, 'service-name', 'Тест Холл');
+      await enter(tester, 'restaurant-price', '150000');
+      await enter(tester, 'restaurant-min-guests', '50');
+      await enter(tester, 'restaurant-max-guests', '300');
+      await scrollTo(tester, submit());
+      await tester.tap(submit());
+      await settle(tester);
+      final body = lastCreateBody(api);
+      expect(body['price'], 150000);
+      expect(body['min_guests'], 50);
+      expect(body['max_guests'], 300);
+      expect(body['emoji'], '✨');
+      expect(body['color_from'], '#3a1420');
+      expect(body['color_to'], '#d4af6a');
+    });
+
+    testWidgets('price and guests stay optional', (tester) async {
+      final (api, _, _) = await pump(tester);
+      await openRestaurant(tester);
+      await enter(tester, 'service-name', 'Тест Холл');
+      await scrollTo(tester, submit());
+      await tester.tap(submit());
+      await settle(tester);
+      final body = lastCreateBody(api);
+      expect(body['price'], 0);
+      expect(body['min_guests'], 0);
+      expect(find.byType(RestaurantManageScreen), findsOneWidget);
+    });
+
     testWidgets('a name is required, and nothing is sent without it', (
       tester,
     ) async {
@@ -598,24 +640,26 @@ void main() {
       expect(body['phone'], '');
     });
 
-    testWidgets(
-      'a price typed for a service isn\'t saved on a new restaurant',
-      (tester) async {
-        final (api, _, _) = await pump(tester, withListing: false);
-        await openCreate(tester);
-        await enter(tester, 'service-name', 'Черновик');
-        await enter(tester, 'service-price', '45000');
-        await scrollTo(tester, categoryCard());
-        await tester.tap(categoryCard());
-        await settle(tester);
-        await tester.tap(find.byType(ServicesCategoryTile).at(0));
-        await settle(tester);
-        await scrollTo(tester, submit());
-        await tester.tap(submit());
-        await settle(tester);
-        expect(lastCreateBody(api)['price'], 0);
-      },
-    );
+    testWidgets('a price typed for a service stays visible on a restaurant', (
+      tester,
+    ) async {
+      final (api, _, _) = await pump(tester, withListing: false);
+      await openCreate(tester);
+      await enter(tester, 'service-name', 'Черновик');
+      await enter(tester, 'service-price', '45000');
+      await scrollTo(tester, categoryCard());
+      await tester.tap(categoryCard());
+      await settle(tester);
+      await tester.tap(find.byType(ServicesCategoryTile).at(0));
+      await settle(tester);
+      final price = find.byKey(const ValueKey('restaurant-price'));
+      await scrollTo(tester, price);
+      expect(tester.widget<TextField>(price).controller!.text, '45000');
+      await scrollTo(tester, submit());
+      await tester.tap(submit());
+      await settle(tester);
+      expect(lastCreateBody(api)['price'], 45000);
+    });
   });
 
   group('editing and changing the category', () {
@@ -692,6 +736,63 @@ void main() {
       await tester.tap(categoryCard(), warnIfMissed: false);
       await settle(tester);
       expect(find.byType(ServicesCategoryTile), findsNothing);
+    });
+
+    testWidgets(
+      'editing shows price and guests, and a moved point drops the place',
+      (tester) async {
+        LocationPickerScreen.debugMapBuilder = (point, onPick) => TextButton(
+          key: const ValueKey('fake-map'),
+          onPressed: () => onPick(const LatLng(43.3, 76.8)),
+          child: const Text('map'),
+        );
+        addTearDown(() => LocationPickerScreen.debugMapBuilder = null);
+        final (api, _, _) = await pump(tester);
+        final saved = {...restaurant(200), 'place_id': 'old-place'};
+        api.listings.add(saved);
+        await openEdit(tester, saved);
+        for (final (key, value) in [
+          ('restaurant-price', '5000'),
+          ('restaurant-min-guests', '20'),
+          ('restaurant-max-guests', '300'),
+        ]) {
+          final field = find.byKey(ValueKey(key));
+          await scrollTo(tester, field);
+          expect(tester.widget<TextField>(field).controller!.text, value);
+        }
+        await scrollTo(tester, submit());
+        await tester.tap(submit());
+        await settle(tester);
+        expect(lastPut(api, 200)['place_id'], 'old-place'); // point unchanged
+
+        await openEdit(tester, Map<String, dynamic>.from(api.listings.last));
+        final point = find.byKey(const ValueKey('restaurant-map-point'));
+        await scrollTo(tester, point);
+        await tester.tap(point);
+        await settle(tester);
+        await tester.tap(find.byKey(const ValueKey('fake-map')));
+        await tester.pump();
+        await tester.tap(find.byKey(const ValueKey('location-picker-confirm')));
+        await settle(tester);
+        await scrollTo(tester, submit());
+        await tester.tap(submit());
+        await settle(tester);
+        expect(lastPut(api, 200)['latitude'], 43.3);
+        expect(lastPut(api, 200)['place_id'], '');
+      },
+    );
+
+    testWidgets('a city outside the directory is kept when editing', (
+      tester,
+    ) async {
+      final (api, _, _) = await pump(tester);
+      final saved = {...restaurant(200), 'city': 'Капчагай'};
+      api.listings.add(saved);
+      await openEdit(tester, saved);
+      await scrollTo(tester, submit());
+      await tester.tap(submit());
+      await settle(tester);
+      expect(lastPut(api, 200)['city'], 'Капчагай');
     });
 
     testWidgets('an empty restaurant can become a service, keeping its data', (
@@ -821,6 +922,104 @@ void main() {
     expect(container.read(selectedCityIdProvider), isNull);
   });
 
+  group('checking picked photos before upload', () {
+    Future<void> openCheck(WidgetTester tester) async {
+      await openCreate(tester);
+      await enter(tester, 'service-name', 'Фото');
+      final add = find.byKey(const ValueKey('service-add-photo'));
+      await scrollTo(tester, add);
+      await tester.tap(add);
+      await settle(tester);
+    }
+
+    testWidgets('nothing uploads until confirmed; a removed one never does', (
+      tester,
+    ) async {
+      final (_, uploads, _) = await pump(tester);
+      await openCheck(tester);
+      expect(find.text('Выбрано фото: 3'), findsOneWidget);
+      expect(uploads.calls, isEmpty);
+      for (var i = 0; i < 3; i++) {
+        expect(find.byKey(ValueKey('picked-photo-$i')), findsOneWidget);
+      }
+
+      await tester.tap(find.byKey(const ValueKey('picked-photo-remove-1')));
+      await settle(tester);
+      expect(find.text('Выбрано фото: 2'), findsOneWidget);
+      await tester.tap(find.byKey(const ValueKey('picked-photos-confirm')));
+      await settle(tester);
+      expect(uploads.calls.single, hasLength(2));
+      expect(uploads.calls.single.first, endsWith('p0.jpg'));
+      expect(uploads.calls.single.last, endsWith('p2.jpg'));
+    });
+
+    testWidgets('cancelling uploads nothing and adds nothing', (tester) async {
+      final (_, uploads, _) = await pump(tester);
+      await openCheck(tester);
+      await tester.tap(find.byKey(const ValueKey('picked-photos-cancel')));
+      await settle(tester);
+      expect(uploads.calls, isEmpty);
+      expect(find.byKey(const ValueKey('service-photo-0')), findsNothing);
+    });
+
+    testWidgets('closing the check does not bring the keyboard back', (
+      tester,
+    ) async {
+      await pump(tester);
+      await openCheck(tester);
+      await tester.tap(find.byKey(const ValueKey('picked-photos-cancel')));
+      await settle(tester);
+      expect(tester.testTextInput.isVisible, isFalse);
+    });
+
+    testWidgets('removing all leaves nothing to confirm', (tester) async {
+      final (_, uploads, _) = await pump(tester);
+      await openCheck(tester);
+      for (var i = 0; i < 3; i++) {
+        await tester.tap(find.byKey(const ValueKey('picked-photo-remove-0')));
+        await settle(tester);
+      }
+      expect(
+        tester
+            .widget<ElevatedButton>(
+              find.byKey(const ValueKey('picked-photos-confirm')),
+            )
+            .onPressed,
+        isNull,
+      );
+      expect(uploads.calls, isEmpty);
+    });
+
+    for (final dark in [false, true]) {
+      for (final width in [320.0, 430.0]) {
+        for (final locale in AppLocale.values) {
+          testWidgets(
+            'no overflow: ${dark ? 'dark' : 'light'} · ${width.toInt()} · ${locale.name}',
+            (tester) async {
+              await pump(
+                tester,
+                size: Size(width, 700),
+                theme: dark ? () => AppTheme.dark : () => AppTheme.light,
+                locale: locale,
+                withListing: false,
+              );
+              await openCreate(tester);
+              final add = find.byKey(const ValueKey('service-add-photo'));
+              await scrollTo(tester, add);
+              await tester.tap(add);
+              await settle(tester);
+              expect(tester.takeException(), isNull);
+              expect(
+                find.byKey(const ValueKey('picked-photos-confirm')),
+                findsOneWidget,
+              );
+            },
+          );
+        }
+      }
+    }
+  });
+
   testWidgets('photos: delete and long-press reorder change what is saved', (
     tester,
   ) async {
@@ -829,7 +1028,7 @@ void main() {
     await enter(tester, 'service-name', 'Фото');
     await enter(tester, 'service-price', '0');
     await scrollTo(tester, find.byKey(const ValueKey('service-add-photo')));
-    await tester.tap(find.byKey(const ValueKey('service-add-photo')));
+    await addPhotos(tester);
     await settle(tester);
     // f0, f1, f2 → remove f1 → f0, f2.
     await tester.tap(find.byKey(const ValueKey('service-photo-remove-1')));
@@ -864,7 +1063,7 @@ void main() {
 
     uploads.gate = Completer<void>();
     await scrollTo(tester, find.byKey(const ValueKey('service-add-photo')));
-    await tester.tap(find.byKey(const ValueKey('service-add-photo')));
+    await addPhotos(tester);
     await tester.pump();
     await tester.pump();
     expect(
@@ -1010,7 +1209,7 @@ void main() {
               tester,
               find.byKey(const ValueKey('service-add-photo')),
             );
-            await tester.tap(find.byKey(const ValueKey('service-add-photo')));
+            await addPhotos(tester);
             await settle(tester);
             await scrollTo(
               tester,

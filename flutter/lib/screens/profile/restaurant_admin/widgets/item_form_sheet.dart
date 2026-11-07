@@ -16,6 +16,7 @@ Future<void> openItemFormSheet(
   required int menuId,
   required int sectionId,
   ListingMenuItem? existing,
+  int nextSortOrder = 0,
 }) {
   return showModalBottomSheet<void>(
     context: context,
@@ -26,6 +27,7 @@ Future<void> openItemFormSheet(
       menuId: menuId,
       sectionId: sectionId,
       existing: existing,
+      nextSortOrder: nextSortOrder,
     ),
   );
 }
@@ -37,12 +39,16 @@ class ItemFormSheet extends ConsumerStatefulWidget {
     required this.menuId,
     required this.sectionId,
     this.existing,
+    this.nextSortOrder = 0,
   });
 
   final int listingId;
   final int menuId;
   final int sectionId;
   final ListingMenuItem? existing;
+
+  /// Where a new row goes: the end of the list.
+  final int nextSortOrder;
 
   @override
   ConsumerState<ItemFormSheet> createState() => _ItemFormSheetState();
@@ -97,6 +103,7 @@ class _ItemFormSheetState extends ConsumerState<ItemFormSheet> {
           descriptionRu: _descriptionRu.text.trim(),
           descriptionKz: _descriptionKz.text.trim(),
           quantityText: _quantityText.text.trim(),
+          sortOrder: widget.nextSortOrder,
         );
       } else {
         await actions.updateItem(

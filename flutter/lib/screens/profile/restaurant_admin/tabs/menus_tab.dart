@@ -15,6 +15,7 @@ import '../../../../widgets/app_error_view.dart';
 import '../../../../widgets/app_icon_badge.dart';
 import '../../../../widgets/app_skeleton.dart';
 import '../menu_detail_screen.dart';
+import '../widgets/manage_actions_button.dart';
 import '../widgets/menu_form_sheet.dart';
 
 /// "Меню" tab — `listingMenusProvider` (`GET /api/listings/:id/menus`)
@@ -54,63 +55,70 @@ class MenusTab extends ConsumerWidget {
             locale: locale,
             onRetry: () => ref.invalidate(listingMenusProvider(listingId)),
           ),
-          data: (menus) => RefreshIndicator(
-            color: context.mereytoiColors.goldPrimary,
-            backgroundColor: context.mereytoiColors.surfaceElevated,
-            onRefresh: () =>
-                ref.refresh(listingMenusProvider(listingId).future),
-            child: menus.isEmpty
-                ? ListView(
-                    padding: const EdgeInsets.all(AppSpacing.xl),
-                    children: [
-                      Center(
-                        child: Column(
-                          mainAxisSize: MainAxisSize.min,
-                          children: [
-                            const AppIconBadge(
-                              icon: Icons.restaurant_menu_outlined,
-                            ),
-                            const SizedBox(height: AppSpacing.md),
-                            Text(
-                              t(
-                                locale,
-                                ru: 'Меню пока не добавлены',
-                                kz: 'Мәзірлер әлі қосылмаған',
+          data: (unsorted) {
+            final menus = _sorted(unsorted);
+            return RefreshIndicator(
+              color: context.mereytoiColors.goldPrimary,
+              backgroundColor: context.mereytoiColors.surfaceElevated,
+              onRefresh: () =>
+                  ref.refresh(listingMenusProvider(listingId).future),
+              child: menus.isEmpty
+                  ? ListView(
+                      padding: const EdgeInsets.all(AppSpacing.xl),
+                      children: [
+                        Center(
+                          child: Column(
+                            mainAxisSize: MainAxisSize.min,
+                            children: [
+                              const AppIconBadge(
+                                icon: Icons.restaurant_menu_outlined,
                               ),
-                              style: Theme.of(context).textTheme.titleMedium,
-                              textAlign: TextAlign.center,
-                            ),
-                          ],
+                              const SizedBox(height: AppSpacing.md),
+                              Text(
+                                t(
+                                  locale,
+                                  ru: 'Меню пока не добавлены',
+                                  kz: 'Мәзірлер әлі қосылмаған',
+                                ),
+                                style: Theme.of(context).textTheme.titleMedium,
+                                textAlign: TextAlign.center,
+                              ),
+                            ],
+                          ),
                         ),
+                      ],
+                    )
+                  : ListView.separated(
+                      padding: const EdgeInsets.fromLTRB(
+                        AppSpacing.lg,
+                        AppSpacing.lg,
+                        AppSpacing.lg,
+                        88,
                       ),
-                    ],
-                  )
-                : ListView.separated(
-                    padding: const EdgeInsets.fromLTRB(
-                      AppSpacing.lg,
-                      AppSpacing.lg,
-                      AppSpacing.lg,
-                      88,
+                      itemCount: menus.length,
+                      separatorBuilder: (_, _) =>
+                          const SizedBox(height: AppSpacing.sm),
+                      itemBuilder: (context, i) => _MenuCard(
+                        listingId: listingId,
+                        menus: menus,
+                        index: i,
+                        halls: hallsAsync.valueOrNull ?? const [],
+                      ),
                     ),
-                    itemCount: menus.length,
-                    separatorBuilder: (_, _) =>
-                        const SizedBox(height: AppSpacing.sm),
-                    itemBuilder: (context, i) => _MenuCard(
-                      listingId: listingId,
-                      menu: menus[i],
-                      halls: hallsAsync.valueOrNull ?? const [],
-                    ),
-                  ),
-          ),
+            );
+          },
         ),
         Positioned(
           right: AppSpacing.lg,
           bottom: AppSpacing.lg,
           child: FloatingActionButton.extended(
+            backgroundColor: context.mereytoiColors.goldPrimary,
+            foregroundColor: context.mereytoiColors.onGold,
             onPressed: () => openMenuFormSheet(
               context,
               listingId: listingId,
               halls: hallsAsync.valueOrNull ?? const [],
+              nextSortOrder: menusAsync.valueOrNull?.length ?? 0,
             ),
             icon: const Icon(Icons.add_rounded),
             label: Text(t(locale, ru: 'Добавить меню', kz: 'Мәзір қосу')),
@@ -121,16 +129,26 @@ class MenusTab extends ConsumerWidget {
   }
 }
 
+List<ListingMenu> _sorted(List<ListingMenu> menus) => [...menus]
+  ..sort((a, b) {
+    final byOrder = a.sortOrder.compareTo(b.sortOrder);
+    return byOrder != 0 ? byOrder : a.id.compareTo(b.id);
+  });
+
 class _MenuCard extends ConsumerWidget {
   const _MenuCard({
     required this.listingId,
-    required this.menu,
+    required this.menus,
+    required this.index,
     required this.halls,
   });
 
   final int listingId;
-  final ListingMenu menu;
+  final List<ListingMenu> menus;
+  final int index;
   final List<ListingHall> halls;
+
+  ListingMenu get menu => menus[index];
 
   Future<void> _delete(BuildContext context, WidgetRef ref) async {
     final locale = ref.read(localeProvider);
@@ -162,6 +180,7 @@ class _MenuCard extends ConsumerWidget {
   Widget build(BuildContext context, WidgetRef ref) {
     final locale = ref.watch(localeProvider);
     final colors = context.mereytoiColors;
+    final actions = ref.read(listingManagementActionsProvider);
     return GestureDetector(
       onTap: () => Navigator.of(context).push(
         MaterialPageRoute(
@@ -237,13 +256,68 @@ class _MenuCard extends ConsumerWidget {
                 color: colors.textSecondary,
               ),
             ),
-            IconButton(
-              onPressed: () => _delete(context, ref),
-              icon: Icon(
-                Icons.delete_outline_rounded,
-                size: 18,
-                color: colors.error,
-              ),
+            ManageActionsButton(
+              key: ValueKey('menu-actions-${menu.id}'),
+              locale: locale,
+              actions: [
+                ManageAction(
+                  label: menu.isActive
+                      ? t(locale, ru: 'Скрыть', kz: 'Жасыру', en: 'Hide')
+                      : t(locale, ru: 'Показать', kz: 'Көрсету', en: 'Show'),
+                  icon: menu.isActive
+                      ? Icons.visibility_off_outlined
+                      : Icons.visibility_outlined,
+                  onTap: () => runManaged(
+                    context,
+                    locale,
+                    () =>
+                        actions.setMenuActive(listingId, menu, !menu.isActive),
+                  ),
+                ),
+                ...moveActions(
+                  locale,
+                  index: index,
+                  count: menus.length,
+                  onMove: (delta) => runManaged(
+                    context,
+                    locale,
+                    () => actions.reorderMenus(
+                      listingId,
+                      movedBy(menus, index, delta),
+                    ),
+                  ),
+                ),
+                ManageAction(
+                  label: t(
+                    locale,
+                    ru: 'Дублировать',
+                    kz: 'Көшіру',
+                    en: 'Duplicate',
+                  ),
+                  icon: Icons.copy_rounded,
+                  onTap: () => runManaged(
+                    context,
+                    locale,
+                    () => actions.duplicateMenu(
+                      listingId,
+                      menu,
+                      count: menus.length,
+                    ),
+                    doneMessage: t(
+                      locale,
+                      ru: 'Создана скрытая копия меню',
+                      kz: 'Мәзірдің жасырын көшірмесі жасалды',
+                      en: 'A hidden copy of the menu was created',
+                    ),
+                  ),
+                ),
+                ManageAction(
+                  label: t(locale, ru: 'Удалить', kz: 'Жою', en: 'Delete'),
+                  icon: Icons.delete_outline_rounded,
+                  destructive: true,
+                  onTap: () => _delete(context, ref),
+                ),
+              ],
             ),
           ],
         ),

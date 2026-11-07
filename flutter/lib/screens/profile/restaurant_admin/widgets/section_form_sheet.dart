@@ -18,6 +18,7 @@ Future<void> openSectionFormSheet(
   required int listingId,
   required int menuId,
   ListingMenuSection? existing,
+  int nextSortOrder = 0,
 }) {
   return showModalBottomSheet<void>(
     context: context,
@@ -27,6 +28,7 @@ Future<void> openSectionFormSheet(
       listingId: listingId,
       menuId: menuId,
       existing: existing,
+      nextSortOrder: nextSortOrder,
     ),
   );
 }
@@ -37,11 +39,15 @@ class SectionFormSheet extends ConsumerStatefulWidget {
     required this.listingId,
     required this.menuId,
     this.existing,
+    this.nextSortOrder = 0,
   });
 
   final int listingId;
   final int menuId;
   final ListingMenuSection? existing;
+
+  /// Where a new row goes: the end of the list.
+  final int nextSortOrder;
 
   @override
   ConsumerState<SectionFormSheet> createState() => _SectionFormSheetState();
@@ -82,6 +88,7 @@ class _SectionFormSheetState extends ConsumerState<SectionFormSheet> {
           widget.menuId,
           titleRu: _titleRu.text.trim(),
           titleKz: _titleKz.text.trim(),
+          sortOrder: widget.nextSortOrder,
         );
       } else {
         await actions.updateSection(

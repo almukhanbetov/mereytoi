@@ -35,6 +35,7 @@ Future<void> openExtraFormSheet(
   required int listingId,
   required int menuId,
   ListingMenuExtra? existing,
+  int nextSortOrder = 0,
 }) {
   return showModalBottomSheet<void>(
     context: context,
@@ -44,6 +45,7 @@ Future<void> openExtraFormSheet(
       listingId: listingId,
       menuId: menuId,
       existing: existing,
+      nextSortOrder: nextSortOrder,
     ),
   );
 }
@@ -54,11 +56,15 @@ class ExtraFormSheet extends ConsumerStatefulWidget {
     required this.listingId,
     required this.menuId,
     this.existing,
+    this.nextSortOrder = 0,
   });
 
   final int listingId;
   final int menuId;
   final ListingMenuExtra? existing;
+
+  /// Where a new option goes: the end of the list.
+  final int nextSortOrder;
 
   @override
   ConsumerState<ExtraFormSheet> createState() => _ExtraFormSheetState();
@@ -69,6 +75,8 @@ class _ExtraFormSheetState extends ConsumerState<ExtraFormSheet> {
   late final TextEditingController _titleRu;
   late final TextEditingController _titleKz;
   late final TextEditingController _price;
+  late final TextEditingController _descriptionRu;
+  late final TextEditingController _descriptionKz;
   late String _type;
   late String _unit;
   bool _saving = false;
@@ -81,6 +89,8 @@ class _ExtraFormSheetState extends ConsumerState<ExtraFormSheet> {
     _titleRu = TextEditingController(text: e?.titleRu ?? '');
     _titleKz = TextEditingController(text: e?.titleKz ?? '');
     _price = TextEditingController(text: e != null ? '${e.price}' : '');
+    _descriptionRu = TextEditingController(text: e?.descriptionRu ?? '');
+    _descriptionKz = TextEditingController(text: e?.descriptionKz ?? '');
     _type = e?.type ?? _typePresets.first.$1;
     _unit = e?.unit ?? '';
   }
@@ -90,6 +100,8 @@ class _ExtraFormSheetState extends ConsumerState<ExtraFormSheet> {
     _titleRu.dispose();
     _titleKz.dispose();
     _price.dispose();
+    _descriptionRu.dispose();
+    _descriptionKz.dispose();
     super.dispose();
   }
 
@@ -110,6 +122,9 @@ class _ExtraFormSheetState extends ConsumerState<ExtraFormSheet> {
           titleKz: _titleKz.text.trim(),
           price: int.tryParse(_price.text.trim()) ?? 0,
           unit: _unit,
+          descriptionRu: _descriptionRu.text.trim(),
+          descriptionKz: _descriptionKz.text.trim(),
+          sortOrder: widget.nextSortOrder,
         );
       } else {
         await actions.updateExtra(
@@ -121,6 +136,8 @@ class _ExtraFormSheetState extends ConsumerState<ExtraFormSheet> {
           titleKz: _titleKz.text.trim(),
           price: int.tryParse(_price.text.trim()) ?? 0,
           unit: _unit,
+          descriptionRu: _descriptionRu.text.trim(),
+          descriptionKz: _descriptionKz.text.trim(),
           sortOrder: widget.existing!.sortOrder,
         );
       }
@@ -151,13 +168,20 @@ class _ExtraFormSheetState extends ConsumerState<ExtraFormSheet> {
       saveLabel: t(locale, ru: 'Сохранить', kz: 'Сақтау'),
       children: [
         DropdownButtonFormField<String>(
+          isExpanded: true,
           initialValue: _type,
           decoration: InputDecoration(
             labelText: t(locale, ru: 'Тип', kz: 'Түрі'),
           ),
           items: [
             for (final preset in _typePresets)
-              DropdownMenuItem(value: preset.$1, child: Text(preset.$2)),
+              DropdownMenuItem(
+                value: preset.$1,
+                child: Text(preset.$2, overflow: TextOverflow.ellipsis),
+              ),
+            // A value set elsewhere that isn't a preset stays selectable.
+            if (!_typePresets.any((p) => p.$1 == _type))
+              DropdownMenuItem(value: _type, child: Text(_type)),
           ],
           onChanged: (v) => setState(() => _type = v ?? _type),
         ),
@@ -183,13 +207,19 @@ class _ExtraFormSheetState extends ConsumerState<ExtraFormSheet> {
         ),
         const SizedBox(height: AppSpacing.sm),
         DropdownButtonFormField<String>(
+          isExpanded: true,
           initialValue: _unit,
           decoration: InputDecoration(
             labelText: t(locale, ru: 'Как считается', kz: 'Қалай есептеледі'),
           ),
           items: [
             for (final option in _unitOptions)
-              DropdownMenuItem(value: option.$1, child: Text(option.$2)),
+              DropdownMenuItem(
+                value: option.$1,
+                child: Text(option.$2, overflow: TextOverflow.ellipsis),
+              ),
+            if (!_unitOptions.any((o) => o.$1 == _unit))
+              DropdownMenuItem(value: _unit, child: Text(_unit)),
           ],
           onChanged: (v) => setState(() => _unit = v ?? _unit),
         ),
@@ -205,6 +235,34 @@ class _ExtraFormSheetState extends ConsumerState<ExtraFormSheet> {
           validator: (v) => (v == null || v.trim().isEmpty)
               ? t(locale, ru: 'Введите значение', kz: 'Мәнін енгізіңіз')
               : null,
+        ),
+        const SizedBox(height: AppSpacing.sm),
+        TextFormField(
+          key: const ValueKey('extra-description-ru'),
+          controller: _descriptionRu,
+          maxLines: 2,
+          decoration: InputDecoration(
+            labelText: t(
+              locale,
+              ru: 'Описание RU (необязательно)',
+              kz: 'Сипаттама RU (міндетті емес)',
+              en: 'Description RU (optional)',
+            ),
+          ),
+        ),
+        const SizedBox(height: AppSpacing.sm),
+        TextFormField(
+          key: const ValueKey('extra-description-kz'),
+          controller: _descriptionKz,
+          maxLines: 2,
+          decoration: InputDecoration(
+            labelText: t(
+              locale,
+              ru: 'Описание KZ (необязательно)',
+              kz: 'Сипаттама KZ (міндетті емес)',
+              en: 'Description KZ (optional)',
+            ),
+          ),
         ),
       ],
     );

@@ -119,6 +119,7 @@ void main() {
       await service.updateHall(
         48,
         1,
+        imageUrls: const [],
         nameRu: 'Зал А',
         nameKz: 'А залы',
         capacity: 120,

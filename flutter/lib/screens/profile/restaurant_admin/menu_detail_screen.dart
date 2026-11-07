@@ -16,6 +16,8 @@ import '../../../widgets/app_error_view.dart';
 import '../../../widgets/app_loader.dart';
 import 'widgets/extra_form_sheet.dart';
 import 'widgets/item_form_sheet.dart';
+import 'widgets/manage_actions_button.dart';
+import 'widgets/menu_import_sheet.dart';
 import 'widgets/section_form_sheet.dart';
 
 /// One menu's own structure — "Menu → Sections → Items" plus "Extras",
@@ -114,11 +116,34 @@ class _MenuDetailBody extends ConsumerWidget {
                 context,
                 listingId: listingId,
                 menuId: menu.id,
+                nextSortOrder: sections.length,
               ),
               icon: const Icon(Icons.add_rounded, size: 18),
               label: Text(t(locale, ru: 'Раздел', kz: 'Бөлім')),
             ),
           ],
+        ),
+        Align(
+          alignment: Alignment.centerLeft,
+          child: TextButton.icon(
+            key: const ValueKey('menu-import-open'),
+            style: TextButton.styleFrom(minimumSize: const Size(48, 48)),
+            onPressed: () => openMenuImportSheet(
+              context,
+              listingId: listingId,
+              menuId: menu.id,
+              existingSectionCount: sections.length,
+            ),
+            icon: const Icon(Icons.notes_rounded, size: 18),
+            label: Text(
+              t(
+                locale,
+                ru: 'Создать из текста',
+                kz: 'Мәтіннен жасау',
+                en: 'Create from text',
+              ),
+            ),
+          ),
         ),
         if (sections.isEmpty)
           Padding(
@@ -128,8 +153,13 @@ class _MenuDetailBody extends ConsumerWidget {
               style: Theme.of(context).textTheme.bodyMedium,
             ),
           ),
-        for (final section in sections) ...[
-          _SectionCard(listingId: listingId, menuId: menu.id, section: section),
+        for (var i = 0; i < sections.length; i++) ...[
+          _SectionCard(
+            listingId: listingId,
+            menuId: menu.id,
+            sections: sections,
+            index: i,
+          ),
           const SizedBox(height: AppSpacing.sm),
         ],
         const SizedBox(height: AppSpacing.md),
@@ -145,6 +175,7 @@ class _MenuDetailBody extends ConsumerWidget {
                 context,
                 listingId: listingId,
                 menuId: menu.id,
+                nextSortOrder: extras.length,
               ),
               icon: const Icon(Icons.add_rounded, size: 18),
               label: Text(t(locale, ru: 'Опция', kz: 'Опция')),
@@ -173,12 +204,16 @@ class _SectionCard extends ConsumerWidget {
   const _SectionCard({
     required this.listingId,
     required this.menuId,
-    required this.section,
+    required this.sections,
+    required this.index,
   });
 
   final int listingId;
   final int menuId;
-  final ListingMenuSection section;
+  final List<ListingMenuSection> sections;
+  final int index;
+
+  ListingMenuSection get section => sections[index];
 
   Future<void> _delete(BuildContext context, WidgetRef ref) async {
     final locale = ref.read(localeProvider);
@@ -208,8 +243,12 @@ class _SectionCard extends ConsumerWidget {
   Widget build(BuildContext context, WidgetRef ref) {
     final locale = ref.watch(localeProvider);
     final colors = context.mereytoiColors;
+    final actions = ref.read(listingManagementActionsProvider);
     final items = [...section.items]
-      ..sort((a, b) => a.sortOrder.compareTo(b.sortOrder));
+      ..sort((a, b) {
+        final byOrder = a.sortOrder.compareTo(b.sortOrder);
+        return byOrder != 0 ? byOrder : a.id.compareTo(b.id);
+      });
 
     return AppCard(
       child: Column(
@@ -236,13 +275,31 @@ class _SectionCard extends ConsumerWidget {
                   color: colors.textSecondary,
                 ),
               ),
-              IconButton(
-                onPressed: () => _delete(context, ref),
-                icon: Icon(
-                  Icons.delete_outline_rounded,
-                  size: 17,
-                  color: colors.error,
-                ),
+              ManageActionsButton(
+                key: ValueKey('section-actions-${section.id}'),
+                locale: locale,
+                actions: [
+                  ...moveActions(
+                    locale,
+                    index: index,
+                    count: sections.length,
+                    onMove: (delta) => runManaged(
+                      context,
+                      locale,
+                      () => actions.reorderSections(
+                        listingId,
+                        menuId,
+                        movedBy(sections, index, delta),
+                      ),
+                    ),
+                  ),
+                  ManageAction(
+                    label: t(locale, ru: 'Удалить', kz: 'Жою', en: 'Delete'),
+                    icon: Icons.delete_outline_rounded,
+                    destructive: true,
+                    onTap: () => _delete(context, ref),
+                  ),
+                ],
               ),
             ],
           ),
@@ -255,71 +312,88 @@ class _SectionCard extends ConsumerWidget {
               ),
             )
           else
-            for (final item in items)
+            for (var i = 0; i < items.length; i++)
               Padding(
                 padding: const EdgeInsets.only(bottom: AppSpacing.xxs),
                 child: Row(
                   children: [
                     Expanded(
                       child: Text(
-                        item.quantityText.isNotEmpty
-                            ? '${item.name(locale)} · ${item.quantityText}'
-                            : item.name(locale),
-                        maxLines: 1,
+                        items[i].quantityText.isNotEmpty
+                            ? '${items[i].name(locale)} · ${items[i].quantityText}'
+                            : items[i].name(locale),
+                        maxLines: 2,
                         overflow: TextOverflow.ellipsis,
                         style: Theme.of(context).textTheme.bodyMedium,
                       ),
                     ),
-                    InkWell(
-                      onTap: () => openItemFormSheet(
-                        context,
-                        listingId: listingId,
-                        menuId: menuId,
-                        sectionId: section.id,
-                        existing: item,
-                      ),
-                      child: Icon(
-                        Icons.edit_outlined,
-                        size: 15,
-                        color: colors.textMuted,
-                      ),
-                    ),
-                    const SizedBox(width: AppSpacing.sm),
-                    InkWell(
-                      onTap: () async {
-                        final confirmed = await ConfirmDeleteSheet.show(
-                          context,
-                          title: t(
+                    ManageActionsButton(
+                      key: ValueKey('item-actions-${items[i].id}'),
+                      locale: locale,
+                      actions: [
+                        ManageAction(
+                          label: t(
                             locale,
-                            ru: 'Удалить позицию «${item.nameRu}»?',
-                            kz: '«${item.nameRu}» позициясын жою керек пе?',
+                            ru: 'Изменить',
+                            kz: 'Өзгерту',
+                            en: 'Edit',
                           ),
-                        );
-                        if (!confirmed) return;
-                        try {
-                          await ref
-                              .read(listingManagementActionsProvider)
-                              .deleteItem(
+                          icon: Icons.edit_outlined,
+                          onTap: () => openItemFormSheet(
+                            context,
+                            listingId: listingId,
+                            menuId: menuId,
+                            sectionId: section.id,
+                            existing: items[i],
+                          ),
+                        ),
+                        ...moveActions(
+                          locale,
+                          index: i,
+                          count: items.length,
+                          onMove: (delta) => runManaged(
+                            context,
+                            locale,
+                            () => actions.reorderItems(
+                              listingId,
+                              menuId,
+                              section.id,
+                              movedBy(items, i, delta),
+                            ),
+                          ),
+                        ),
+                        ManageAction(
+                          label: t(
+                            locale,
+                            ru: 'Удалить',
+                            kz: 'Жою',
+                            en: 'Delete',
+                          ),
+                          icon: Icons.delete_outline_rounded,
+                          destructive: true,
+                          onTap: () async {
+                            final confirmed = await ConfirmDeleteSheet.show(
+                              context,
+                              title: t(
+                                locale,
+                                ru: 'Удалить позицию «${items[i].nameRu}»?',
+                                kz: '«${items[i].nameRu}» позициясын жою керек пе?',
+                              ),
+                            );
+                            if (!confirmed || !context.mounted) return;
+                            await runManaged(
+                              context,
+                              locale,
+                              () => actions.deleteItem(
                                 listingId,
                                 menuId,
                                 section.id,
-                                item.id,
-                              );
-                        } catch (err) {
-                          if (context.mounted) {
-                            ScaffoldMessenger.of(context).showSnackBar(
-                              SnackBar(
-                                content: Text(apiErrorMessage(locale, err)),
+                                items[i].id,
                               ),
                             );
-                          }
-                        }
-                      },
-                      child: Icon(
-                        Icons.close_rounded,
-                        size: 15,
-                        color: colors.textMuted,
-                      ),
+                          },
+                        ),
+                      ],
                     ),
                   ],
                 ),
@@ -332,6 +406,7 @@ class _SectionCard extends ConsumerWidget {
                 listingId: listingId,
                 menuId: menuId,
                 sectionId: section.id,
+                nextSortOrder: items.length,
               ),
               icon: const Icon(Icons.add_rounded, size: 16),
               label: Text(t(locale, ru: 'Позиция', kz: 'Позиция')),
