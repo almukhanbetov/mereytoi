@@ -66,6 +66,10 @@ class _FakeProviderBackend implements HttpClientAdapter {
     if (options.method == 'GET' && options.path == '/api/users/me/listings') {
       return (200, {'listings': listings});
     }
+    if (options.method == 'GET' && options.path.startsWith('/api/listings/')) {
+      final id = int.parse(options.path.split('/').last);
+      return (200, {'listing': listings.firstWhere((l) => l['id'] == id)});
+    }
     if (options.method == 'PUT' &&
         options.path.startsWith('/api/listings/')) {
       final id = int.parse(options.path.split('/').last);
@@ -192,6 +196,57 @@ void main() {
 
     final afterToggle = (await container.read(myListingsProvider.future)).single;
     expect(afterToggle.isActive, isFalse);
+  });
+
+  test('an edit from an old copy keeps what was saved since', () async {
+    final backend = _FakeProviderBackend();
+    final container = _containerWithFakeBackend(backend);
+    addTearDown(container.dispose);
+    final actions = container.read(providerActionsProvider);
+
+    await actions.createListing(categoryId: 2, nameRu: 'У', nameKz: 'Қ');
+    final old = (await container.read(myListingsProvider.future)).single;
+    backend.listings.single.addAll({
+      'video_urls': ['/uploads/v.mp4'],
+      'phone': '+77770000000',
+      'emoji': 'X',
+      'min_guests': 5,
+      'description_ru': 'Текст',
+      'is_active': false,
+    });
+
+    await actions.updateListing(old, nameRu: 'Новое', nameKz: 'Қ');
+
+    final saved = backend.listings.single;
+    expect(saved['name_ru'], 'Новое');
+    expect(saved['video_urls'], ['/uploads/v.mp4']);
+    expect(saved['phone'], '+77770000000');
+    expect(saved['emoji'], 'X');
+    expect(saved['min_guests'], 5);
+    expect(saved['is_active'], isFalse);
+  });
+
+  test('setListingActive() changes visibility and nothing else', () async {
+    final backend = _FakeProviderBackend();
+    final container = _containerWithFakeBackend(backend);
+    addTearDown(container.dispose);
+    final actions = container.read(providerActionsProvider);
+
+    await actions.createListing(categoryId: 2, nameRu: 'У', nameKz: 'Қ');
+    final old = (await container.read(myListingsProvider.future)).single;
+    backend.listings.single.addAll({
+      'name_ru': 'Правка админа',
+      'description_ru': 'Текст админа',
+      'video_urls': ['/uploads/v.mp4'],
+    });
+
+    await actions.setListingActive(old.id, false);
+
+    final saved = backend.listings.single;
+    expect(saved['is_active'], isFalse);
+    expect(saved['name_ru'], 'Правка админа');
+    expect(saved['description_ru'], 'Текст админа');
+    expect(saved['video_urls'], ['/uploads/v.mp4']);
   });
 
   test('deleteListing() removes it from Мои услуги', () async {

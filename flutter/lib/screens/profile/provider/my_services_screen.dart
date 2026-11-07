@@ -153,17 +153,7 @@ class _ServiceRow extends ConsumerWidget {
     try {
       await ref
           .read(providerActionsProvider)
-          .updateListing(
-            listing,
-            nameRu: listing.nameRu,
-            nameKz: listing.nameKz,
-            descriptionRu: listing.descriptionRu,
-            descriptionKz: listing.descriptionKz,
-            city: listing.city,
-            price: listing.price,
-            priceType: listing.priceType ?? 'fixed',
-            isActive: !listing.isActive,
-          );
+          .setListingActive(listing.id, !listing.isActive);
     } catch (err) {
       if (context.mounted) {
         ScaffoldMessenger.of(

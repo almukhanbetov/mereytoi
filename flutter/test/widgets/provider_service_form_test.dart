@@ -662,6 +662,144 @@ void main() {
     });
   });
 
+  group('what an owner edits next to the admin', () {
+    Map<dynamic, dynamic> lastPut(ProviderFakeApi api, int id) =>
+        api.bodies['PUT /api/listings/$id']!.last! as Map;
+
+    Future<void> saveEdit(WidgetTester tester) async {
+      await tester.tap(submit());
+      await settle(tester);
+    }
+
+    testWidgets('the form keeps what an admin saved after it was opened', (
+      tester,
+    ) async {
+      final (api, _, _) = await pump(tester);
+      final old = _listing(101);
+      api.listings.first.addAll({
+        'video_urls': ['/uploads/v.mp4'],
+        'phone': '+77770000000',
+        'emoji': 'X',
+        'min_guests': 5,
+        'max_guests': 50,
+      });
+
+      await openEdit(tester, old);
+      await enter(tester, 'service-name', 'Новое имя');
+      await saveEdit(tester);
+
+      final body = lastPut(api, 101);
+      expect(body['name_ru'], 'Новое имя');
+      expect(body['video_urls'], ['/uploads/v.mp4']);
+      expect(body['phone'], '+77770000000');
+      expect(body['emoji'], 'X');
+      expect(body['min_guests'], 5);
+      expect(body['max_guests'], 50);
+    });
+
+    testWidgets('nothing is saved when the current service can\'t be read', (
+      tester,
+    ) async {
+      final (api, _, _) = await pump(tester);
+      await openEdit(tester, _listing(101));
+      api.failWith500['GET /api/listings/101'] = 1;
+      await enter(tester, 'service-name', 'Новое имя');
+      await saveEdit(tester);
+
+      expect(api.bodies['PUT /api/listings/101'], isNull);
+      expect(find.byType(ProviderServiceFormScreen), findsOneWidget);
+    });
+
+    testWidgets('hiding from the list keeps an admin\'s newer edits', (
+      tester,
+    ) async {
+      final (api, _, _) = await pump(tester);
+      api.listings.first.addAll({
+        'name_ru': 'Правка админа',
+        'video_urls': ['/uploads/v.mp4'],
+      });
+      await tester.tap(find.byKey(const ValueKey('service-status-101')));
+      await settle(tester);
+      await tester.tap(find.byKey(const ValueKey('hide-service-confirm')));
+      await settle(tester);
+
+      final body = lastPut(api, 101);
+      expect(body['is_active'], isFalse);
+      expect(body['name_ru'], 'Правка админа');
+      expect(body['video_urls'], ['/uploads/v.mp4']);
+    });
+
+    testWidgets('a description over 2000 characters survives an edit', (
+      tester,
+    ) async {
+      final (api, _, _) = await pump(tester);
+      final long = 'а' * 2500;
+      final listing = {
+        ..._listing(101),
+        'description_ru': long,
+        'description_kz': 'қ' * 2300,
+      };
+      api.listings
+        ..clear()
+        ..add(listing);
+      await openEdit(tester, listing);
+      await enter(tester, 'service-description', 'б${long.substring(1)}');
+      await saveEdit(tester);
+
+      final body = lastPut(api, 101);
+      expect((body['description_ru'] as String).length, 2500);
+      expect((body['description_ru'] as String)[0], 'б');
+      expect((body['description_kz'] as String).length, 2300);
+    });
+
+    testWidgets('a negotiable price needs no number; others still do', (
+      tester,
+    ) async {
+      final (api, _, _) = await pump(tester);
+      await openCreate(tester);
+      await enter(tester, 'service-name', 'Договорная');
+      await tester.tap(submit());
+      await settle(tester);
+      expect(find.text('Укажите цену числом'), findsOneWidget);
+      expect(api.count('POST /api/provider/me/listings'), 0);
+
+      final pill = find.byKey(const ValueKey('price-type-negotiable'));
+      await scrollTo(tester, pill);
+      await tester.tap(pill);
+      await settle(tester);
+      expect(find.text('Укажите цену числом'), findsNothing);
+      expect(find.text('Цена, необязательно'), findsOneWidget);
+      await tester.tap(submit());
+      await settle(tester);
+
+      final body = lastCreateBody(api);
+      expect(body['price'], 0);
+      expect(body['price_type'], 'negotiable');
+    });
+
+    for (final dark in [false, true]) {
+      for (final locale in AppLocale.values) {
+        testWidgets(
+          'optional price fits: ${dark ? 'dark' : 'light'} · ${locale.name}',
+          (tester) async {
+            await pump(
+              tester,
+              size: const Size(320, 700),
+              theme: dark ? () => AppTheme.dark : () => AppTheme.light,
+              locale: locale,
+            );
+            await openCreate(tester);
+            final pill = find.byKey(const ValueKey('price-type-negotiable'));
+            await scrollTo(tester, pill);
+            await tester.tap(pill);
+            await settle(tester);
+            expect(tester.takeException(), isNull);
+          },
+        );
+      }
+    }
+  });
+
   group('editing and changing the category', () {
     Map<dynamic, dynamic> lastPut(ProviderFakeApi api, int id) =>
         api.bodies['PUT /api/listings/$id']!.last! as Map;
