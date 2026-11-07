@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../../../../core/theme/app_theme.dart';
@@ -15,13 +16,18 @@ Future<void> openMenuFormSheet(
   required int listingId,
   required List<ListingHall> halls,
   ListingMenu? existing,
+  int nextSortOrder = 0,
 }) {
   return showModalBottomSheet<void>(
     context: context,
     isScrollControlled: true,
     backgroundColor: Colors.transparent,
-    builder: (_) =>
-        MenuFormSheet(listingId: listingId, halls: halls, existing: existing),
+    builder: (_) => MenuFormSheet(
+      listingId: listingId,
+      halls: halls,
+      existing: existing,
+      nextSortOrder: nextSortOrder,
+    ),
   );
 }
 
@@ -31,11 +37,15 @@ class MenuFormSheet extends ConsumerStatefulWidget {
     required this.listingId,
     required this.halls,
     this.existing,
+    this.nextSortOrder = 0,
   });
 
   final int listingId;
   final List<ListingHall> halls;
   final ListingMenu? existing;
+
+  /// Where a new menu goes: the end of the list.
+  final int nextSortOrder;
 
   @override
   ConsumerState<MenuFormSheet> createState() => _MenuFormSheetState();
@@ -108,6 +118,18 @@ class _MenuFormSheetState extends ConsumerState<MenuFormSheet> {
 
   Future<void> _save() async {
     if (!_formKey.currentState!.validate()) return;
+    final from = _validFrom, until = _validUntil;
+    if (from != null && until != null && until.isBefore(from)) {
+      setState(
+        () => _error = t(
+          ref.read(localeProvider),
+          ru: 'Дата «действует до» не может быть раньше даты «действует с»',
+          kz: '«Дейін» күні «бастап» күнінен ерте бола алмайды',
+          en: 'The end date can\'t be before the start date',
+        ),
+      );
+      return;
+    }
     setState(() {
       _saving = true;
       _error = null;
@@ -128,6 +150,7 @@ class _MenuFormSheetState extends ConsumerState<MenuFormSheet> {
           minGuests: minGuests,
           maxGuests: maxGuests,
           isActive: _isActive,
+          sortOrder: widget.nextSortOrder,
           validFrom: _validFrom,
           validUntil: _validUntil,
         );
@@ -219,6 +242,7 @@ class _MenuFormSheetState extends ConsumerState<MenuFormSheet> {
         ),
         const SizedBox(height: AppSpacing.sm),
         DropdownButtonFormField<int?>(
+          isExpanded: true,
           initialValue: _hallId,
           decoration: InputDecoration(
             labelText: t(
@@ -242,8 +266,10 @@ class _MenuFormSheetState extends ConsumerState<MenuFormSheet> {
         ),
         const SizedBox(height: AppSpacing.sm),
         TextFormField(
+          key: const ValueKey('menu-price'),
           controller: _pricePerGuest,
           keyboardType: TextInputType.number,
+          inputFormatters: [FilteringTextInputFormatter.digitsOnly],
           decoration: InputDecoration(
             labelText: t(
               locale,
@@ -251,9 +277,6 @@ class _MenuFormSheetState extends ConsumerState<MenuFormSheet> {
               kz: 'Қонақ басына баға (₸)',
             ),
           ),
-          validator: (v) => (v == null || v.trim().isEmpty)
-              ? t(locale, ru: 'Введите цену', kz: 'Бағаны енгізіңіз')
-              : null,
         ),
         const SizedBox(height: AppSpacing.sm),
         Row(
@@ -262,6 +285,7 @@ class _MenuFormSheetState extends ConsumerState<MenuFormSheet> {
               child: TextFormField(
                 controller: _minGuests,
                 keyboardType: TextInputType.number,
+                inputFormatters: [FilteringTextInputFormatter.digitsOnly],
                 decoration: InputDecoration(
                   labelText: t(locale, ru: 'Мин. гостей', kz: 'Мин. қонақ'),
                 ),
@@ -272,6 +296,7 @@ class _MenuFormSheetState extends ConsumerState<MenuFormSheet> {
               child: TextFormField(
                 controller: _maxGuests,
                 keyboardType: TextInputType.number,
+                inputFormatters: [FilteringTextInputFormatter.digitsOnly],
                 decoration: InputDecoration(
                   labelText: t(locale, ru: 'Макс. гостей', kz: 'Макс. қонақ'),
                 ),
@@ -307,6 +332,26 @@ class _MenuFormSheetState extends ConsumerState<MenuFormSheet> {
             ),
           ],
         ),
+        if (_validFrom != null || _validUntil != null)
+          Align(
+            alignment: Alignment.centerRight,
+            child: TextButton(
+              key: const ValueKey('menu-clear-dates'),
+              style: TextButton.styleFrom(minimumSize: const Size(48, 48)),
+              onPressed: () => setState(() {
+                _validFrom = null;
+                _validUntil = null;
+              }),
+              child: Text(
+                t(
+                  locale,
+                  ru: 'Сбросить даты',
+                  kz: 'Күндерді тазарту',
+                  en: 'Clear the dates',
+                ),
+              ),
+            ),
+          ),
         const SizedBox(height: AppSpacing.xs),
         SwitchListTile.adaptive(
           contentPadding: EdgeInsets.zero,

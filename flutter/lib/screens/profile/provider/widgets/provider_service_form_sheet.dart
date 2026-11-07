@@ -21,6 +21,7 @@ import '../../../../state/provider_provider.dart';
 import '../../../../state/providers.dart';
 import '../../../../widgets/city_selector.dart';
 import '../../../../widgets/network_image_box.dart';
+import '../../../../widgets/provider/picked_photos_sheet.dart';
 import '../../../../widgets/provider/provider_form_widgets.dart';
 import '../../../../widgets/services/services_category_grid.dart';
 import '../../restaurant_admin/restaurant_manage_screen.dart';
@@ -204,6 +205,10 @@ class _ProviderServiceFormScreenState
   late final TextEditingController _descriptionKz;
   late final TextEditingController _phone;
   late final TextEditingController _address;
+  late final TextEditingController _minGuests;
+  late final TextEditingController _maxGuests;
+  // A city saved outside the directory stays as is until another is picked.
+  late String _storedCity;
   double? _latitude;
   double? _longitude;
   // Until known otherwise: halls and menus only work under the restaurant
@@ -240,6 +245,13 @@ class _ProviderServiceFormScreenState
     );
     _phone = TextEditingController(text: e?.phone ?? '');
     _address = TextEditingController(text: e?.address ?? '');
+    _minGuests = TextEditingController(
+      text: e != null && e.minGuests > 0 ? '${e.minGuests}' : '',
+    );
+    _maxGuests = TextEditingController(
+      text: e != null && e.maxGuests > 0 ? '${e.maxGuests}' : '',
+    );
+    _storedCity = e?.city.trim() ?? '';
     _latitude = e?.latitude;
     _longitude = e?.longitude;
     _categoryLocked = e != null;
@@ -341,6 +353,8 @@ class _ProviderServiceFormScreenState
       _descriptionKz,
       _phone,
       _address,
+      _minGuests,
+      _maxGuests,
     ]) {
       c.dispose();
     }
@@ -379,7 +393,9 @@ class _ProviderServiceFormScreenState
         )
       : null;
 
-  String? get _cityError => _city == null
+  String get _cityName => _city?.nameRu ?? _storedCity;
+
+  String? get _cityError => _cityName.isEmpty
       ? t(
           _locale,
           ru: 'Выберите город',
@@ -409,8 +425,14 @@ class _ProviderServiceFormScreenState
       return; // picker cancelled/unavailable — nothing changes
     }
     final room = _maxPhotos - _photos.length;
-    if (paths.isEmpty || room <= 0) return;
-    final added = [for (final p in paths.take(room)) _FormPhoto(path: p)];
+    if (paths.isEmpty || room <= 0 || !mounted) return;
+    final chosen = await confirmPickedPhotos(
+      context,
+      locale: _locale,
+      paths: paths.take(room).toList(),
+    );
+    if (chosen.isEmpty || !mounted) return;
+    final added = [for (final p in chosen) _FormPhoto(path: p)];
     setState(() => _photos = [..._photos, ...added]);
     await _upload(added.map((p) => p.path!).toList());
   }
@@ -485,10 +507,10 @@ class _ProviderServiceFormScreenState
         : _descriptionKz.text.trim();
     final restaurant = _isRestaurant;
     final existing = widget.existing;
-    // A restaurant's form has no price: an edit keeps the stored one.
-    final price = restaurant
-        ? existing?.price ?? 0
-        : int.parse(_price.text.trim());
+    // Optional for a restaurant, as in the admin: 0 means «по запросу».
+    final price = int.tryParse(_price.text.trim()) ?? 0;
+    final minGuests = int.tryParse(_minGuests.text.trim()) ?? 0;
+    final maxGuests = int.tryParse(_maxGuests.text.trim()) ?? 0;
     final imageUrls = [for (final p in _photos) p.url!];
 
     try {
@@ -509,7 +531,7 @@ class _ProviderServiceFormScreenState
           nameKz: nameKz,
           descriptionRu: description,
           descriptionKz: descriptionKz,
-          city: _city!.nameRu,
+          city: _cityName,
           price: price,
           priceType: _priceType,
           imageUrls: imageUrls,
@@ -517,6 +539,15 @@ class _ProviderServiceFormScreenState
           address: restaurant ? _address.text.trim() : null,
           latitude: restaurant ? _latitude : null,
           longitude: restaurant ? _longitude : null,
+          // A Google place chosen in the admin no longer matches a moved point.
+          placeId:
+              restaurant &&
+                  (_latitude != existing.latitude ||
+                      _longitude != existing.longitude)
+              ? ''
+              : null,
+          minGuests: restaurant ? minGuests : null,
+          maxGuests: restaurant ? maxGuests : null,
         );
       } else {
         saved = await actions.createListing(
@@ -525,7 +556,7 @@ class _ProviderServiceFormScreenState
           nameKz: nameKz,
           descriptionRu: description,
           descriptionKz: descriptionKz,
-          city: _city!.nameRu,
+          city: _cityName,
           price: price,
           priceType: _priceType,
           imageUrls: imageUrls,
@@ -533,6 +564,8 @@ class _ProviderServiceFormScreenState
           address: restaurant ? _address.text.trim() : '',
           latitude: restaurant ? _latitude : null,
           longitude: restaurant ? _longitude : null,
+          minGuests: restaurant ? minGuests : 0,
+          maxGuests: restaurant ? maxGuests : 0,
         );
       }
       if (!mounted) return;
@@ -810,7 +843,9 @@ class _ProviderServiceFormScreenState
                   child: ProviderPickerCard(
                     tapKey: const ValueKey('service-city'),
                     icon: Icons.location_on_rounded,
-                    value: _city?.name(locale),
+                    value:
+                        _city?.name(locale) ??
+                        (_storedCity.isEmpty ? null : _storedCity),
                     placeholder: t(
                       locale,
                       ru: 'Выберите город',
@@ -827,6 +862,89 @@ class _ProviderServiceFormScreenState
                     },
                   ),
                 ),
+                if (_isRestaurant)
+                  _Section(
+                    title: t(
+                      locale,
+                      ru: 'Цена и гости',
+                      kz: 'Баға және қонақтар',
+                      en: 'Price and guests',
+                    ),
+                    child: Column(
+                      children: [
+                        ProviderTextField(
+                          fieldKey: const ValueKey('restaurant-price'),
+                          label: t(
+                            locale,
+                            ru: 'Цена, необязательно',
+                            kz: 'Баға, міндетті емес',
+                            en: 'Price, optional',
+                          ),
+                          hint: '0',
+                          helperText: t(
+                            locale,
+                            ru: '0 — по запросу. Цены за гостя задаются в меню',
+                            kz: '0 — сұраныс бойынша. Қонақ басына баға мәзірде беріледі',
+                            en: '0 means on request. Per-guest prices are set in the menus',
+                          ),
+                          suffixText: '₸',
+                          controller: _price,
+                          keyboardType: TextInputType.number,
+                          inputFormatters: [
+                            FilteringTextInputFormatter.digitsOnly,
+                          ],
+                          maxLength: 9,
+                          onChanged: (_) {},
+                        ),
+                        Row(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            Expanded(
+                              child: ProviderTextField(
+                                fieldKey: const ValueKey(
+                                  'restaurant-min-guests',
+                                ),
+                                label: t(
+                                  locale,
+                                  ru: 'Мин. гостей',
+                                  kz: 'Мин. қонақ',
+                                  en: 'Min. guests',
+                                ),
+                                controller: _minGuests,
+                                keyboardType: TextInputType.number,
+                                inputFormatters: [
+                                  FilteringTextInputFormatter.digitsOnly,
+                                ],
+                                maxLength: 6,
+                                onChanged: (_) {},
+                              ),
+                            ),
+                            const SizedBox(width: AppSpacing.sm),
+                            Expanded(
+                              child: ProviderTextField(
+                                fieldKey: const ValueKey(
+                                  'restaurant-max-guests',
+                                ),
+                                label: t(
+                                  locale,
+                                  ru: 'Макс. гостей',
+                                  kz: 'Макс. қонақ',
+                                  en: 'Max. guests',
+                                ),
+                                controller: _maxGuests,
+                                keyboardType: TextInputType.number,
+                                inputFormatters: [
+                                  FilteringTextInputFormatter.digitsOnly,
+                                ],
+                                maxLength: 6,
+                                onChanged: (_) {},
+                              ),
+                            ),
+                          ],
+                        ),
+                      ],
+                    ),
+                  ),
                 if (_isRestaurant)
                   _Section(
                     title: t(

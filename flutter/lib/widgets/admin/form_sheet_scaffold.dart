@@ -49,52 +49,60 @@ class FormSheetScaffold extends StatelessWidget {
               AppSpacing.lg,
               AppSpacing.lg,
             ),
-            child: SingleChildScrollView(
-              child: Form(
-                key: formKey,
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  mainAxisSize: MainAxisSize.min,
-                  children: [
-                    Center(
-                      child: Container(
-                        width: 36,
-                        height: 4,
-                        margin: const EdgeInsets.only(bottom: AppSpacing.md),
-                        decoration: BoxDecoration(
-                          color: colors.divider,
-                          borderRadius: BorderRadius.circular(2),
+            // Above the colored box: tiles and buttons need a Material here to
+            // show their ink.
+            child: Material(
+              type: MaterialType.transparency,
+              child: SingleChildScrollView(
+                child: Form(
+                  key: formKey,
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    mainAxisSize: MainAxisSize.min,
+                    children: [
+                      Center(
+                        child: Container(
+                          width: 36,
+                          height: 4,
+                          margin: const EdgeInsets.only(bottom: AppSpacing.md),
+                          decoration: BoxDecoration(
+                            color: colors.divider,
+                            borderRadius: BorderRadius.circular(2),
+                          ),
                         ),
                       ),
-                    ),
-                    Text(title, style: Theme.of(context).textTheme.titleLarge),
-                    const SizedBox(height: AppSpacing.md),
-                    ...children,
-                    if (error != null) ...[
-                      const SizedBox(height: AppSpacing.xs),
                       Text(
-                        error!,
-                        style: TextStyle(color: colors.error, fontSize: 13),
+                        title,
+                        style: Theme.of(context).textTheme.titleLarge,
+                      ),
+                      const SizedBox(height: AppSpacing.md),
+                      ...children,
+                      if (error != null) ...[
+                        const SizedBox(height: AppSpacing.xs),
+                        Text(
+                          error!,
+                          style: TextStyle(color: colors.error, fontSize: 13),
+                        ),
+                      ],
+                      const SizedBox(height: AppSpacing.md),
+                      SizedBox(
+                        width: double.infinity,
+                        child: ElevatedButton(
+                          onPressed: saving ? null : onSave,
+                          child: saving
+                              ? SizedBox(
+                                  width: 18,
+                                  height: 18,
+                                  child: CircularProgressIndicator(
+                                    strokeWidth: 2.2,
+                                    color: colors.onGold,
+                                  ),
+                                )
+                              : Text(saveLabel ?? 'Сохранить'),
+                        ),
                       ),
                     ],
-                    const SizedBox(height: AppSpacing.md),
-                    SizedBox(
-                      width: double.infinity,
-                      child: ElevatedButton(
-                        onPressed: saving ? null : onSave,
-                        child: saving
-                            ? SizedBox(
-                                width: 18,
-                                height: 18,
-                                child: CircularProgressIndicator(
-                                  strokeWidth: 2.2,
-                                  color: colors.onGold,
-                                ),
-                              )
-                            : Text(saveLabel ?? 'Сохранить'),
-                      ),
-                    ),
-                  ],
+                  ),
                 ),
               ),
             ),

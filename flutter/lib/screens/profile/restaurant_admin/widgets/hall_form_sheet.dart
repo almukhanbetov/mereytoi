@@ -1,12 +1,18 @@
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
+import '../../../../core/config/api_config.dart';
 import '../../../../core/theme/app_theme.dart';
 import '../../../../core/utils/error_messages.dart';
 import '../../../../models/listing_hall.dart';
 import '../../../../state/listing_management_actions.dart';
 import '../../../../state/locale_provider.dart';
+import '../../../../state/provider_onboarding.dart';
+import '../../../../state/providers.dart';
 import '../../../../widgets/admin/form_sheet_scaffold.dart';
+import '../../../../widgets/network_image_box.dart';
+import '../../../../widgets/provider/picked_photos_sheet.dart';
 
 /// Opens the add/edit-hall sheet — `existing == null` creates, otherwise
 /// edits in place. Returns once saved (or dismissed); the caller doesn't
@@ -17,20 +23,33 @@ Future<void> openHallFormSheet(
   BuildContext context, {
   required int listingId,
   ListingHall? existing,
+  int nextSortOrder = 0,
 }) {
   return showModalBottomSheet<void>(
     context: context,
     isScrollControlled: true,
     backgroundColor: Colors.transparent,
-    builder: (_) => HallFormSheet(listingId: listingId, existing: existing),
+    builder: (_) => HallFormSheet(
+      listingId: listingId,
+      existing: existing,
+      nextSortOrder: nextSortOrder,
+    ),
   );
 }
 
 class HallFormSheet extends ConsumerStatefulWidget {
-  const HallFormSheet({super.key, required this.listingId, this.existing});
+  const HallFormSheet({
+    super.key,
+    required this.listingId,
+    this.existing,
+    this.nextSortOrder = 0,
+  });
 
   final int listingId;
   final ListingHall? existing;
+
+  /// Where a new hall goes: the end of the list.
+  final int nextSortOrder;
 
   @override
   ConsumerState<HallFormSheet> createState() => _HallFormSheetState();
@@ -45,6 +64,8 @@ class _HallFormSheetState extends ConsumerState<HallFormSheet> {
   late final TextEditingController _capacity;
   late final TextEditingController _price;
   late bool _isActive;
+  late List<String> _images;
+  bool _uploading = false;
   bool _saving = false;
   String? _error;
 
@@ -59,6 +80,7 @@ class _HallFormSheetState extends ConsumerState<HallFormSheet> {
     _capacity = TextEditingController(text: e != null ? '${e.capacity}' : '');
     _price = TextEditingController(text: e != null ? '${e.price}' : '');
     _isActive = e?.isActive ?? true;
+    _images = [...?e?.imageUrls];
   }
 
   @override
@@ -72,7 +94,37 @@ class _HallFormSheetState extends ConsumerState<HallFormSheet> {
     super.dispose();
   }
 
+  Future<void> _addPhotos() async {
+    final locale = ref.read(localeProvider);
+    final List<String> paths;
+    try {
+      paths = await ref.read(onboardingPhotoPickerProvider)();
+    } catch (_) {
+      return; // picker cancelled or unavailable: nothing changes
+    }
+    if (paths.isEmpty || !mounted) return;
+    final chosen = await confirmPickedPhotos(
+      context,
+      locale: locale,
+      paths: paths,
+    );
+    if (chosen.isEmpty || !mounted) return;
+    setState(() {
+      _uploading = true;
+      _error = null;
+    });
+    try {
+      final urls = await ref.read(uploadServiceProvider).uploadImages(chosen);
+      if (mounted) setState(() => _images = [..._images, ...urls]);
+    } catch (err) {
+      if (mounted) setState(() => _error = apiErrorMessage(locale, err));
+    } finally {
+      if (mounted) setState(() => _uploading = false);
+    }
+  }
+
   Future<void> _save() async {
+    if (_uploading) return;
     if (!_formKey.currentState!.validate()) return;
     setState(() {
       _saving = true;
@@ -89,7 +141,9 @@ class _HallFormSheetState extends ConsumerState<HallFormSheet> {
           descriptionKz: _descriptionKz.text.trim(),
           capacity: int.tryParse(_capacity.text.trim()) ?? 0,
           price: int.tryParse(_price.text.trim()) ?? 0,
+          imageUrls: _images,
           isActive: _isActive,
+          sortOrder: widget.nextSortOrder,
         );
       } else {
         await actions.updateHall(
@@ -101,6 +155,7 @@ class _HallFormSheetState extends ConsumerState<HallFormSheet> {
           descriptionKz: _descriptionKz.text.trim(),
           capacity: int.tryParse(_capacity.text.trim()) ?? 0,
           price: int.tryParse(_price.text.trim()) ?? 0,
+          imageUrls: _images,
           isActive: _isActive,
           sortOrder: widget.existing!.sortOrder,
         );
@@ -178,8 +233,10 @@ class _HallFormSheetState extends ConsumerState<HallFormSheet> {
           children: [
             Expanded(
               child: TextFormField(
+                key: const ValueKey('hall-capacity'),
                 controller: _capacity,
                 keyboardType: TextInputType.number,
+                inputFormatters: [FilteringTextInputFormatter.digitsOnly],
                 decoration: InputDecoration(
                   labelText: t(locale, ru: 'Вместимость', kz: 'Сыйымдылық'),
                 ),
@@ -188,18 +245,41 @@ class _HallFormSheetState extends ConsumerState<HallFormSheet> {
             const SizedBox(width: AppSpacing.sm),
             Expanded(
               child: TextFormField(
+                key: const ValueKey('hall-price'),
                 controller: _price,
                 keyboardType: TextInputType.number,
+                inputFormatters: [FilteringTextInputFormatter.digitsOnly],
                 decoration: InputDecoration(
                   labelText: t(
                     locale,
-                    ru: 'Цена (0 = как у ресторана)',
-                    kz: 'Баға (0 = мейрамхана бағасы)',
+                    ru: 'Цена, ₸',
+                    kz: 'Баға, ₸',
+                    en: 'Price, ₸',
                   ),
+                  helperText: t(
+                    locale,
+                    ru: '0 — как у ресторана',
+                    kz: '0 — мейрамхана бағасы',
+                    en: '0: the restaurant\'s price',
+                  ),
+                  helperMaxLines: 2,
                 ),
               ),
             ),
           ],
+        ),
+        const SizedBox(height: AppSpacing.xs),
+        _HallPhotos(
+          locale: locale,
+          images: _images,
+          uploading: _uploading,
+          onAdd: _uploading ? null : _addPhotos,
+          onRemove: (url) => setState(
+            () => _images = [
+              for (final u in _images)
+                if (u != url) u,
+            ],
+          ),
         ),
         const SizedBox(height: AppSpacing.xs),
         SwitchListTile.adaptive(
@@ -207,6 +287,130 @@ class _HallFormSheetState extends ConsumerState<HallFormSheet> {
           title: Text(t(locale, ru: 'Активен', kz: 'Белсенді')),
           value: _isActive,
           onChanged: (v) => setState(() => _isActive = v),
+        ),
+      ],
+    );
+  }
+}
+
+/// The hall's photos, the first is its cover, as in the admin's hall form.
+class _HallPhotos extends StatelessWidget {
+  const _HallPhotos({
+    required this.locale,
+    required this.images,
+    required this.uploading,
+    required this.onAdd,
+    required this.onRemove,
+  });
+
+  final AppLocale locale;
+  final List<String> images;
+  final bool uploading;
+  final VoidCallback? onAdd;
+  final ValueChanged<String> onRemove;
+
+  @override
+  Widget build(BuildContext context) {
+    final colors = context.mereytoiColors;
+    final textTheme = Theme.of(context).textTheme;
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Text(
+          t(locale, ru: 'Фото зала', kz: 'Зал фотосы', en: 'Hall photos'),
+          style: textTheme.labelLarge?.copyWith(color: colors.textSecondary),
+        ),
+        const SizedBox(height: AppSpacing.xs),
+        Wrap(
+          spacing: AppSpacing.xs,
+          runSpacing: AppSpacing.xs,
+          children: [
+            for (var i = 0; i < images.length; i++)
+              SizedBox(
+                key: ValueKey('hall-photo-$i'),
+                width: 88,
+                height: 88,
+                child: Stack(
+                  fit: StackFit.expand,
+                  children: [
+                    ClipRRect(
+                      borderRadius: BorderRadius.circular(12),
+                      child: NetworkImageBox(
+                        url: ApiConfig.mediaUrl(images[i]),
+                        borderRadius: 0,
+                      ),
+                    ),
+                    if (i == 0)
+                      Positioned(
+                        left: 4,
+                        bottom: 4,
+                        child: Container(
+                          padding: const EdgeInsets.symmetric(
+                            horizontal: 6,
+                            vertical: 2,
+                          ),
+                          decoration: BoxDecoration(
+                            color: colors.goldPrimary,
+                            borderRadius: BorderRadius.circular(AppRadius.chip),
+                          ),
+                          child: Text(
+                            t(locale, ru: 'Обложка', kz: 'Мұқаба', en: 'Cover'),
+                            style: textTheme.labelSmall?.copyWith(
+                              color: colors.onGold,
+                            ),
+                          ),
+                        ),
+                      ),
+                    Positioned(
+                      top: -4,
+                      right: -4,
+                      child: IconButton(
+                        key: ValueKey('hall-photo-remove-$i'),
+                        tooltip: t(
+                          locale,
+                          ru: 'Удалить',
+                          kz: 'Жою',
+                          en: 'Remove',
+                        ),
+                        onPressed: () => onRemove(images[i]),
+                        icon: Container(
+                          width: 26,
+                          height: 26,
+                          decoration: const BoxDecoration(
+                            color: Color(0x99000000),
+                            shape: BoxShape.circle,
+                          ),
+                          child: const Icon(
+                            Icons.close_rounded,
+                            size: 16,
+                            color: Colors.white,
+                          ),
+                        ),
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+            SizedBox(
+              width: 88,
+              height: 88,
+              child: OutlinedButton(
+                key: const ValueKey('hall-add-photo'),
+                style: OutlinedButton.styleFrom(
+                  minimumSize: const Size(48, 48),
+                  padding: EdgeInsets.zero,
+                ),
+                onPressed: onAdd,
+                child: uploading
+                    ? const SizedBox(
+                        width: 22,
+                        height: 22,
+                        child: CircularProgressIndicator(strokeWidth: 2.4),
+                      )
+                    : const Icon(Icons.add_photo_alternate_outlined),
+              ),
+            ),
+          ],
         ),
       ],
     );

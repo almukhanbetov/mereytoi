@@ -67,6 +67,7 @@ class ListingManagementService {
     double? longitude,
     String? placeId,
     int? capacity,
+    bool clearCoordinates = false,
     // Этап 11 additions — same "own value overrides, else current" shape
     // as every other optional param above.
     List<String>? imageUrls,
@@ -92,8 +93,8 @@ class ListingManagementService {
       'image_urls': imageUrls ?? current.imageUrls,
       'video_urls': current.videoUrls,
       'address': address ?? current.address ?? '',
-      'latitude': latitude ?? current.latitude,
-      'longitude': longitude ?? current.longitude,
+      'latitude': clearCoordinates ? null : latitude ?? current.latitude,
+      'longitude': clearCoordinates ? null : longitude ?? current.longitude,
       'place_id': placeId ?? current.placeId,
       'capacity': capacity ?? current.capacity,
       'price_type': priceType ?? current.priceType ?? '',
@@ -149,7 +150,7 @@ class ListingManagementService {
     String descriptionKz = '',
     int capacity = 0,
     int price = 0,
-    List<String> imageUrls = const [],
+    required List<String> imageUrls,
     bool isActive = true,
     int sortOrder = 0,
   }) async {
