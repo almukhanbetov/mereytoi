@@ -97,6 +97,7 @@ class MereytoiColors extends ThemeExtension<MereytoiColors> {
     required this.warning,
     required this.error,
     required this.onGold,
+    required this.onGoldDisabled,
     required this.heroGlow,
     required this.whatsapp,
   });
@@ -142,8 +143,21 @@ class MereytoiColors extends ThemeExtension<MereytoiColors> {
   final Color warning;
   final Color error;
   final Color onGold;
+
+  /// Text, icons and spinners on a disabled gold button. Its fill is mostly
+  /// the page behind it, so this follows the theme rather than the gold.
+  final Color onGoldDisabled;
   final Color heroGlow;
   final Color whatsapp;
+
+  /// For `IconButton.filled` with a gold fill. The shared icon button theme
+  /// sets a grey foreground for plain icons, and a filled one inherits it too.
+  ButtonStyle get goldIconButtonStyle => IconButton.styleFrom(
+    backgroundColor: goldPrimary,
+    foregroundColor: onGold,
+    disabledBackgroundColor: goldPrimary.withValues(alpha: 0.3),
+    disabledForegroundColor: onGoldDisabled,
+  );
 
   /// Byte-identical to [AppColors] — dark mode's own values, just also
   /// reachable through `Theme.of(context)`.
@@ -169,6 +183,7 @@ class MereytoiColors extends ThemeExtension<MereytoiColors> {
     warning: AppColors.warning,
     error: AppColors.error,
     onGold: AppColors.onGold,
+    onGoldDisabled: Color(0xCCF4F0E6), // textPrimary @ 80%
     heroGlow: AppColors.heroGlow,
     whatsapp: AppColors.whatsapp,
   );
@@ -209,6 +224,7 @@ class MereytoiColors extends ThemeExtension<MereytoiColors> {
     warning: Color(0xFF9C5F1E),
     error: Color(0xFFB3303F),
     onGold: AppColors.onGold, // always drawn on a gold fill either way
+    onGoldDisabled: Color(0xCC201406), // onGold @ 80%
     heroGlow: Color(0xFFF1E3C6),
     whatsapp: Color(0xFF1F9184),
   );
@@ -236,6 +252,7 @@ class MereytoiColors extends ThemeExtension<MereytoiColors> {
     Color? warning,
     Color? error,
     Color? onGold,
+    Color? onGoldDisabled,
     Color? heroGlow,
     Color? whatsapp,
   }) {
@@ -261,6 +278,7 @@ class MereytoiColors extends ThemeExtension<MereytoiColors> {
       warning: warning ?? this.warning,
       error: error ?? this.error,
       onGold: onGold ?? this.onGold,
+      onGoldDisabled: onGoldDisabled ?? this.onGoldDisabled,
       heroGlow: heroGlow ?? this.heroGlow,
       whatsapp: whatsapp ?? this.whatsapp,
     );
@@ -303,6 +321,7 @@ class MereytoiColors extends ThemeExtension<MereytoiColors> {
       warning: Color.lerp(warning, other.warning, t)!,
       error: Color.lerp(error, other.error, t)!,
       onGold: Color.lerp(onGold, other.onGold, t)!,
+      onGoldDisabled: Color.lerp(onGoldDisabled, other.onGoldDisabled, t)!,
       heroGlow: Color.lerp(heroGlow, other.heroGlow, t)!,
       whatsapp: Color.lerp(whatsapp, other.whatsapp, t)!,
     );
@@ -501,7 +520,7 @@ class AppTheme {
           backgroundColor: c.goldPrimary,
           foregroundColor: c.onGold,
           disabledBackgroundColor: c.goldPrimary.withValues(alpha: 0.3),
-          disabledForegroundColor: c.onGold.withValues(alpha: 0.55),
+          disabledForegroundColor: c.onGoldDisabled,
           textStyle: textTheme.labelLarge,
           minimumSize: const Size.fromHeight(48),
           padding: const EdgeInsets.symmetric(

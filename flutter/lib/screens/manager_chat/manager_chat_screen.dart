@@ -347,6 +347,7 @@ class _ChatBodyState extends ConsumerState<_ChatBody> {
                     ),
                     const SizedBox(width: AppSpacing.xs),
                     IconButton.filled(
+                      style: context.mereytoiColors.goldIconButtonStyle,
                       onPressed: _sending
                           ? null
                           : () => _send(_controller.text),
@@ -356,7 +357,7 @@ class _ChatBodyState extends ConsumerState<_ChatBody> {
                               height: 16,
                               child: CircularProgressIndicator(
                                 strokeWidth: 2.2,
-                                color: context.mereytoiColors.onGold,
+                                color: context.mereytoiColors.onGoldDisabled,
                               ),
                             )
                           : const Icon(Icons.send_rounded, size: 18),

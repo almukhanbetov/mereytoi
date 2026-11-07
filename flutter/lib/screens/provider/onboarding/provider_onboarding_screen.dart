@@ -331,7 +331,7 @@ class _BottomBar extends StatelessWidget {
                             height: 22,
                             child: CircularProgressIndicator(
                               strokeWidth: 2.4,
-                              color: colors.onGold,
+                              color: colors.onGoldDisabled,
                             ),
                           )
                         : Text(

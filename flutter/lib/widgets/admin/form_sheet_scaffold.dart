@@ -95,7 +95,7 @@ class FormSheetScaffold extends StatelessWidget {
                                   height: 18,
                                   child: CircularProgressIndicator(
                                     strokeWidth: 2.2,
-                                    color: colors.onGold,
+                                    color: colors.onGoldDisabled,
                                   ),
                                 )
                               : Text(saveLabel ?? 'Сохранить'),

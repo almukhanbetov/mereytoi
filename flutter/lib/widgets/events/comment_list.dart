@@ -173,6 +173,7 @@ class _EventCommentListState extends ConsumerState<EventCommentList> {
                   ),
                   const SizedBox(width: AppSpacing.xs),
                   IconButton.filled(
+                    style: context.mereytoiColors.goldIconButtonStyle,
                     onPressed: _sending ? null : _send,
                     icon: _sending
                         ? SizedBox(
@@ -180,7 +181,7 @@ class _EventCommentListState extends ConsumerState<EventCommentList> {
                             height: 16,
                             child: CircularProgressIndicator(
                               strokeWidth: 2.2,
-                              color: context.mereytoiColors.onGold,
+                              color: context.mereytoiColors.onGoldDisabled,
                             ),
                           )
                         : const Icon(Icons.send_rounded, size: 18),

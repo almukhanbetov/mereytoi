@@ -387,7 +387,7 @@ class _ResendClaimSheetState extends ConsumerState<_ResendClaimSheet> {
                                   height: 18,
                                   child: CircularProgressIndicator(
                                     strokeWidth: 2.2,
-                                    color: context.mereytoiColors.onGold,
+                                    color: context.mereytoiColors.onGoldDisabled,
                                   ),
                                 )
                               : Text(

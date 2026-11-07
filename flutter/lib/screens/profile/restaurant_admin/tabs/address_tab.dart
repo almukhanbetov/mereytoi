@@ -196,7 +196,7 @@ class _AddressTabState extends ConsumerState<AddressTab> {
                             height: 16,
                             child: CircularProgressIndicator(
                               strokeWidth: 2.2,
-                              color: context.mereytoiColors.onGold,
+                              color: context.mereytoiColors.onGoldDisabled,
                             ),
                           )
                         : Icon(
