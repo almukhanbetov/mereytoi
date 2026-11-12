@@ -1,6 +1,7 @@
 'use client';
 
 import { useEffect, useState } from 'react';
+import PromotionPanel from '@/components/profile/PromotionPanel';
 import { T, useLang } from '@/context/AppProviders';
 import { providerApi } from '@/lib/providerApi';
 import { formatPrice } from '@/lib/format';
@@ -21,6 +22,7 @@ export default function ProviderPanel() {
   const [provider, setProvider] = useState(null); // null = not a provider yet
   const [loadFailed, setLoadFailed] = useState(false);
   const [listings, setListings] = useState([]);
+  const [promoting, setPromoting] = useState(null); // listing shown in PromotionPanel
   const [categories, setCategories] = useState([]);
 
   const [editingProfile, setEditingProfile] = useState(false);
@@ -298,6 +300,10 @@ export default function ProviderPanel() {
             />
           )}
 
+          {promoting && (
+            <PromotionPanel key={promoting.id} listing={promoting} onClose={() => setPromoting(null)} />
+          )}
+
           {restaurants.length > 0 && (
             <>
               <h3 className="admin-section-title"><T ru="Мои рестораны" kz="Менің мейрамханаларым" en="My restaurants" /></h3>
@@ -320,6 +326,12 @@ export default function ProviderPanel() {
                           <button type="button" className="admin-table__link" onClick={() => { setServiceForm(null); setManagingId(l.id); }}>
                             <T ru="Управлять" kz="Басқару" en="Manage" />
                           </button>
+                          {/* Only the owner promotes; managers don't see it. */}
+                          {l.role === 'owner' && (
+                            <button type="button" className="admin-table__link" onClick={() => setPromoting(l)}>
+                              <T ru="Продвигать" kz="Жарнамалау" />
+                            </button>
+                          )}
                           <button type="button" className="admin-table__link admin-table__link--danger" onClick={() => handleDelete(l)}>
                             <T ru="Удалить" kz="Жою" />
                           </button>
@@ -366,6 +378,11 @@ export default function ProviderPanel() {
                         <button type="button" className="admin-table__link" onClick={() => { setManagingId(null); setServiceForm(l); }}>
                           <T ru="Изменить" kz="Өзгерту" />
                         </button>
+                        {l.role === 'owner' && (
+                          <button type="button" className="admin-table__link" onClick={() => setPromoting(l)}>
+                            <T ru="Продвигать" kz="Жарнамалау" />
+                          </button>
+                        )}
                         <button type="button" className="admin-table__link admin-table__link--danger" onClick={() => handleDelete(l)}>
                           <T ru="Удалить" kz="Жою" />
                         </button>

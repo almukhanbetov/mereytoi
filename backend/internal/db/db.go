@@ -38,6 +38,9 @@ func Connect(cfg config.Config) *gorm.DB {
 		// Who was recently counted for a listing's views — see
 		// models/listing_view.go.
 		&models.ListingView{},
+		// Paid promotion — see models/promotion.go. New tables only.
+		&models.PromotionSettings{}, &models.PromotionOrder{}, &models.Promotion{},
+		&models.PromotionStat{}, &models.PromotionEventSeen{}, &models.PromotionStoreNotification{},
 		// Password reset/change one-time codes — see models/password_reset_code.go.
 		&models.PasswordResetCode{},
 		// Backup-code recovery throttle — see models/recovery_attempt.go

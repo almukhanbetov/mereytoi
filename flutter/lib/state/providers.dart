@@ -10,6 +10,7 @@ import '../services/listing_management_service.dart';
 import '../services/listing_service.dart';
 import '../services/manager_chat_service.dart';
 import '../services/notification_service.dart';
+import '../services/promotion_service.dart';
 import '../services/provider_chat_service.dart';
 import '../services/provider_service.dart';
 import '../services/public_provider_service.dart';
@@ -29,6 +30,9 @@ final cityServiceProvider = Provider<CityService>(
 );
 final listingServiceProvider = Provider<ListingService>(
   (ref) => ListingService(ref.watch(apiClientProvider)),
+);
+final promotionServiceProvider = Provider<PromotionService>(
+  (ref) => PromotionService(ref.watch(apiClientProvider)),
 );
 final statisticsServiceProvider = Provider<StatisticsService>(
   (ref) => StatisticsService(ref.watch(apiClientProvider)),

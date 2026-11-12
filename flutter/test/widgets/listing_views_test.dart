@@ -16,6 +16,8 @@ import 'package:shared_preferences/shared_preferences.dart';
 
 import '../helpers/city_fake_api.dart';
 
+import '../helpers/fake_catalog.dart';
+
 Listing _listing(int id, int views, {String name = 'Услуга'}) =>
     Listing.fromJson({
       'id': id,
@@ -71,6 +73,9 @@ void main() {
         listingsProvider(
           null,
         ).overrideWith((ref) => Future.value([_listing(1, 7), _listing(2, 0)])),
+        fakeCatalog({
+          null: Future.value([_listing(1, 7), _listing(2, 0)]),
+        }),
       ],
     );
     addTearDown(container.dispose);

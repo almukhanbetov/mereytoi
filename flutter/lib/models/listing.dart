@@ -48,6 +48,8 @@ class Listing {
     this.myRole,
     this.priceType,
     this.provider,
+    this.promoted = false,
+    this.promotionId,
     this._videos,
   });
 
@@ -120,6 +122,14 @@ class Listing {
   // admin-created restaurant/venue listing from before this stage.
   final ListingProviderBrief? provider;
 
+  /// Paid ad placement in a catalog result (GET /api/listings/feed only).
+  /// The card is labelled «Реклама»; nothing else about it changes — no
+  /// rating, review or badge comes with payment.
+  final bool promoted;
+
+  /// The running promotion behind [promoted], for its statistics.
+  final int? promotionId;
+
   factory Listing.fromJson(Map<String, dynamic> json) {
     return Listing(
       id: json['id'] as int,
@@ -170,6 +180,8 @@ class Listing {
               Map<String, dynamic>.from(json['provider'] as Map),
             )
           : null,
+      promoted: json['promoted'] as bool? ?? false,
+      promotionId: json['promotion_id'] as int?,
     );
   }
 

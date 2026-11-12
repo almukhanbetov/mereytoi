@@ -3,6 +3,7 @@ package routes
 import (
 	"log"
 	"net/http"
+	"time"
 
 	"github.com/gin-gonic/gin"
 	"gorm.io/gorm"
@@ -14,6 +15,7 @@ import (
 	"github.com/almukhanbetov/mereytoi/backend/internal/middleware"
 	"github.com/almukhanbetov/mereytoi/backend/internal/models"
 	"github.com/almukhanbetov/mereytoi/backend/internal/passwordreset"
+	"github.com/almukhanbetov/mereytoi/backend/internal/promotion"
 	"github.com/almukhanbetov/mereytoi/backend/internal/recoverycode"
 	"github.com/almukhanbetov/mereytoi/backend/internal/telegram"
 	"github.com/almukhanbetov/mereytoi/backend/internal/whatsapp"
@@ -43,6 +45,13 @@ type Options struct {
 	// out over the WhatsApp OTP template only when
 	// cfg.PasswordResetDeliveryReady(); otherwise nothing is ever sent.
 	PasswordReset *passwordreset.Service
+	// PromotionGoogle/PromotionApple — store verifiers for paid promotion.
+	// nil builds them from cfg (and leaves a store unavailable when its
+	// credentials aren't configured). Tests pass fakes here.
+	PromotionGoogle handlers.GoogleStore
+	PromotionApple  handlers.AppleStore
+	// Now — clock for promotion periods; nil means time.Now.
+	Now func() time.Time
 }
 
 // RegisterWithOptions is Register with explicit Options.
@@ -128,6 +137,10 @@ func RegisterWithOptions(r *gin.Engine, database *gorm.DB, cfg config.Config, op
 	providerHandler := handlers.NewProviderHandler(database)
 	publicProviderHandler := handlers.NewPublicProviderHandler(database)
 	providerChatHandler := handlers.NewProviderChatHandler(database)
+	promotionHandler := handlers.NewPromotionHandler(database, cfg, promotionGoogle(cfg, opts), promotionApple(cfg, opts))
+	if opts.Now != nil {
+		promotionHandler.Now = opts.Now
+	}
 
 	r.GET("/api/health", func(c *gin.Context) {
 		c.JSON(http.StatusOK, gin.H{"status": "ok"})
@@ -214,6 +227,9 @@ func RegisterWithOptions(r *gin.Engine, database *gorm.DB, cfg config.Config, op
 		listings := api.Group("/listings")
 		{
 			listings.GET("", listingHandler.List)
+			// Paged catalog with paid ads ("Реклама") placed by
+			// internal/promotion; same filters as the plain list above.
+			listings.GET("/feed", promotionHandler.Feed)
 			listings.GET("/:id", listingHandler.Get)
 			listings.POST("/:id/view", middleware.OptionalAuth(cfg.JWTSecret), listingHandler.RecordView)
 			listings.GET("/:id/comments", commentHandler.ListApproved)
@@ -530,5 +546,61 @@ func RegisterWithOptions(r *gin.Engine, database *gorm.DB, cfg config.Config, op
 			providerChat.GET("/:id", providerChatHandler.Get)
 			providerChat.POST("/:id/messages", providerChatHandler.AddMessage)
 		}
+
+		// Paid promotion of a listing — see internal/promotion and
+		// handlers/promotion_handler.go. Purchases are verified with the
+		// stores server-side; the webhooks authenticate themselves (Google:
+		// secret token in the push URL, Apple: signed payload).
+		promotions := api.Group("/promotions")
+		{
+			promotions.GET("/listings/:id", middleware.RequireAuth(cfg.JWTSecret), middleware.RequireListingAccess(database), promotionHandler.ListingStatus)
+			promotions.POST("/orders", middleware.RequireAuth(cfg.JWTSecret), promotionHandler.CreateOrder)
+			promotions.POST("/purchases/google", middleware.RequireAuth(cfg.JWTSecret), promotionHandler.ConfirmGoogle)
+			promotions.POST("/purchases/apple", middleware.RequireAuth(cfg.JWTSecret), promotionHandler.ConfirmApple)
+			promotions.POST("/events", middleware.OptionalAuth(cfg.JWTSecret), promotionHandler.RecordEvent)
+			promotions.POST("/webhooks/google", promotionHandler.GoogleNotification)
+			promotions.POST("/webhooks/apple", promotionHandler.AppleNotification)
+		}
+		adminPromotions := api.Group("/admin/promotions")
+		adminPromotions.Use(middleware.RequireAuth(cfg.JWTSecret), middleware.RequireAdmin())
+		{
+			adminPromotions.GET("", promotionHandler.AdminList)
+			adminPromotions.GET("/settings", promotionHandler.AdminSettings)
+			adminPromotions.PUT("/settings", promotionHandler.AdminUpdateSettings)
+		}
 	}
+}
+
+// promotionGoogle — the Play Developer API client, or nil (purchases
+// through Google Play unavailable) when no service account is configured.
+func promotionGoogle(cfg config.Config, opts Options) handlers.GoogleStore {
+	if opts.PromotionGoogle != nil {
+		return opts.PromotionGoogle
+	}
+	if cfg.GooglePlayServiceAccountFile == "" {
+		return nil
+	}
+	g, err := promotion.LoadGoogleClient(cfg.GooglePlayServiceAccountFile, cfg.GooglePlayPackageName, cfg.GooglePlayAPIBaseURL, cfg.GoogleOAuthTokenURL)
+	if err != nil {
+		log.Printf("[promotion] Google Play purchases unavailable: %v", err)
+		return nil
+	}
+	return g
+}
+
+// promotionApple — the App Store signature verifier, or nil (purchases
+// through the App Store unavailable) without the Apple root certificate.
+func promotionApple(cfg config.Config, opts Options) handlers.AppleStore {
+	if opts.PromotionApple != nil {
+		return opts.PromotionApple
+	}
+	if cfg.AppleRootCAFile == "" {
+		return nil
+	}
+	v, err := promotion.LoadAppleVerifier(cfg.AppleRootCAFile, cfg.AppleBundleID, cfg.AppleEnvironment)
+	if err != nil {
+		log.Printf("[promotion] App Store purchases unavailable: %v", err)
+		return nil
+	}
+	return v
 }

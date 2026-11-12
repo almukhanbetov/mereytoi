@@ -153,6 +153,34 @@ type Config struct {
 	PasswordResetDeliveryEnabled bool
 	WhatsAppOTPTemplateName      string
 	WhatsAppOTPTemplateLanguage  string
+
+	// Paid promotion of listings (internal/promotion). PromotionsEnabled is
+	// the master switch, off by default: with it off no ad is placed in the
+	// catalog and no purchase can start, whatever the admin settings say.
+	// PromotionFirstPosition is the 1-based catalog position of the first ad,
+	// PromotionEvery the number of regular cards between two ads.
+	PromotionsEnabled      bool
+	PromotionFirstPosition int
+	PromotionEvery         int
+
+	// Google Play Billing: server-side purchase checks through the Play
+	// Developer API with a service account (JSON key file, never logged).
+	// GooglePlayRTDNToken must be appended as ?token= to the Pub/Sub push
+	// URL of Real-time developer notifications. GooglePlayAPIBaseURL and
+	// GoogleOAuthTokenURL are test hooks; empty means Google's real hosts.
+	GooglePlayPackageName        string
+	GooglePlayServiceAccountFile string
+	GooglePlayRTDNToken          string
+	GooglePlayAPIBaseURL         string
+	GoogleOAuthTokenURL          string
+
+	// Apple In-App Purchase (StoreKit 2): signed transactions and App Store
+	// Server Notifications V2 are verified against the Apple Root CA - G3
+	// certificate at AppleRootCAFile (download it from apple.com, it is not
+	// a secret). AppleEnvironment is "Sandbox" or "Production".
+	AppleBundleID    string
+	AppleEnvironment string
+	AppleRootCAFile  string
 }
 
 // MinOTPHMACSecretLen — OTP_HMAC_SECRET must be at least this long (bytes)
@@ -256,6 +284,20 @@ func Load() Config {
 		PasswordResetDeliveryEnabled: getEnv("PASSWORD_RESET_DELIVERY_ENABLED", "false") == "true",
 		WhatsAppOTPTemplateName:      getEnv("WHATSAPP_OTP_TEMPLATE_NAME", ""),
 		WhatsAppOTPTemplateLanguage:  getEnv("WHATSAPP_OTP_TEMPLATE_LANGUAGE", "ru"),
+
+		PromotionsEnabled:      getEnv("PROMOTIONS_ENABLED", "false") == "true",
+		PromotionFirstPosition: getEnvInt("PROMOTION_FIRST_POSITION", 2),
+		PromotionEvery:         getEnvInt("PROMOTION_EVERY", 6),
+
+		GooglePlayPackageName:        getEnv("GOOGLE_PLAY_PACKAGE_NAME", "kz.mereytoi.mereytoi_app"),
+		GooglePlayServiceAccountFile: getEnv("GOOGLE_PLAY_SERVICE_ACCOUNT_FILE", ""),
+		GooglePlayRTDNToken:          getEnv("GOOGLE_PLAY_RTDN_TOKEN", ""),
+		GooglePlayAPIBaseURL:         getEnv("GOOGLE_PLAY_API_BASE_URL", ""),
+		GoogleOAuthTokenURL:          getEnv("GOOGLE_OAUTH_TOKEN_URL", ""),
+
+		AppleBundleID:    getEnv("APPLE_BUNDLE_ID", "kz.mereytoi.mereytoiApp"),
+		AppleEnvironment: getEnv("APPLE_IAP_ENVIRONMENT", "Sandbox"),
+		AppleRootCAFile:  getEnv("APPLE_ROOT_CA_FILE", ""),
 	}
 }
 

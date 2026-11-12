@@ -143,6 +143,12 @@ export const adminApi = {
   siteStatistics: () => request('/api/site-statistics'),
   updateSiteStatistics: (payload) => request('/api/site-statistics', { method: 'PUT', body: payload, auth: true }),
 
+  // Paid promotion: package settings (price is set here, never in code)
+  // and the list of bought promotions.
+  promotionSettings: () => request('/api/admin/promotions/settings', { auth: true }),
+  updatePromotionSettings: (payload) => request('/api/admin/promotions/settings', { method: 'PUT', body: payload, auth: true }),
+  promotions: () => request('/api/admin/promotions', { auth: true }),
+
   eventRequests: (status) => request(`/api/admin/event-requests${status && status !== 'all' ? `?status=${status}` : ''}`, { auth: true }),
   eventRequest: (id) => request(`/api/admin/event-requests/${id}`, { auth: true }),
   updateEventRequestStatus: (id, status, managerComment) =>

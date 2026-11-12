@@ -7,7 +7,7 @@ import '../../core/theme/app_theme.dart';
 import '../../core/utils/error_messages.dart';
 import '../../core/utils/listing_navigation.dart';
 import '../../state/categories_provider.dart';
-import '../../state/listings_provider.dart';
+import '../../state/promotion_provider.dart';
 import '../../state/locale_provider.dart';
 import '../../widgets/chat/chat_fab.dart';
 import '../../widgets/app_back_button.dart';
@@ -15,6 +15,7 @@ import '../../widgets/app_error_view.dart';
 import '../../widgets/app_icon_badge.dart';
 import '../../widgets/app_skeleton.dart';
 import '../../widgets/fade_slide_in.dart';
+import '../../widgets/promotion/ad_impression_tracker.dart';
 import '../../widgets/service_card.dart';
 import '../../widgets/services/services_category_grid.dart';
 import '../../widgets/services/services_city_selector.dart';
@@ -79,12 +80,157 @@ class _ServicesScreenState extends ConsumerState<ServicesScreen> {
     );
   }
 
+  /// Results of the current query: skeleton, error, empty state or the
+  /// grid. Pages load as the end comes near; ads arrive already in place.
+  List<Widget> _resultSlivers(
+    BuildContext context,
+    AppLocale locale,
+    CatalogQuery query,
+    CatalogFeedState feed,
+  ) {
+    if (feed.loading) {
+      return [
+        SliverPadding(
+          padding: const EdgeInsets.fromLTRB(
+            AppSpacing.md,
+            0,
+            AppSpacing.md,
+            AppSpacing.xl,
+          ),
+          // The same 2-column geometry as the loaded grid, so the first
+          // load doesn't flash a one-per-row list.
+          sliver: SliverLayoutBuilder(
+            builder: (context, constraints) => SliverGrid.builder(
+              gridDelegate: _gridDelegate(context, constraints.crossAxisExtent),
+              itemCount: 6,
+              itemBuilder: (context, i) => const AppSkeleton(borderRadius: 16),
+            ),
+          ),
+        ),
+      ];
+    }
+    if (feed.error != null) {
+      return [
+        SliverFillRemaining(
+          hasScrollBody: false,
+          child: AppErrorView(
+            message: apiErrorMessage(locale, feed.error!),
+            error: feed.error!,
+            locale: locale,
+            // A failed connection usually failed the category grid too:
+            // retry both, so the catalog doesn't stay half empty.
+            onRetry: () {
+              ref.invalidate(categoriesProvider);
+              ref.read(catalogFeedProvider(query).notifier).reload();
+            },
+          ),
+        ),
+      ];
+    }
+    final items = feed.items;
+    if (items.isEmpty) {
+      return [
+        SliverFillRemaining(
+          hasScrollBody: false,
+          child: _EmptyResults(
+            locale: locale,
+            showReset: _search.isNotEmpty,
+            onReset: _clearSearch,
+          ),
+        ),
+      ];
+    }
+    return [
+      SliverPadding(
+        padding: const EdgeInsets.fromLTRB(
+          AppSpacing.md,
+          0,
+          AppSpacing.md,
+          AppSpacing.sm,
+        ),
+        sliver: SliverToBoxAdapter(
+          child: _SectionTitle(
+            t(
+              locale,
+              ru: 'Найдено: ${feed.total}',
+              kz: 'Табылды: ${feed.total}',
+              en: 'Found: ${feed.total}',
+            ),
+          ),
+        ),
+      ),
+      SliverPadding(
+        // Bottom: room to scroll the last card clear of the chat button.
+        padding: EdgeInsets.fromLTRB(
+          AppSpacing.md,
+          0,
+          AppSpacing.md,
+          feed.hasMore ? AppSpacing.md : kChatFabClearance,
+        ),
+        sliver: SliverLayoutBuilder(
+          builder: (context, constraints) {
+            return SliverGrid.builder(
+              gridDelegate: _gridDelegate(context, constraints.crossAxisExtent),
+              itemCount: items.length,
+              itemBuilder: (context, i) {
+                if (feed.hasMore && i >= items.length - 4) {
+                  // Building a card near the end asks for the next page.
+                  WidgetsBinding.instance.addPostFrameCallback((_) {
+                    if (mounted) {
+                      ref.read(catalogFeedProvider(query).notifier).loadMore();
+                    }
+                  });
+                }
+                final listing = items[i];
+                final card = ServiceGridCard(
+                  key: ValueKey('service-grid-${listing.id}'),
+                  listing: listing,
+                  locale: locale,
+                  onTap: () {
+                    ref.read(adTrackerProvider).opened(listing);
+                    pushListingDetail(context, ref, listing);
+                  },
+                );
+                return FadeSlideIn(
+                  index: i,
+                  child: listing.promoted && listing.promotionId != null
+                      ? AdImpressionTracker(
+                          promotionId: listing.promotionId!,
+                          child: card,
+                        )
+                      : card,
+                );
+              },
+            );
+          },
+        ),
+      ),
+      if (feed.hasMore)
+        const SliverPadding(
+          padding: EdgeInsets.only(bottom: kChatFabClearance),
+          sliver: SliverToBoxAdapter(
+            child: Center(
+              child: Padding(
+                padding: EdgeInsets.all(AppSpacing.sm),
+                child: SizedBox(
+                  width: 24,
+                  height: 24,
+                  child: CircularProgressIndicator(strokeWidth: 2),
+                ),
+              ),
+            ),
+          ),
+        ),
+    ];
+  }
+
   @override
   Widget build(BuildContext context) {
     final locale = ref.watch(localeProvider);
     final categories = ref.watch(categoriesProvider);
     final listingsKey = widget.initialCategorySlug;
-    final listings = ref.watch(listingsProvider(listingsKey));
+    final query = CatalogQuery(categorySlug: listingsKey, search: _search);
+    final feed = ref.watch(catalogFeedProvider(query));
     final category = categories.valueOrNull
         ?.where((c) => c.slug == listingsKey)
         .firstOrNull;
@@ -159,120 +305,7 @@ class _ServicesScreenState extends ConsumerState<ServicesScreen> {
               ],
             ),
           ),
-          ...listings.when(
-            loading: () => [
-              SliverPadding(
-                padding: const EdgeInsets.fromLTRB(
-                  AppSpacing.md,
-                  0,
-                  AppSpacing.md,
-                  AppSpacing.xl,
-                ),
-                // The same 2-column geometry as the loaded grid, so the
-                // first load doesn't flash a one-per-row list.
-                sliver: SliverLayoutBuilder(
-                  builder: (context, constraints) => SliverGrid.builder(
-                    gridDelegate: _gridDelegate(
-                      context,
-                      constraints.crossAxisExtent,
-                    ),
-                    itemCount: 6,
-                    itemBuilder: (context, i) =>
-                        const AppSkeleton(borderRadius: 16),
-                  ),
-                ),
-              ),
-            ],
-            error: (err, _) => [
-              SliverFillRemaining(
-                hasScrollBody: false,
-                child: AppErrorView(
-                  message: apiErrorMessage(locale, err),
-                  error: err,
-                  locale: locale,
-                  onRetry: () => ref.invalidate(listingsProvider(listingsKey)),
-                ),
-              ),
-            ],
-            data: (all) {
-              final filtered = _search.isEmpty
-                  ? all
-                  : all
-                        .where(
-                          (l) => l
-                              .name(locale)
-                              .toLowerCase()
-                              .contains(_search.toLowerCase()),
-                        )
-                        .toList();
-              if (filtered.isEmpty) {
-                return [
-                  SliverFillRemaining(
-                    hasScrollBody: false,
-                    child: _EmptyResults(
-                      locale: locale,
-                      showReset: _search.isNotEmpty,
-                      onReset: _clearSearch,
-                    ),
-                  ),
-                ];
-              }
-              return [
-                SliverPadding(
-                  padding: const EdgeInsets.fromLTRB(
-                    AppSpacing.md,
-                    0,
-                    AppSpacing.md,
-                    AppSpacing.sm,
-                  ),
-                  sliver: SliverToBoxAdapter(
-                    child: _SectionTitle(
-                      t(
-                        locale,
-                        ru: 'Найдено: ${filtered.length}',
-                        kz: 'Табылды: ${filtered.length}',
-                        en: 'Found: ${filtered.length}',
-                      ),
-                    ),
-                  ),
-                ),
-                SliverPadding(
-                  // Bottom: room to scroll the last card clear of the chat
-                  // button.
-                  padding: const EdgeInsets.fromLTRB(
-                    AppSpacing.md,
-                    0,
-                    AppSpacing.md,
-                    kChatFabClearance,
-                  ),
-                  sliver: SliverLayoutBuilder(
-                    builder: (context, constraints) {
-                      return SliverGrid.builder(
-                        gridDelegate: _gridDelegate(
-                          context,
-                          constraints.crossAxisExtent,
-                        ),
-                        itemCount: filtered.length,
-                        itemBuilder: (context, i) {
-                          final listing = filtered[i];
-                          return FadeSlideIn(
-                            index: i,
-                            child: ServiceGridCard(
-                              key: ValueKey('service-grid-${listing.id}'),
-                              listing: listing,
-                              locale: locale,
-                              onTap: () =>
-                                  pushListingDetail(context, ref, listing),
-                            ),
-                          );
-                        },
-                      );
-                    },
-                  ),
-                ),
-              ];
-            },
-          ),
+          ..._resultSlivers(context, locale, query, feed),
         ],
       ),
     );
