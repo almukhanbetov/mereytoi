@@ -20,6 +20,19 @@ export async function fetchListings() {
   return data?.listings ?? [];
 }
 
+// First page of the catalog with paid ads (GET /api/listings/feed), for
+// the server-rendered /services page; later pages load in the browser.
+export async function fetchFeed({ category, limit = 24 } = {}) {
+  const params = new URLSearchParams({ limit: String(limit) });
+  if (category && category !== "all") params.set("category", category);
+  const data = await apiGet(`/api/listings/feed?${params}`);
+  return {
+    items: data?.items ?? [],
+    total: data?.total ?? 0,
+    nextCursor: data?.next_cursor ?? null,
+  };
+}
+
 export async function fetchListingsByCategory(slug) {
   const data = await apiGet(`/api/listings?category=${encodeURIComponent(slug)}`);
   return data?.listings ?? [];

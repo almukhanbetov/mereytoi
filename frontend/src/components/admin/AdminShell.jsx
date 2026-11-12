@@ -72,6 +72,9 @@ export default function AdminShell({ user, children }) {
           <Link href="/admin/statistics" className={`admin-nav__link${pathname === '/admin/statistics' ? ' is-active' : ''}`}>
             Статистика
           </Link>
+          <Link href="/admin/promotions" className={`admin-nav__link${pathname === '/admin/promotions' ? ' is-active' : ''}`}>
+            Продвижение
+          </Link>
 
           <span className="admin-nav__label">Услуги</span>
           {categories.map((c) => {

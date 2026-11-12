@@ -5,7 +5,8 @@ import Link from 'next/link';
 import Reveal from '@/components/Reveal';
 import ServiceCard from '@/components/services/ServiceCard';
 import CommentsSection from '@/components/services/CommentsSection';
-import { T, useLang, useCart, useManagerChat } from '@/context/AppProviders';
+import { T, useLang, useCart } from '@/context/AppProviders';
+import { adPromotionFor, recordPromotionEvent } from '@/lib/promotionApi';
 import { formatPrice } from '@/lib/format';
 import { mediaUrl } from '@/lib/media';
 import { flyToCart } from '@/lib/flyToCart';
@@ -38,7 +39,6 @@ export default function ServiceDetail({ listing, related }) {
   const viewCount = recordedViews?.id === listing.id ? recordedViews.count : listing.view_count;
 
   const { addItem } = useCart();
-  const { openChat } = useManagerChat();
   const category = listing.category;
   const categoryLabel = category ? (lang === 'kz' ? category.name_kz : category.name_ru) : '';
   const images = listing.image_urls || [];
@@ -181,24 +181,12 @@ export default function ServiceDetail({ listing, related }) {
                 </a>
               )}
               <AddToEventMenu listingId={listing.id} />
-              <button
-                type="button"
-                className="btn btn--outline"
-                onClick={() => openChat({
-                  listingId: listing.id,
-                  listingName: lang === 'kz' ? listing.name_kz : listing.name_ru,
-                  listingPrice: listing.price,
-                  categoryName: categoryLabel,
-                })}
-              >
-                <T ru="Спросить менеджера" kz="Менеджерден сұрау" />
-              </button>
             </div>
             <p className={`booking-added${added ? ' is-visible' : ''}`}>
               <T ru="Добавлено в корзину!" kz="Себетке қосылды!" />
             </p>
 
-            {listing.provider && <ProviderBlock provider={listing.provider} />}
+            {listing.provider && <ProviderBlock provider={listing.provider} listingId={listing.id} />}
           </div>
         </div>
       </section>
@@ -240,14 +228,11 @@ export default function ServiceDetail({ listing, related }) {
   );
 }
 
-// ProviderBlock — Этап 11 brief section 9: name/avatar/city + a contact
-// button. Deliberately NOT the "Спросить менеджера" button above (that's a
-// real chat with MEREYTOI's own manager, see ManagerConversation's own doc
-// comment) — this is a direct WhatsApp/Telegram/phone link to the
-// service's own provider, since no provider<->client chat backend exists
-// this stage (brief section 9's own "чат напрямую с услугодателем НЕ
-// реализовывать").
-function ProviderBlock({ provider }) {
+// ProviderBlock — Этап 11 brief section 9: name/avatar/city + a direct
+// WhatsApp/Telegram/phone link to the service's own provider. When the
+// listing was opened from its ad, a WhatsApp or phone tap counts in that
+// ad's statistics (a tap, not an order; Telegram isn't counted).
+function ProviderBlock({ provider, listingId }) {
   const waDigits = toWhatsAppDigits(provider.whatsapp);
   const contactHref = waDigits
     ? `https://wa.me/${waDigits}`
@@ -277,6 +262,10 @@ function ProviderBlock({ provider }) {
         <a
           className="manager-chat-ctx__link"
           href={contactHref}
+          onClick={() => {
+            const kind = contactHref.startsWith('tel:') ? 'call' : contactHref.startsWith('https://wa.me/') ? 'whatsapp' : null;
+            if (kind) recordPromotionEvent(adPromotionFor(listingId), kind);
+          }}
           target={contactHref.startsWith('tel:') ? undefined : '_blank'}
           rel={contactHref.startsWith('tel:') ? undefined : 'noopener noreferrer'}
         >

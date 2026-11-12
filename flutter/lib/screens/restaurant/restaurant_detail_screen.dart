@@ -278,21 +278,6 @@ class _RestaurantBody extends ConsumerWidget {
                 menu: resolvedMenuForProgress,
                 listing: listing,
               ).min);
-    // Same "is there a real number at all" gate the sticky CTA uses —
-    // a menu priced "по запросу" (pricePerGuest == 0) never gets an
-    // estimated total to hand the manager either.
-    final estimatedTotalForChat =
-        resolvedMenuForProgress != null &&
-            resolvedMenuForProgress.pricePerGuest > 0 &&
-            guestsForProgress != null
-        ? RestaurantPriceCalculator.calculate(
-            pricePerGuest: resolvedMenuForProgress.pricePerGuest,
-            guests: guestsForProgress,
-            selectedExtras: resolvedMenuForProgress.extras
-                .where((e) => selectedExtraIds.contains(e.id))
-                .toList(),
-          ).estimatedTotal
-        : null;
 
     return CustomScrollView(
       slivers: [
@@ -304,11 +289,6 @@ class _RestaurantBody extends ConsumerWidget {
           activeImage: activeImage,
           onPageChanged: onPageChanged,
           onThumbnailTap: onThumbnailTap,
-          chatHallName: selectedHallForProgress?.name(locale),
-          chatMenuName: resolvedMenuForProgress?.name(locale),
-          chatMenuPricePerGuest: resolvedMenuForProgress?.pricePerGuest,
-          chatGuestCount: guestsForProgress,
-          chatEstimatedTotal: estimatedTotalForChat,
         ),
         SliverToBoxAdapter(
           child: Padding(

@@ -7,6 +7,7 @@ import '../models/listing.dart';
 import '../screens/provider/provider_profile_screen.dart';
 import '../state/locale_provider.dart';
 import 'network_image_box.dart';
+import 'promotion/ad_label.dart';
 
 /// A compact vertical card — used in horizontal carousels (Home's
 /// "Популярные услуги" and "Рестораны"). The primary services list uses
@@ -476,6 +477,12 @@ class ServiceGridCard extends StatelessWidget {
                               locale: locale,
                             ),
                           ),
+                          if (listing.promoted)
+                            Positioned(
+                              top: AppSpacing.xs,
+                              right: AppSpacing.xs,
+                              child: AdLabel(locale: locale),
+                            ),
                         ],
                       ),
                     ),

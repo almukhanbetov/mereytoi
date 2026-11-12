@@ -60,63 +60,14 @@ func NewListingHandler(db *gorm.DB) *ListingHandler {
 // search term and a city from the internal/cities directory, all ANDed,
 // e.g. GET /api/listings?category=hosts&search=Ерлан&city_id=1
 func (h *ListingHandler) List(c *gin.Context) {
-	// city_id is validated before any query runs: a non-integer or unknown
-	// ID is a client bug (IDs only ever come from GET /api/cities), so it
-	// gets a 400 rather than silently widening to "all cities" or
-	// narrowing to an always-empty list. An empty `city_id=` is treated
-	// like an absent one, the same as `category=`/`search=`.
-	cityID := 0
-	if raw := c.Query("city_id"); raw != "" {
-		id, err := strconv.Atoi(raw)
-		if err != nil {
-			c.JSON(http.StatusBadRequest, gin.H{"error": "invalid_city_id"})
-			return
-		}
-		if _, ok := cities.ByID(id); !ok {
-			c.JSON(http.StatusBadRequest, gin.H{"error": "invalid_city_id"})
-			return
-		}
-		cityID = id
+	query, empty, status, errCode := catalogQuery(h.DB, c)
+	if status != 0 {
+		c.JSON(status, gin.H{"error": errCode})
+		return
 	}
-
-	query := h.DB.Model(&models.Listing{}).Where("is_active = ?", true)
-
-	if slug := c.Query("category"); slug != "" {
-		var category models.Category
-		if err := h.DB.Where("slug = ?", slug).First(&category).Error; err != nil {
-			c.JSON(http.StatusOK, gin.H{"listings": []models.Listing{}})
-			return
-		}
-		query = query.Where("category_id = ?", category.ID)
-	}
-
-	if search := c.Query("search"); search != "" {
-		like := "%" + search + "%"
-		query = query.Where("name_ru ILIKE ? OR name_kz ILIKE ?", like, like)
-	}
-
-	if cityID != 0 {
-		// listings.city is free text ("Алматы", "Алматы ", "Almaty"...), so
-		// the alias match runs in Go (Unicode-aware lowercasing that
-		// SQLite's LOWER() lacks) over the handful of distinct stored
-		// values, and the query then filters by those exact raw strings.
-		var stored []string
-		if err := h.DB.Model(&models.Listing{}).Where("is_active = ?", true).
-			Distinct("city").Pluck("city", &stored).Error; err != nil {
-			c.JSON(http.StatusInternalServerError, gin.H{"error": "failed to fetch listings"})
-			return
-		}
-		var matched []string
-		for _, s := range stored {
-			if cities.MatchesCity(s, cityID) {
-				matched = append(matched, s)
-			}
-		}
-		if len(matched) == 0 {
-			c.JSON(http.StatusOK, gin.H{"listings": []listingOut{}})
-			return
-		}
-		query = query.Where("city IN ?", matched)
+	if empty {
+		c.JSON(http.StatusOK, gin.H{"listings": []listingOut{}})
+		return
 	}
 
 	// Newest first, by when a listing was added: editing one (updated_at) must
@@ -133,6 +84,69 @@ func (h *ListingHandler) List(c *gin.Context) {
 	}
 
 	c.JSON(http.StatusOK, gin.H{"listings": attachListingCounts(h.DB, listings)})
+}
+
+// catalogQuery builds the public catalog filter of GET /api/listings —
+// active listings, optionally narrowed by category slug, a name search and
+// a city from internal/cities, all ANDed — so the paged feed with ads
+// (PromotionHandler.Feed) filters exactly like the plain list. empty means
+// the filters can't match anything (unknown category, no listing in the
+// city); a non-zero status is a client error to return as is.
+func catalogQuery(db *gorm.DB, c *gin.Context) (query *gorm.DB, empty bool, status int, errCode string) {
+	// city_id is validated before any query runs: a non-integer or unknown
+	// ID is a client bug (IDs only ever come from GET /api/cities), so it
+	// gets a 400 rather than silently widening to "all cities" or
+	// narrowing to an always-empty list. An empty `city_id=` is treated
+	// like an absent one, the same as `category=`/`search=`.
+	cityID := 0
+	if raw := c.Query("city_id"); raw != "" {
+		id, err := strconv.Atoi(raw)
+		if err != nil {
+			return nil, false, http.StatusBadRequest, "invalid_city_id"
+		}
+		if _, ok := cities.ByID(id); !ok {
+			return nil, false, http.StatusBadRequest, "invalid_city_id"
+		}
+		cityID = id
+	}
+
+	query = db.Model(&models.Listing{}).Where("is_active = ?", true)
+
+	if slug := c.Query("category"); slug != "" {
+		var category models.Category
+		if err := db.Where("slug = ?", slug).First(&category).Error; err != nil {
+			return nil, true, 0, ""
+		}
+		query = query.Where("category_id = ?", category.ID)
+	}
+
+	if search := c.Query("search"); search != "" {
+		like := "%" + search + "%"
+		query = query.Where("name_ru ILIKE ? OR name_kz ILIKE ?", like, like)
+	}
+
+	if cityID != 0 {
+		// listings.city is free text ("Алматы", "Алматы ", "Almaty"...), so
+		// the alias match runs in Go (Unicode-aware lowercasing that
+		// SQLite's LOWER() lacks) over the handful of distinct stored
+		// values, and the query then filters by those exact raw strings.
+		var stored []string
+		if err := db.Model(&models.Listing{}).Where("is_active = ?", true).
+			Distinct("city").Pluck("city", &stored).Error; err != nil {
+			return nil, false, http.StatusInternalServerError, "failed to fetch listings"
+		}
+		var matched []string
+		for _, s := range stored {
+			if cities.MatchesCity(s, cityID) {
+				matched = append(matched, s)
+			}
+		}
+		if len(matched) == 0 {
+			return nil, true, 0, ""
+		}
+		query = query.Where("city IN ?", matched)
+	}
+	return query, false, 0, ""
 }
 
 // attachListingCounts computes hall_count/menu_count/min_menu_price_per_

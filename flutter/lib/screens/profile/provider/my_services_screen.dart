@@ -16,6 +16,7 @@ import '../../../widgets/app_error_view.dart';
 import '../../../widgets/app_icon_badge.dart';
 import '../../../widgets/app_skeleton.dart';
 import '../../../widgets/network_image_box.dart';
+import 'promotion_screen.dart';
 import 'widgets/provider_service_form_sheet.dart';
 
 /// "Мои услуги" (Этап 11) — every listing the caller owns via
@@ -284,6 +285,7 @@ class _ServiceRow extends ConsumerWidget {
                         const SizedBox(height: AppSpacing.xxs),
                         Wrap(
                           spacing: AppSpacing.xs,
+                          runSpacing: AppSpacing.xxs,
                           children: [
                             ActionChip(
                               key: ValueKey('service-status-${listing.id}'),
@@ -314,6 +316,30 @@ class _ServiceRow extends ConsumerWidget {
                               ),
                               onPressed: () => _toggleActive(context, ref),
                             ),
+                            // Only the owner pays for a promotion.
+                            if (listing.myRole == 'owner')
+                              ActionChip(
+                                key: ValueKey('service-promote-${listing.id}'),
+                                avatar: Icon(
+                                  Icons.trending_up_rounded,
+                                  size: 16,
+                                  color: context.mereytoiColors.goldPrimary,
+                                ),
+                                label: Text(
+                                  t(
+                                    locale,
+                                    ru: 'Продвигать',
+                                    kz: 'Жарнамалау',
+                                    en: 'Promote',
+                                  ),
+                                ),
+                                onPressed: () => Navigator.of(context).push(
+                                  MaterialPageRoute(
+                                    builder: (_) =>
+                                        PromotionScreen(listing: listing),
+                                  ),
+                                ),
+                              ),
                           ],
                         ),
                       ],

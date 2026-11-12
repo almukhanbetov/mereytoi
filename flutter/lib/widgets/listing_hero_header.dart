@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:url_launcher/url_launcher.dart';
 
 import '../core/config/api_config.dart';
@@ -8,10 +9,10 @@ import '../models/listing.dart';
 import '../screens/provider/provider_profile_screen.dart';
 import '../core/utils/format.dart';
 import '../state/locale_provider.dart';
+import '../state/promotion_provider.dart';
 import 'app_back_button.dart';
 import 'app_chip.dart';
 import 'app_icon_badge.dart';
-import 'manager_chat/ask_manager_button.dart';
 import 'network_image_box.dart';
 import 'photo_viewer_screen.dart';
 import 'provider_chat/message_provider_button.dart';
@@ -36,15 +37,6 @@ List<Widget> listingHeroSlivers({
   required ValueChanged<int> onPageChanged,
   required ValueChanged<int> onThumbnailTap,
   bool includeDescription = true,
-  // Этап 10Б-53 — the restaurant calculator's current selection, passed
-  // straight through to `AskManagerButton` so "Спросить менеджера" carries
-  // the actual hall/menu/guests/total the customer is looking at, not
-  // just the listing. `ServiceDetailScreen` never passes these.
-  String? chatHallName,
-  String? chatMenuName,
-  int? chatMenuPricePerGuest,
-  int? chatGuestCount,
-  int? chatEstimatedTotal,
 }) {
   final images = listing.imageUrls;
   final categoryLabel = listing.category?.name(locale);
@@ -228,19 +220,9 @@ List<Widget> listingHeroSlivers({
                     ),
                 ],
               ),
-              const SizedBox(height: AppSpacing.sm),
-              Align(
-                alignment: Alignment.centerLeft,
-                child: AskManagerButton(
-                  listing: listing,
-                  locale: locale,
-                  hallName: chatHallName,
-                  menuName: chatMenuName,
-                  menuPricePerGuest: chatMenuPricePerGuest,
-                  guestCount: chatGuestCount,
-                  estimatedTotal: chatEstimatedTotal,
-                ),
-              ),
+              // «Спросить менеджера» is no longer on listing pages; the
+              // app's support chat stays reachable from Profile and the
+              // chat button. Direct contacts below are unchanged.
               // Этап 11 "Provider Marketplace" (Этап 11E QA finding: this
               // was missing from the Flutter side entirely — the model
               // parsed `provider` but no screen ever rendered it). Null
@@ -375,12 +357,11 @@ class _ListingDescriptionTextState extends State<ListingDescriptionText> {
 }
 
 /// Этап 11 brief section 9: name/avatar/city + a contact button.
-/// Deliberately NOT `AskManagerButton` above (that's a real chat with
-/// MEREYTOI's own manager) — a direct WhatsApp/Telegram/phone link to the
+/// Not MEREYTOI's own manager chat — a direct WhatsApp/Telegram/phone link to the
 /// service's own provider, since no provider<->client chat backend exists
 /// this stage. Mirrors frontend/src/components/services/ServiceDetail.jsx's
 /// own ProviderBlock.
-class _ProviderBlock extends StatelessWidget {
+class _ProviderBlock extends ConsumerWidget {
   const _ProviderBlock({
     required this.provider,
     required this.listing,
@@ -420,8 +401,15 @@ class _ProviderBlock extends StatelessWidget {
     );
   }
 
+  /// The ad statistics kind of a contact link (Telegram isn't counted).
+  static String? _contactKind(Uri uri) {
+    if (uri.scheme == 'tel') return 'call';
+    if (uri.host == 'wa.me') return 'whatsapp';
+    return null;
+  }
+
   @override
-  Widget build(BuildContext context) {
+  Widget build(BuildContext context, WidgetRef ref) {
     final colors = context.mereytoiColors;
     final contactUri = _contactUri;
     return Container(
@@ -509,13 +497,18 @@ class _ProviderBlock extends StatelessWidget {
                   listingName: listing.name(locale),
                   listingPrice: listing.price,
                   locale: locale,
+                  onOpen: () =>
+                      ref.read(adTrackerProvider).contact(listing.id, 'chat'),
                 ),
               if (contactUri != null)
                 TextButton(
-                  onPressed: () => launchUrl(
-                    contactUri,
-                    mode: LaunchMode.externalApplication,
-                  ),
+                  onPressed: () {
+                    final kind = _contactKind(contactUri);
+                    if (kind != null) {
+                      ref.read(adTrackerProvider).contact(listing.id, kind);
+                    }
+                    launchUrl(contactUri, mode: LaunchMode.externalApplication);
+                  },
                   style: TextButton.styleFrom(minimumSize: const Size(0, 36)),
                   child: Text(
                     t(

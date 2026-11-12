@@ -433,14 +433,19 @@ void main() {
         ),
       );
       await tester.pumpAndSettle();
-      expect(adapter.listingRequests.last.queryParameters, isEmpty);
+      // The Services catalog reads the paged feed; search goes to the
+      // server with the other filters (the same name match as before).
+      expect(adapter.feedRequests.last.queryParameters, {'limit': 20});
 
       await tester.tap(find.text('Рестораны'));
       await tester.pumpAndSettle();
       await tester.enterText(find.byType(TextField).first, 'той');
       await tester.pump(const Duration(milliseconds: 400));
-      expect(adapter.listingRequests.last.queryParameters, {
+      await tester.pumpAndSettle();
+      expect(adapter.feedRequests.last.queryParameters, {
+        'limit': 20,
         'category': 'venues',
+        'search': 'той',
       });
 
       await tester.tap(find.byType(ServicesCitySelector));
@@ -448,8 +453,10 @@ void main() {
       await tester.tap(inSheet(find.text('Астана')));
       await tester.pumpAndSettle();
 
-      expect(adapter.listingRequests.last.queryParameters, {
+      expect(adapter.feedRequests.last.queryParameters, {
+        'limit': 20,
         'category': 'venues',
+        'search': 'той',
         'city_id': 2,
       });
       expect(find.text('той'), findsOneWidget); // search text kept
@@ -459,8 +466,10 @@ void main() {
       await tester.pumpAndSettle();
       await tester.tap(inSheet(find.text('Все города')));
       await tester.pumpAndSettle();
-      expect(adapter.listingRequests.last.queryParameters, {
+      expect(adapter.feedRequests.last.queryParameters, {
+        'limit': 20,
         'category': 'venues',
+        'search': 'той',
       });
     },
   );

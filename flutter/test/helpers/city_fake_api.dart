@@ -32,6 +32,10 @@ class CityFakeAdapter implements HttpClientAdapter {
   List<RequestOptions> get listingRequests =>
       requests.where((r) => r.path == '/api/listings').toList();
 
+  /// The Services catalog's paged feed (with ads).
+  List<RequestOptions> get feedRequests =>
+      requests.where((r) => r.path == '/api/listings/feed').toList();
+
   @override
   Future<ResponseBody> fetch(
     RequestOptions options,
@@ -42,13 +46,16 @@ class CityFakeAdapter implements HttpClientAdapter {
     final Object data = switch (options.path) {
       '/api/cities' => {'cities': testCities.map(cityJson).toList()},
       '/api/listings' => {'listings': <Object>[]},
+      '/api/listings/feed' => {
+        'items': <Object>[],
+        'total': 0,
+        'next_cursor': null,
+      },
       _ => {'error': 'not found'},
     };
     return ResponseBody.fromBytes(
       Uint8List.fromList(utf8.encode(jsonEncode(data))),
-      options.path == '/api/cities' || options.path == '/api/listings'
-          ? 200
-          : 404,
+      data is Map && data.containsKey('error') ? 404 : 200,
       headers: {
         Headers.contentTypeHeader: [Headers.jsonContentType],
       },

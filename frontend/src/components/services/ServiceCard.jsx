@@ -1,11 +1,48 @@
 'use client';
 
+import { useEffect, useRef } from 'react';
 import { useRouter } from 'next/navigation';
 import Reveal from '@/components/Reveal';
 import { useLang } from '@/context/AppProviders';
 import { formatPrice, pluralRu } from '@/lib/format';
 import { mediaUrl } from '@/lib/media';
 import ViewCount from '@/components/services/ViewCount';
+import { recordPromotionEvent, rememberAdOpen } from '@/lib/promotionApi';
+
+// An ad impression counts only once the card was really seen: at least half
+// of it in view for a second. Once per card per page view; the server drops
+// repeats, the owner's own views and inflation.
+function useAdImpression(promotionId) {
+  const ref = useRef(null);
+  useEffect(() => {
+    const el = ref.current;
+    if (!promotionId || !el || typeof IntersectionObserver === 'undefined') return undefined;
+    let timer = null;
+    let sent = false;
+    const observer = new IntersectionObserver(
+      ([entry]) => {
+        if (sent) return;
+        if (entry.isIntersecting && entry.intersectionRatio >= 0.5) {
+          timer ??= setTimeout(() => {
+            sent = true;
+            recordPromotionEvent(promotionId, 'impression');
+            observer.disconnect();
+          }, 1000);
+        } else if (timer) {
+          clearTimeout(timer);
+          timer = null;
+        }
+      },
+      { threshold: [0, 0.5, 1] },
+    );
+    observer.observe(el);
+    return () => {
+      if (timer) clearTimeout(timer);
+      observer.disconnect();
+    };
+  }, [promotionId]);
+  return ref;
+}
 
 export default function ServiceCard({ listing, categoryLabel, delay = 0 }) {
   const router = useRouter();
@@ -21,14 +58,31 @@ export default function ServiceCard({ listing, categoryLabel, delay = 0 }) {
   // pre-existing plain price line below — brief section 8B's "venue без
   // menus работает как раньше."
   const hasMenus = listing.menu_count > 0;
+  const promotionId = listing.promoted ? listing.promotion_id : null;
+  const adRef = useAdImpression(promotionId);
+
+  function open() {
+    if (promotionId) {
+      rememberAdOpen(listing.id, promotionId);
+      recordPromotionEvent(promotionId, 'click');
+    }
+    router.push(`/services/${listing.id}`);
+  }
 
   return (
     <Reveal
       as="article"
       className="product-card in-view"
       delay={delay}
-      onClick={() => router.push(`/services/${listing.id}`)}
+      onClick={open}
     >
+      {promotionId && (
+        <>
+          {/* Same box as the card: what the impression observer watches. */}
+          <span ref={adRef} className="product-card__ad-area" aria-hidden="true" />
+          <span className="product-card__ad">{lang === 'kz' ? 'Жарнама' : 'Реклама'}</span>
+        </>
+      )}
       <div
         className="product-card__media"
         style={

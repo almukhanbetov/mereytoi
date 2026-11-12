@@ -18,6 +18,8 @@ import 'package:shared_preferences/shared_preferences.dart';
 
 import '../helpers/city_fake_api.dart';
 
+import '../helpers/fake_catalog.dart';
+
 const _categories = [
   Category(
     id: 2,
@@ -91,6 +93,7 @@ void main() {
           listingsProvider(
             null,
           ).overrideWith((ref) => listings ?? Future.value(_listings)),
+          fakeCatalog({null: listings ?? Future.value(_listings)}),
         ],
         child: MaterialApp(
           theme: (theme ?? () => AppTheme.light)(),

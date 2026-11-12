@@ -18,6 +18,8 @@ import 'package:shared_preferences/shared_preferences.dart';
 
 import '../helpers/city_fake_api.dart';
 
+import '../helpers/fake_catalog.dart';
+
 /// Same empty in-memory secure storage the other RootShell tests use —
 /// Home's account button restores a session on construction.
 class _EmptySecureStoragePlatform extends FlutterSecureStoragePlatform {
@@ -100,6 +102,10 @@ void main() {
             (ref) => Future.value(const <Category>[]),
           ),
           listingsProvider(null).overrideWith((ref) => Future.value(listings)),
+          fakeCatalog({
+            null: Future.value(listings),
+            'venues': Future.value(const []),
+          }),
           listingsProvider(
             'venues',
           ).overrideWith((ref) => Future.value(const [])),

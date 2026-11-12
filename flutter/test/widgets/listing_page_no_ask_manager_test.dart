@@ -9,19 +9,15 @@ import 'package:flutter_test/flutter_test.dart';
 import 'package:mereytoi_app/core/network/api_client.dart';
 import 'package:mereytoi_app/core/theme/app_theme.dart';
 import 'package:mereytoi_app/models/user.dart';
-import 'package:mereytoi_app/screens/manager_chat/manager_chat_screen.dart';
 import 'package:mereytoi_app/screens/restaurant/restaurant_detail_screen.dart';
 import 'package:mereytoi_app/state/auth_provider.dart';
 import 'package:mereytoi_app/state/providers.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 
-/// Этап 10Б-53, brief item 4 — "для выбранного зала, меню, количества
-/// гостей и рассчитанной стоимости используй существующий механизм
-/// передачи контекста". The mechanism (`ManagerChatContext`'s
-/// hallName/menuName/guestCount/estimatedTotal fields +
-/// `restaurantContextText`) already existed but no caller ever populated
-/// it — this exercises the fix wiring `RestaurantDetailScreen`'s live
-/// selection into the hero's "Спросить менеджера" button.
+/// «Спросить менеджера» is gone from listing pages (service and restaurant
+/// cards). The restaurant page itself — gallery, hall and menu selection —
+/// must keep working without it; the app's own support chat stays
+/// reachable from Profile and the chat button.
 class _EmptySecureStoragePlatform extends FlutterSecureStoragePlatform {
   @override
   Future<bool> containsKey({
@@ -163,7 +159,7 @@ final _user = User(
 
 void main() {
   testWidgets(
-    '"Спросить менеджера" on the restaurant page carries the selected hall/menu/guests into the chat context card',
+    'restaurant page: no «Спросить менеджера», hall and menu selection still shown',
     (tester) async {
       FlutterSecureStoragePlatform.instance = _EmptySecureStoragePlatform();
       SharedPreferences.setMockInitialValues({});
@@ -185,12 +181,6 @@ void main() {
         ),
       );
       await tester.pumpAndSettle();
-      // `RestaurantDetailScreen`'s own listing/halls/menus round-trips can
-      // make `pumpAndSettle()` return *before* `AuthNotifier`'s
-      // background session-restore has actually finished (it's still
-      // `AuthLoading` here, not yet `AuthUnauthenticated`) — overriding
-      // too early gets silently clobbered the moment that restore does
-      // resolve. Poll past it explicitly first.
       while (container.read(authProvider) is AuthLoading ||
           container.read(authProvider) is AuthInitial) {
         await tester.pump(const Duration(milliseconds: 10));
@@ -198,27 +188,12 @@ void main() {
       container.read(authProvider.notifier).state = AuthAuthenticated(_user);
       await tester.pumpAndSettle();
 
-      // The single hall and single menu both auto-select — same shortcut
-      // `restaurant_selection_progress_test.dart` already exercises
-      // directly; here it's just the setup for a populated context.
-      await tester.tap(find.text('Спросить менеджера'));
-      await tester.pumpAndSettle();
-
-      expect(find.byType(ManagerChatScreen), findsOneWidget);
-      expect(
-        find.descendant(
-          of: find.byType(ManagerChatScreen),
-          matching: find.text('Малый зал'),
-        ),
-        findsOneWidget,
-      );
-      expect(
-        find.descendant(
-          of: find.byType(ManagerChatScreen),
-          matching: find.text('Банкетное меню'),
-        ),
-        findsOneWidget,
-      );
+      expect(find.text('Спросить менеджера'), findsNothing);
+      expect(find.text('Ask the manager'), findsNothing);
+      expect(find.text('Panorama'), findsWidgets);
+      expect(find.text('Малый зал'), findsWidgets);
+      expect(find.text('Банкетное меню'), findsWidgets);
+      expect(tester.takeException(), isNull);
 
       container.dispose();
     },

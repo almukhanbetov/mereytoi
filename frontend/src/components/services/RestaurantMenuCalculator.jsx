@@ -1,7 +1,7 @@
 'use client';
 
 import { useMemo, useState } from 'react';
-import { T, useCart, useLang, useManagerChat } from '@/context/AppProviders';
+import { T, useCart, useLang } from '@/context/AppProviders';
 import { formatPrice } from '@/lib/format';
 import { flyToCart } from '@/lib/flyToCart';
 import AddToEventMenu from '@/components/profile/AddToEventMenu';
@@ -34,7 +34,6 @@ function isPerGuestUnit(unit) {
 export default function RestaurantMenuCalculator({ menu, hall, listing }) {
   const { lang } = useLang();
   const { addItem } = useCart();
-  const { openChat } = useManagerChat();
   const extras = [...(menu.extras || [])].sort((a, b) => a.sort_order - b.sort_order);
   const minGuests = menu.min_guests || 1;
   const maxGuests = menu.max_guests || undefined;
@@ -102,23 +101,6 @@ export default function RestaurantMenuCalculator({ menu, hall, listing }) {
     flyToCart(e.currentTarget);
     setAdded(true);
     setTimeout(() => setAdded(false), 2200);
-  }
-
-  function handleAskManager() {
-    if (!listing) return;
-    openChat({
-      listingId: listing.id,
-      listingName,
-      listingPrice: menu.price_per_guest,
-      categoryName,
-      hallId: hall?.id || menu.hall_id || null,
-      hallName: hall?.name_ru || null,
-      menuId: menu.id,
-      menuName: menu.name_ru,
-      menuPricePerGuest: menu.price_per_guest,
-      guestCount: guests,
-      estimatedTotal: breakdown.total,
-    });
   }
 
   return (
@@ -196,9 +178,6 @@ export default function RestaurantMenuCalculator({ menu, hall, listing }) {
               listingId={listing.id}
               variant={{ hallId: hall?.id || menu.hall_id || null, menuId: menu.id, guests, estimatedTotal: breakdown.total }}
             />
-            <button type="button" className="btn btn--outline" onClick={handleAskManager}>
-              <T ru="Спросить менеджера" kz="Менеджерден сұрау" />
-            </button>
           </div>
         )}
         <p className={`booking-added${added ? ' is-visible' : ''}`}>

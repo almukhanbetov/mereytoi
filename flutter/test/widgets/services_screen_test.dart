@@ -266,11 +266,14 @@ void main() {
     tester,
   ) async {
     final adapter = await pumpServices(tester);
-    expect(adapter.listingRequests.last.queryParameters, isEmpty);
+    expect(adapter.feedRequests.last.queryParameters, {'limit': 20});
 
     await tester.tap(find.text('Ведущие'));
     await tester.pumpAndSettle();
-    expect(adapter.listingRequests.last.queryParameters, {'category': 'hosts'});
+    expect(adapter.feedRequests.last.queryParameters, {
+      'limit': 20,
+      'category': 'hosts',
+    });
     expect(find.byType(ServicesCategoryTile), findsNothing);
     expect(find.byType(BackButton), findsOneWidget);
   });

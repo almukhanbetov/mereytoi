@@ -15,6 +15,8 @@ import 'package:shared_preferences/shared_preferences.dart';
 
 import '../helpers/city_fake_api.dart';
 
+import '../helpers/fake_catalog.dart';
+
 const _categories = [
   Category(
     id: 2,
@@ -85,6 +87,11 @@ Future<void> _pump(
         apiClientProvider.overrideWithValue(client),
         categoriesProvider.overrideWith((ref) => Future.value(_categories)),
         listingsProvider(null).overrideWith((ref) => Future.value(_all)),
+        fakeCatalog({
+          null: Future.value(_all),
+          'hosts': Future.value(_hosts),
+          'equipment': Future.value(_hosts),
+        }),
         listingsProvider('hosts').overrideWith((ref) => Future.value(_hosts)),
         listingsProvider(
           'equipment',

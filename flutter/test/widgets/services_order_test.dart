@@ -11,6 +11,8 @@ import 'package:mereytoi_app/state/listings_provider.dart';
 import 'package:mereytoi_app/widgets/service_card.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 
+import '../helpers/fake_catalog.dart';
+
 Listing _listing(int id, String name, double rating) => Listing.fromJson({
   'id': id,
   'category_id': 2,
@@ -44,6 +46,7 @@ void main() {
             (ref) => Future.value(const <Category>[]),
           ),
           listingsProvider(null).overrideWith((ref) => Future.value(fromApi)),
+          fakeCatalog({null: Future.value(fromApi)}),
         ],
         child: MaterialApp(theme: AppTheme.light, home: const ServicesScreen()),
       ),

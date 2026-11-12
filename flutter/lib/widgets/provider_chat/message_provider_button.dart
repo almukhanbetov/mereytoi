@@ -20,6 +20,7 @@ class MessageProviderButton extends StatelessWidget {
     this.listingId,
     this.listingName,
     this.listingPrice,
+    this.onOpen,
   });
 
   final int providerId;
@@ -30,21 +31,27 @@ class MessageProviderButton extends StatelessWidget {
   final String? listingName;
   final int? listingPrice;
 
+  /// Called when the chat is opened (ad statistics).
+  final VoidCallback? onOpen;
+
   @override
   Widget build(BuildContext context) {
     return OutlinedButton.icon(
-      onPressed: () => Navigator.of(context).push(
-        MaterialPageRoute(
-          builder: (_) => ProviderChatScreen(
-            providerId: providerId,
-            peerName: providerName,
-            peerAvatarUrl: providerAvatarUrl,
-            listingId: listingId,
-            listingName: listingName,
-            listingPrice: listingPrice,
+      onPressed: () {
+        onOpen?.call();
+        Navigator.of(context).push(
+          MaterialPageRoute(
+            builder: (_) => ProviderChatScreen(
+              providerId: providerId,
+              peerName: providerName,
+              peerAvatarUrl: providerAvatarUrl,
+              listingId: listingId,
+              listingName: listingName,
+              listingPrice: listingPrice,
+            ),
           ),
-        ),
-      ),
+        );
+      },
       style: OutlinedButton.styleFrom(
         minimumSize: const Size(0, 36),
         padding: const EdgeInsets.symmetric(horizontal: AppSpacing.sm),
