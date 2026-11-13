@@ -107,6 +107,16 @@ class _BusinessBody extends ConsumerWidget {
         ),
         children: [
           _ProfileHeader(locale: locale, profile: profile),
+          // Listings stay public either way; this only asks for contacts.
+          if (profile.phone.trim().isEmpty ||
+              profile.whatsapp.trim().isEmpty) ...[
+            const SizedBox(height: AppSpacing.md),
+            _AddContactsCard(
+              locale: locale,
+              onTap: () =>
+                  openProviderProfileFormSheet(context, existing: profile),
+            ),
+          ],
           const SizedBox(height: AppSpacing.lg),
           _HubTile(
             key: const ValueKey('business-services'),
@@ -211,6 +221,54 @@ class _BusinessBody extends ConsumerWidget {
             onTap: () => push(const ProviderStatisticsScreen()),
           ),
         ],
+      ),
+    );
+  }
+}
+
+/// «Добавьте телефон и WhatsApp…» for a provider whose clients have no way
+/// to reach them; opens the profile form.
+class _AddContactsCard extends StatelessWidget {
+  const _AddContactsCard({required this.locale, required this.onTap});
+
+  final AppLocale locale;
+  final VoidCallback onTap;
+
+  @override
+  Widget build(BuildContext context) {
+    final colors = context.mereytoiColors;
+    return Material(
+      key: const ValueKey('business-add-contacts'),
+      color: colors.goldPrimary.withValues(alpha: 0.10),
+      borderRadius: BorderRadius.circular(AppRadius.md),
+      child: InkWell(
+        borderRadius: BorderRadius.circular(AppRadius.md),
+        onTap: onTap,
+        child: Padding(
+          padding: const EdgeInsets.all(AppSpacing.md),
+          child: Row(
+            children: [
+              Icon(Icons.contact_phone_outlined, color: colors.goldPrimary),
+              const SizedBox(width: AppSpacing.sm),
+              Expanded(
+                child: Text(
+                  t(
+                    locale,
+                    ru:
+                        'Добавьте телефон и WhatsApp, чтобы клиенты могли '
+                        'связаться с вами',
+                    kz:
+                        'Клиенттер сізбен байланыса алуы үшін телефон мен '
+                        'WhatsApp қосыңыз',
+                    en: 'Add your phone and WhatsApp so clients can reach you',
+                  ),
+                  style: Theme.of(context).textTheme.bodyMedium,
+                ),
+              ),
+              Icon(Icons.chevron_right_rounded, color: colors.textMuted),
+            ],
+          ),
+        ),
       ),
     );
   }

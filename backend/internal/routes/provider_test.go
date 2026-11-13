@@ -2,6 +2,7 @@ package routes_test
 
 import (
 	"net/http"
+	"strconv"
 	"testing"
 
 	"github.com/almukhanbetov/mereytoi/backend/internal/models"
@@ -238,5 +239,80 @@ func TestUploadsRequireAuthNotAdmin(t *testing.T) {
 	status, _ = admin.do("POST", "/api/uploads/video", nil)
 	if status == http.StatusForbidden {
 		t.Fatalf("admin should still reach video upload, got %d", status)
+	}
+}
+
+// TestProviderContactsAreNormalized: phone and WhatsApp are stored in the
+// international format whatever way they were typed, a malformed number is
+// refused, and empty contacts still pass (app versions released before the
+// phone became required send them empty). Each listing exposes its own
+// provider's WhatsApp, never someone else's.
+func TestProviderContactsAreNormalized(t *testing.T) {
+	srv, db := setupTestServer(t)
+	base := srv.URL
+	a := registerUser(t, base, "Contacts A", "contacts-a@example.com")
+	b := registerUser(t, base, "Contacts B", "contacts-b@example.com")
+
+	status, out := a.do("POST", "/api/provider", map[string]any{
+		"display_name": "A", "phone": "8 (701) 123-45-67", "whatsapp": "+7 702 765 43 21",
+	})
+	if status != http.StatusCreated {
+		t.Fatalf("create: %d %v", status, out)
+	}
+	p := out["provider"].(map[string]any)
+	if p["phone"] != "+77011234567" || p["whatsapp"] != "+77027654321" {
+		t.Fatalf("not normalized: %v", p)
+	}
+
+	for _, body := range []map[string]any{
+		{"display_name": "A", "phone": "12345"},
+		{"display_name": "A", "phone": "+77011234567", "whatsapp": "call me"},
+	} {
+		if status, out := a.do("PUT", "/api/provider/me", body); status != http.StatusBadRequest {
+			t.Fatalf("malformed number accepted: %d %v", status, out)
+		}
+	}
+	var stored models.Provider
+	db.Where("display_name = ?", "A").First(&stored)
+	if stored.Phone != "+77011234567" {
+		t.Fatalf("a refused update changed the profile: %+v", stored)
+	}
+
+	// WhatsApp on the same number: the form sends it equal to the phone.
+	status, out = a.do("PUT", "/api/provider/me", map[string]any{
+		"display_name": "A", "phone": "7011234567", "whatsapp": "7011234567",
+	})
+	if status != http.StatusOK || out["provider"].(map[string]any)["whatsapp"] != "+77011234567" {
+		t.Fatalf("same-number update: %d %v", status, out)
+	}
+
+	// An older app: no contacts at all — still accepted, WhatsApp not invented.
+	status, out = b.do("POST", "/api/provider", map[string]any{"display_name": "B"})
+	if status != http.StatusCreated {
+		t.Fatalf("contactless create (older app): %d %v", status, out)
+	}
+	if pb := out["provider"].(map[string]any); (pb["phone"] != nil && pb["phone"] != "") || (pb["whatsapp"] != nil && pb["whatsapp"] != "") {
+		t.Fatalf("contacts invented: %v", pb)
+	}
+
+	category := models.Category{Slug: "contacts-test", NameRu: "К", NameKz: "К"}
+	db.Create(&category)
+	listingOf := func(c apiClient, name string) int {
+		status, out := c.do("POST", "/api/provider/me/listings", map[string]any{
+			"category_id": category.ID, "name_ru": name, "name_kz": name, "price": 1000, "city": "Алматы",
+		})
+		if status != http.StatusCreated {
+			t.Fatalf("listing: %d %v", status, out)
+		}
+		return int(out["listing"].(map[string]any)["id"].(float64))
+	}
+	la, lb := listingOf(a, "Listing A"), listingOf(b, "Listing B")
+	_, out = a.do("GET", "/api/listings/"+strconv.Itoa(la), nil)
+	if w := out["listing"].(map[string]any)["provider"].(map[string]any)["whatsapp"]; w != "+77011234567" {
+		t.Fatalf("listing A whatsapp: %v", w)
+	}
+	_, out = a.do("GET", "/api/listings/"+strconv.Itoa(lb), nil)
+	if w, has := out["listing"].(map[string]any)["provider"].(map[string]any)["whatsapp"]; has && w != "" {
+		t.Fatalf("listing B must have no WhatsApp, got %v", w)
 	}
 }

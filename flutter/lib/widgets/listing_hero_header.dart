@@ -4,6 +4,7 @@ import 'package:url_launcher/url_launcher.dart';
 
 import '../core/config/api_config.dart';
 import '../core/theme/app_theme.dart';
+import '../core/utils/phone.dart';
 import '../core/utils/whatsapp.dart';
 import '../models/listing.dart';
 import '../screens/provider/provider_profile_screen.dart';
@@ -220,9 +221,13 @@ List<Widget> listingHeroSlivers({
                     ),
                 ],
               ),
-              // «Спросить менеджера» is no longer on listing pages; the
-              // app's support chat stays reachable from Profile and the
-              // chat button. Direct contacts below are unchanged.
+              // Where «Спросить менеджера» used to be: WhatsApp of this
+              // listing's own provider, shown only when they have one.
+              // The app's support chat stays in Profile.
+              if (listingWhatsAppUri(listing, locale) != null) ...[
+                const SizedBox(height: AppSpacing.sm),
+                ListingWhatsAppButton(listing: listing, locale: locale),
+              ],
               // Этап 11 "Provider Marketplace" (Этап 11E QA finding: this
               // was missing from the Flutter side entirely — the model
               // parsed `provider` but no screen ever rendered it). Null
@@ -522,6 +527,46 @@ class _ProviderBlock extends ConsumerWidget {
             ],
           ),
         ],
+      ),
+    );
+  }
+}
+
+/// «Написать в WhatsApp» — opens WhatsApp to this listing's provider with a
+/// prepared message; the user still presses send. Never shown without the
+/// provider's own WhatsApp (see [listingWhatsAppUri]).
+class ListingWhatsAppButton extends ConsumerWidget {
+  const ListingWhatsAppButton({
+    super.key,
+    required this.listing,
+    required this.locale,
+  });
+
+  final Listing listing;
+  final AppLocale locale;
+
+  @override
+  Widget build(BuildContext context, WidgetRef ref) {
+    final uri = listingWhatsAppUri(listing, locale);
+    if (uri == null) return const SizedBox.shrink();
+    return SizedBox(
+      width: double.infinity,
+      child: ElevatedButton.icon(
+        key: const ValueKey('listing-whatsapp'),
+        style: ElevatedButton.styleFrom(minimumSize: const Size(0, 48)),
+        onPressed: () {
+          ref.read(adTrackerProvider).contact(listing.id, 'whatsapp');
+          launchUrl(uri, mode: LaunchMode.externalApplication);
+        },
+        icon: const Icon(Icons.chat_rounded, size: 18),
+        label: Text(
+          t(
+            locale,
+            ru: 'Написать в WhatsApp',
+            kz: 'WhatsApp-қа жазу',
+            en: 'Message on WhatsApp',
+          ),
+        ),
       ),
     );
   }

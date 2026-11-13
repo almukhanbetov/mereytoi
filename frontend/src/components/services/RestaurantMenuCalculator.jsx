@@ -2,6 +2,7 @@
 
 import { useMemo, useState } from 'react';
 import { T, useCart, useLang } from '@/context/AppProviders';
+import ListingWhatsAppButton from '@/components/services/ListingWhatsAppButton';
 import { formatPrice } from '@/lib/format';
 import { flyToCart } from '@/lib/flyToCart';
 import AddToEventMenu from '@/components/profile/AddToEventMenu';
@@ -178,6 +179,7 @@ export default function RestaurantMenuCalculator({ menu, hall, listing }) {
               listingId={listing.id}
               variant={{ hallId: hall?.id || menu.hall_id || null, menuId: menu.id, guests, estimatedTotal: breakdown.total }}
             />
+            <ListingWhatsAppButton listing={listing} lang={lang} />
           </div>
         )}
         <p className={`booking-added${added ? ' is-visible' : ''}`}>
