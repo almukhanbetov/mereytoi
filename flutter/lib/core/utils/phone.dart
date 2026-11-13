@@ -52,3 +52,13 @@ Uri? listingWhatsAppUri(Listing listing, AppLocale locale) {
   );
   return Uri.https('wa.me', '/${number.substring(1)}', {'text': text});
 }
+
+/// «Позвонить» for a listing: a `tel:` link to **this listing's own
+/// provider** phone. It opens the system dialer with the number filled in —
+/// the user still places the call. Null when that provider has no valid
+/// phone; never the listing's own phone, support's or anyone else's number.
+Uri? listingCallUri(Listing listing) {
+  final number = normalizePhone(listing.provider?.phone ?? '');
+  if (number == null || number.isEmpty) return null;
+  return Uri(scheme: 'tel', path: number);
+}

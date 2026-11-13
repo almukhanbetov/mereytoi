@@ -18,6 +18,7 @@ import 'network_image_box.dart';
 import 'photo_viewer_screen.dart';
 import 'provider_chat/message_provider_button.dart';
 import 'video_preview_card.dart';
+import 'whatsapp_glyph.dart';
 
 /// The shared "top of a listing detail page" — photo gallery hero, swipe
 /// gallery + thumbnail strip, category/title/rating/city/phone, and
@@ -221,12 +222,14 @@ List<Widget> listingHeroSlivers({
                     ),
                 ],
               ),
-              // Where «Спросить менеджера» used to be: WhatsApp of this
-              // listing's own provider, shown only when they have one.
-              // The app's support chat stays in Profile.
-              if (listingWhatsAppUri(listing, locale) != null) ...[
+              // Where «Спросить менеджера» used to be: «Позвонить» and
+              // «WhatsApp» of this listing's own provider, each shown only
+              // when that provider has that contact. The app's support chat
+              // stays in Profile.
+              if (listingCallUri(listing) != null ||
+                  listingWhatsAppUri(listing, locale) != null) ...[
                 const SizedBox(height: AppSpacing.sm),
-                ListingWhatsAppButton(listing: listing, locale: locale),
+                ListingContactButtons(listing: listing, locale: locale),
               ],
               // Этап 11 "Provider Marketplace" (Этап 11E QA finding: this
               // was missing from the Flutter side entirely — the model
@@ -532,11 +535,12 @@ class _ProviderBlock extends ConsumerWidget {
   }
 }
 
-/// «Написать в WhatsApp» — opens WhatsApp to this listing's provider with a
-/// prepared message; the user still presses send. Never shown without the
-/// provider's own WhatsApp (see [listingWhatsAppUri]).
-class ListingWhatsAppButton extends ConsumerWidget {
-  const ListingWhatsAppButton({
+/// «Позвонить» + «WhatsApp» of this listing's own provider, in one row with
+/// the same height and radius. Each button is independent: only a phone
+/// gives just the call, only a WhatsApp gives just WhatsApp; nothing at all
+/// renders without either. Never support's or another provider's contacts.
+class ListingContactButtons extends StatelessWidget {
+  const ListingContactButtons({
     super.key,
     required this.listing,
     required this.locale,
@@ -546,27 +550,181 @@ class ListingWhatsAppButton extends ConsumerWidget {
   final AppLocale locale;
 
   @override
-  Widget build(BuildContext context, WidgetRef ref) {
-    final uri = listingWhatsAppUri(listing, locale);
-    if (uri == null) return const SizedBox.shrink();
-    return SizedBox(
-      width: double.infinity,
-      child: ElevatedButton.icon(
-        key: const ValueKey('listing-whatsapp'),
-        style: ElevatedButton.styleFrom(minimumSize: const Size(0, 48)),
-        onPressed: () {
-          ref.read(adTrackerProvider).contact(listing.id, 'whatsapp');
-          launchUrl(uri, mode: LaunchMode.externalApplication);
-        },
-        icon: const Icon(Icons.chat_rounded, size: 18),
-        label: Text(
-          t(
-            locale,
-            ru: 'Написать в WhatsApp',
-            kz: 'WhatsApp-қа жазу',
-            en: 'Message on WhatsApp',
+  Widget build(BuildContext context) {
+    final hasCall = listingCallUri(listing) != null;
+    final hasWhatsApp = listingWhatsAppUri(listing, locale) != null;
+    if (!hasCall && !hasWhatsApp) return const SizedBox.shrink();
+    final call = ListingCallButton(listing: listing, locale: locale);
+    if (!hasWhatsApp) return call;
+    if (!hasCall) {
+      return ListingWhatsAppButton(listing: listing, locale: locale);
+    }
+    return Row(
+      children: [
+        Expanded(child: call),
+        const SizedBox(width: AppSpacing.xs),
+        Expanded(
+          child: ListingWhatsAppButton(
+            listing: listing,
+            locale: locale,
+            compact: true,
           ),
         ),
+      ],
+    );
+  }
+}
+
+/// «Позвонить» — opens the system dialer with this listing's provider phone
+/// filled in (`tel:`); the user places the call themselves. Never shown
+/// without the provider's own phone (see [listingCallUri]).
+class ListingCallButton extends StatelessWidget {
+  const ListingCallButton({
+    super.key,
+    required this.listing,
+    required this.locale,
+  });
+
+  final Listing listing;
+  final AppLocale locale;
+
+  @override
+  Widget build(BuildContext context) {
+    final uri = listingCallUri(listing);
+    if (uri == null) return const SizedBox.shrink();
+    final colors = context.mereytoiColors;
+    return _ContactButton(
+      key: const ValueKey('listing-call'),
+      listingId: listing.id,
+      uri: uri,
+      kind: 'call',
+      accent: colors.goldPrimary,
+      icon: Icon(Icons.call_rounded, size: 19, color: colors.goldPrimary),
+      label: t(locale, ru: 'Позвонить', kz: 'Қоңырау шалу', en: 'Call'),
+    );
+  }
+}
+
+/// «Написать в WhatsApp» — opens WhatsApp to this listing's provider with a
+/// prepared message; the user still presses send. Never shown without the
+/// provider's own WhatsApp (see [listingWhatsAppUri]). [compact] is the
+/// short «WhatsApp» label for the half-width button next to «Позвонить».
+class ListingWhatsAppButton extends StatelessWidget {
+  const ListingWhatsAppButton({
+    super.key,
+    required this.listing,
+    required this.locale,
+    this.compact = false,
+  });
+
+  final Listing listing;
+  final AppLocale locale;
+  final bool compact;
+
+  @override
+  Widget build(BuildContext context) {
+    final uri = listingWhatsAppUri(listing, locale);
+    if (uri == null) return const SizedBox.shrink();
+    final colors = context.mereytoiColors;
+    return _ContactButton(
+      key: const ValueKey('listing-whatsapp'),
+      listingId: listing.id,
+      uri: uri,
+      kind: 'whatsapp',
+      accent: colors.whatsapp,
+      icon: WhatsAppGlyph(color: colors.whatsapp, size: 20),
+      label: compact
+          ? 'WhatsApp'
+          : t(
+              locale,
+              ru: 'Написать в WhatsApp',
+              kz: 'WhatsApp-қа жазу',
+              en: 'Message on WhatsApp',
+            ),
+      semanticLabel: compact
+          ? t(
+              locale,
+              ru: 'Написать в WhatsApp',
+              kz: 'WhatsApp-қа жазу',
+              en: 'Message on WhatsApp',
+            )
+          : null,
+    );
+  }
+}
+
+/// One contact button: a soft tint of [accent], [accent] outline and icon,
+/// theme text colour (readable in light and dark). Opens [uri] outside the
+/// app; a second tap while the first launch is still starting is ignored, so
+/// a double tap neither opens two dialers nor counts two contacts.
+class _ContactButton extends ConsumerStatefulWidget {
+  const _ContactButton({
+    super.key,
+    required this.listingId,
+    required this.uri,
+    required this.kind,
+    required this.accent,
+    required this.icon,
+    required this.label,
+    this.semanticLabel,
+  });
+
+  final int listingId;
+  final Uri uri;
+  final String kind;
+  final Color accent;
+  final Widget icon;
+  final String label;
+  final String? semanticLabel;
+
+  @override
+  ConsumerState<_ContactButton> createState() => _ContactButtonState();
+}
+
+class _ContactButtonState extends ConsumerState<_ContactButton> {
+  bool _opening = false;
+
+  Future<void> _open() async {
+    if (_opening) return;
+    setState(() => _opening = true);
+    ref.read(adTrackerProvider).contact(widget.listingId, widget.kind);
+    try {
+      await launchUrl(widget.uri, mode: LaunchMode.externalApplication);
+    } catch (_) {
+      // No dialer / WhatsApp on the device: nothing to open, stay here.
+    } finally {
+      if (mounted) setState(() => _opening = false);
+    }
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final colors = context.mereytoiColors;
+    final text = Text(
+      widget.label,
+      maxLines: 1,
+      softWrap: false,
+      semanticsLabel: widget.semanticLabel,
+    );
+    return SizedBox(
+      width: double.infinity,
+      child: OutlinedButton.icon(
+        style: OutlinedButton.styleFrom(
+          minimumSize: const Size(0, 48),
+          padding: const EdgeInsets.symmetric(horizontal: AppSpacing.sm),
+          foregroundColor: colors.textPrimary,
+          backgroundColor: widget.accent.withValues(alpha: 0.10),
+          side: BorderSide(color: widget.accent.withValues(alpha: 0.55)),
+          shape: RoundedRectangleBorder(
+            borderRadius: BorderRadius.circular(AppRadius.md),
+          ),
+          textStyle: Theme.of(
+            context,
+          ).textTheme.labelLarge?.copyWith(fontWeight: FontWeight.w600),
+        ),
+        onPressed: _open,
+        icon: widget.icon,
+        label: FittedBox(fit: BoxFit.scaleDown, child: text),
       ),
     );
   }
