@@ -34,6 +34,18 @@ export function listingWhatsAppHref(listing, lang) {
   const url = `https://mereytoi.kz/services/${listing.id}`;
   const text = lang === 'kz'
     ? `Сәлеметсіз бе! MEREYTOI-дағы «${name}» бойынша жазып отырмын: ${url}`
-    : `Здравствуйте! Пишу по поводу «${name}» на MEREYTOI: ${url}`;
+    : lang === 'en'
+      ? `Hello! I’m writing about “${name}” on MEREYTOI: ${url}`
+      : `Здравствуйте! Пишу по поводу «${name}» на MEREYTOI: ${url}`;
   return `https://wa.me/${number.slice(1)}?text=${encodeURIComponent(text)}`;
+}
+
+// «Позвонить» for a listing: tel: of THIS listing's own provider phone — the
+// visitor's device opens its dialer and they place the call themselves.
+// null when that provider has no valid phone; never the listing's own phone,
+// support's or anyone else's number.
+export function listingCallHref(listing) {
+  const number = normalizePhone(listing?.provider?.phone || '');
+  if (!number) return null;
+  return `tel:${number}`;
 }

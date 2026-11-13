@@ -5,6 +5,7 @@
   --bg-alt: #121319;
   --bg-card: #16171f;
   --gold: #d4af6a;
+  --whatsapp: #34c76f;
   --gold-light: #f3d9a4;
   /* Ink on a gold fill. Disabled gold has its own pair: dimming the whole
      button with opacity left dark text on a dark fill (3.4:1). */
@@ -43,6 +44,7 @@
   --bg-alt: #f1e9d8;
   --bg-card: #ffffff;
   --gold: #b9863d;
+  --whatsapp: #138a43;
   --gold-light: #a86c2c;
   /* #17140d is 4.24:1 on the gradient's --gold-light end; this reaches 4.56:1. */
   --on-gold: #0d0a05;
@@ -168,6 +170,26 @@ img{ max-width: 100%; display:block; }
   background: var(--gold-disabled); color: var(--on-gold-disabled);
 }
 .btn--outline:disabled:hover{ transform:none; border-color: var(--outline-border); color: var(--text); }
+
+/* Listing «Позвонить» + «WhatsApp» of the listing's own provider — one row,
+   same height and radius, each tinted by its own accent (gold / green). The
+   row takes a full line of the actions block, so the cart button keeps its
+   place; when both labels don't fit in one row the buttons stack instead of
+   clipping. */
+.listing-contacts{ flex: 1 1 100%; display:flex; flex-wrap:wrap; gap:12px; width:100%; }
+.listing-contact{
+  /* Equal halves; a button never shrinks below its own content, so the two
+     stack only when both labels can't fit side by side. */
+  flex: 1 1 0; min-width: max-content; min-height:48px; padding: 12px 14px; gap:6px;
+  color: var(--text); font-size:14px;
+  background: color-mix(in srgb, var(--accent) 10%, transparent);
+  border-color: color-mix(in srgb, var(--accent) 55%, transparent);
+}
+.listing-contact:hover{ transform: translateY(-2px); background: color-mix(in srgb, var(--accent) 18%, transparent); border-color: var(--accent); }
+.listing-contact__icon{ flex-shrink:0; color: var(--accent); }
+.listing-contact__label{ white-space:nowrap; }
+.listing-contact--call{ --accent: var(--gold); }
+.listing-contact--whatsapp{ --accent: var(--whatsapp); }
 
 /* ============ Focus-visible (keyboard) ============ */
 /* One consistent gold keyboard-focus ring for every interactive control —
