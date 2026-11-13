@@ -35,9 +35,14 @@ void main() {
     );
   }
 
-  void fillAll(ProviderOnboardingController c, {int photos = 2}) {
+  void fillAll(
+    ProviderOnboardingController c, {
+    int photos = 2,
+    String? phone = '+7 701 111 22 33',
+  }) {
     c.selectCategory(2);
     c.setDisplayName('  Ерлан Тамада ');
+    if (phone != null) c.setPhone(phone);
     c.setDescription('Ведущий тоев');
     c.setExperience('7');
     c.setCity(_almaty);
@@ -62,6 +67,13 @@ void main() {
       c.setDisplayName('   ');
       expect(c.next(), isFalse); // blank name
       c.setDisplayName('Dana');
+      expect(c.next(), isFalse); // no phone
+      c.setPhone('12345');
+      expect(c.next(), isFalse); // not a phone number
+      c.setPhone('8 701 111 22 33');
+      c.setWhatsAppSame(false);
+      expect(c.next(), isFalse); // a separate WhatsApp, still empty
+      c.setWhatsApp('+7 702 765 43 21');
       expect(c.next(), isTrue);
 
       expect(s().step, 2);
@@ -209,7 +221,7 @@ void main() {
           'user_id': 1,
           'display_name': 'Old',
           'city': '',
-          'phone': '+7700',
+          'phone': '+7 700 000 00 09',
           'status': 'active',
         },
       );
@@ -220,19 +232,22 @@ void main() {
           displayName: 'Old',
           city: '',
           description: '',
-          phone: '+7700',
+          phone: '+7 700 000 00 09',
           whatsapp: '',
           telegram: '',
           avatarUrl: '',
           status: 'active',
         ),
       );
-      fillAll(c);
+      fillAll(c, phone: null);
       expect(await c.publish(), isTrue);
       expect(api.count('POST /api/provider'), 0);
       expect(api.count('PUT /api/provider/me'), 1);
       final body = api.bodies['PUT /api/provider/me']!.single! as Map;
-      expect(body['phone'], '+7700'); // existing contact kept
+      // The existing contact is kept, in the international format; with no
+      // WhatsApp saved yet the form's default is «на этом же номере».
+      expect(body['phone'], '+77000000009');
+      expect(body['whatsapp'], '+77000000009');
       expect(body['experience_years'], 7);
       expect(api.listings, hasLength(1));
     });

@@ -68,6 +68,21 @@ func (o *optionalInt) UnmarshalJSON(b []byte) error {
 	return nil
 }
 
+// contacts validates and normalizes the phone and WhatsApp of a profile
+// (see normalizeContactPhone). WhatsApp is never filled in from the phone
+// here: whether it's the same number is the owner's own choice in the form.
+func (in providerInput) contacts() (phone, whatsapp, errCode string) {
+	phone, ok := normalizeContactPhone(in.Phone)
+	if !ok {
+		return "", "", "invalid_phone"
+	}
+	whatsapp, ok = normalizeContactPhone(in.WhatsApp)
+	if !ok {
+		return "", "", "invalid_whatsapp"
+	}
+	return phone, whatsapp, ""
+}
+
 func validExperience(o optionalInt) bool {
 	return o.Value == nil || (*o.Value >= 0 && *o.Value <= maxExperienceYears)
 }
@@ -111,14 +126,19 @@ func (h *ProviderHandler) Create(c *gin.Context) {
 		c.JSON(http.StatusBadRequest, gin.H{"error": "invalid experience_years"})
 		return
 	}
+	phone, whatsapp, errCode := in.contacts()
+	if errCode != "" {
+		c.JSON(http.StatusBadRequest, gin.H{"error": errCode})
+		return
+	}
 
 	provider := models.Provider{
 		UserID:      userID,
 		DisplayName: displayName,
 		City:        in.City,
 		Description: in.Description,
-		Phone:       in.Phone,
-		WhatsApp:    in.WhatsApp,
+		Phone:       phone,
+		WhatsApp:    whatsapp,
 		Telegram:    in.Telegram,
 		AvatarURL:   in.AvatarURL,
 		// Owner always comes from the JWT (UserID above), never the body.
@@ -157,12 +177,17 @@ func (h *ProviderHandler) UpdateMe(c *gin.Context) {
 		c.JSON(http.StatusBadRequest, gin.H{"error": "invalid experience_years"})
 		return
 	}
+	phone, whatsapp, errCode := in.contacts()
+	if errCode != "" {
+		c.JSON(http.StatusBadRequest, gin.H{"error": errCode})
+		return
+	}
 
 	provider.DisplayName = displayName
 	provider.City = in.City
 	provider.Description = in.Description
-	provider.Phone = in.Phone
-	provider.WhatsApp = in.WhatsApp
+	provider.Phone = phone
+	provider.WhatsApp = whatsapp
 	provider.Telegram = in.Telegram
 	provider.AvatarURL = in.AvatarURL
 	if in.ExperienceYears.Set {

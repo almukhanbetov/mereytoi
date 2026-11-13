@@ -165,6 +165,8 @@ void main() {
       expect(find.text('Расскажите о себе'), findsOneWidget);
       expect(nextEnabled(tester), isFalse);
       await enter(tester, 'onboarding-name', 'Ерлан Тамада');
+      expect(nextEnabled(tester), isFalse); // the phone is required
+      await enter(tester, 'onboarding-phone', '8 701 111 22 33');
       await enter(tester, 'onboarding-description', 'Ведущий тоев');
       await enter(tester, 'onboarding-experience', '99');
       expect(find.text('От 0 до 80'), findsOneWidget);
@@ -231,7 +233,7 @@ void main() {
       expect(find.text('Опубликовать'), findsOneWidget);
       expect(
         tester.widget<Text>(find.byKey(const ValueKey('preview-meta'))).data,
-        'Ведущие · Алматы · опыт 7 лет',
+        'Ведущие · Алматы · опыт 7 лет · 8 701 111 22 33',
       );
       expect(
         tester
@@ -412,6 +414,10 @@ void main() {
     await tester.pump();
     await tapNext(tester);
     await tester.enterText(find.byKey(const ValueKey('onboarding-name')), 'Д');
+    await tester.enterText(
+      find.byKey(const ValueKey('onboarding-phone')),
+      '+7 701 111 22 33',
+    );
     await tester.pump();
     await tapNext(tester);
     await tester.tap(find.byKey(const ValueKey('onboarding-city')));
@@ -450,6 +456,7 @@ void main() {
         'city': 'Астана',
         'description': 'Ведущая',
         'experience_years': 3,
+        'phone': '+7 700 000 00 09',
         'status': 'active',
       },
     );
@@ -476,11 +483,19 @@ void main() {
   });
 
   group('business contact phone', () {
-    Future<void> publish(WidgetTester tester, {String? phone}) async {
+    Future<void> publish(
+      WidgetTester tester, {
+      String? phone,
+      String? whatsapp,
+    }) async {
       final c = containerOf(tester).read(providerOnboardingProvider.notifier);
       c.selectCategory(4);
       c.setDisplayName('Dana');
       if (phone != null) c.setPhone(phone);
+      if (whatsapp != null) {
+        c.setWhatsAppSame(false);
+        c.setWhatsApp(whatsapp);
+      }
       c.setCity(testCities.first);
       c.setServiceName('Шоу');
       c.setPrice('90000');
@@ -491,39 +506,66 @@ void main() {
       await tapNext(tester);
     }
 
-    testWidgets('optional, labelled as public, and starts empty', (
-      tester,
-    ) async {
+    testWidgets('required, labelled as public, starts empty; WhatsApp on '
+        'the same number by default', (tester) async {
       await pumpWizard(tester);
       final c = containerOf(tester).read(providerOnboardingProvider.notifier);
       c.selectCategory(4);
       c.next();
+      c.setDisplayName('Dana');
       await tester.pumpAndSettle();
       final field = find.byKey(const ValueKey('onboarding-phone'));
       await tester.ensureVisible(field);
       expect(find.text('Контактный телефон бизнеса'), findsOneWidget);
-      expect(
-        find.text('Необязательно. Номер будет виден клиентам'),
-        findsOneWidget,
-      );
+      expect(find.text('Номер будет виден клиентам'), findsOneWidget);
       // Never filled in from the account's private phone.
       expect(tester.widget<TextField>(field).controller!.text, isEmpty);
+      expect(nextEnabled(tester), isFalse);
+      final same = find.byKey(const ValueKey('onboarding-whatsapp-same'));
+      expect(tester.widget<SwitchListTile>(same).value, isTrue);
+      expect(find.byKey(const ValueKey('onboarding-whatsapp')), findsNothing);
+
+      await tester.enterText(field, '12345');
+      await tester.pumpAndSettle();
+      expect(find.text('Номер в формате +7 700 000 00 00'), findsOneWidget);
+      expect(nextEnabled(tester), isFalse);
+      await tester.enterText(field, '8 701 111 22 33');
+      await tester.pumpAndSettle();
+      expect(nextEnabled(tester), isTrue);
+
+      await tester.ensureVisible(same);
+      await tester.tap(same);
+      await tester.pumpAndSettle();
+      expect(find.text('Номер WhatsApp'), findsOneWidget);
+      expect(nextEnabled(tester), isFalse);
     });
 
-    testWidgets('a new profile can be published without it', (tester) async {
+    testWidgets('a new profile can\'t be published without it', (tester) async {
       final api = await pumpWizard(tester);
       await publish(tester);
-      expect(find.byType(ProviderOnboardingSuccessScreen), findsOneWidget);
-      expect((api.bodies['POST /api/provider']!.last! as Map)['phone'], '');
+      expect(state(tester).step, 1);
+      expect(api.count('POST /api/provider'), 0);
     });
 
-    testWidgets('a new profile saves the number', (tester) async {
+    testWidgets('a new profile saves it in the international format, '
+        'WhatsApp on the same number', (tester) async {
       final api = await pumpWizard(tester);
-      await publish(tester, phone: ' +7 701 111 22 33 ');
-      expect(
-        (api.bodies['POST /api/provider']!.last! as Map)['phone'],
-        '+7 701 111 22 33',
+      await publish(tester, phone: ' 8 (701) 111-22-33 ');
+      final body = api.bodies['POST /api/provider']!.last! as Map;
+      expect(body['phone'], '+77011112233');
+      expect(body['whatsapp'], '+77011112233');
+    });
+
+    testWidgets('a separate WhatsApp number is saved', (tester) async {
+      final api = await pumpWizard(tester);
+      await publish(
+        tester,
+        phone: '+7 701 111 22 33',
+        whatsapp: '8 702 765 43 21',
       );
+      final body = api.bodies['POST /api/provider']!.last! as Map;
+      expect(body['phone'], '+77011112233');
+      expect(body['whatsapp'], '+77027654321');
     });
 
     testWidgets('an existing number is prefilled, and can be changed', (
@@ -544,10 +586,9 @@ void main() {
       expect(state(tester).phone, '+7 700 000 00 09');
       await publish(tester, phone: '+7 700 000 00 10');
       expect(api.count('POST /api/provider'), 0);
-      expect(
-        (api.bodies['PUT /api/provider/me']!.last! as Map)['phone'],
-        '+7 700 000 00 10',
-      );
+      final body = api.bodies['PUT /api/provider/me']!.last! as Map;
+      expect(body['phone'], '+77000000010');
+      expect(body['whatsapp'], '+77000000010');
     });
   });
 
@@ -558,6 +599,7 @@ void main() {
     final c = containerOf(tester).read(providerOnboardingProvider.notifier);
     c.selectCategory(2);
     c.setDisplayName('Dana');
+    c.setPhone('+7 701 111 22 33');
     c.setCity(testCities.first);
     c.setServiceName('Шоу');
     c.setPrice('1000');
@@ -631,6 +673,7 @@ void main() {
               'Очень длинное название компании для проверки переносов строк',
             );
             c.setExperience('25');
+            c.setPhone('+7 701 111 22 33');
             c.setCity(testCities[3]); // Усть-Каменогорск / Өскемен
             c.addPhotos(tempPhotos(3));
             c.setServiceName(

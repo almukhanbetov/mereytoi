@@ -3,6 +3,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:image_picker/image_picker.dart';
 
 import '../core/network/api_exception.dart';
+import '../core/utils/phone.dart';
 import '../models/city.dart';
 import '../models/listing.dart';
 import '../models/provider_profile.dart';
@@ -45,6 +46,8 @@ class ProviderOnboardingState {
     this.description = '',
     this.experienceText = '',
     this.phone = '',
+    this.whatsapp = '',
+    this.whatsappSame = true,
     this.city,
     this.photos = const [],
     this.serviceName = '',
@@ -74,6 +77,12 @@ class ProviderOnboardingState {
   /// The business's public contact number: optional, and never filled in
   /// from the account's private phone.
   final String phone;
+
+  /// The separate WhatsApp number, used when [whatsappSame] is off.
+  final String whatsapp;
+
+  /// «WhatsApp на этом же номере».
+  final bool whatsappSame;
   final City? city;
   final List<OnboardingPhoto> photos;
   final String serviceName;
@@ -102,6 +111,20 @@ class ProviderOnboardingState {
     return text.isEmpty ? null : int.tryParse(text);
   }
 
+  /// The phone is required; WhatsApp is the same number or its own one.
+  bool get contactsValid {
+    final p = normalizePhone(phone);
+    if (p == null || p.isEmpty) return false;
+    if (whatsappSame) return true;
+    final w = normalizePhone(whatsapp);
+    return w != null && w.isNotEmpty;
+  }
+
+  /// Contacts as stored by the server (international format).
+  String get normalizedPhone => normalizePhone(phone) ?? '';
+  String get normalizedWhatsApp =>
+      whatsappSame ? normalizedPhone : (normalizePhone(whatsapp) ?? '');
+
   bool get experienceValid {
     final text = experienceText.trim();
     if (text.isEmpty) return true;
@@ -117,7 +140,9 @@ class ProviderOnboardingState {
       case 0:
         return categoryId != null;
       case 1:
-        return displayName.trim().isNotEmpty && experienceValid;
+        return displayName.trim().isNotEmpty &&
+            experienceValid &&
+            contactsValid;
       case 2:
         return city != null;
       case 3:
@@ -139,6 +164,8 @@ class ProviderOnboardingState {
     String? description,
     String? experienceText,
     String? phone,
+    String? whatsapp,
+    bool? whatsappSame,
     City? city,
     List<OnboardingPhoto>? photos,
     String? serviceName,
@@ -163,6 +190,8 @@ class ProviderOnboardingState {
       description: description ?? this.description,
       experienceText: experienceText ?? this.experienceText,
       phone: phone ?? this.phone,
+      whatsapp: whatsapp ?? this.whatsapp,
+      whatsappSame: whatsappSame ?? this.whatsappSame,
       city: city ?? this.city,
       photos: photos ?? this.photos,
       serviceName: serviceName ?? this.serviceName,
@@ -207,6 +236,8 @@ class ProviderOnboardingController
   void setDescription(String v) => state = state.copyWith(description: v);
   void setExperience(String v) => state = state.copyWith(experienceText: v);
   void setPhone(String v) => state = state.copyWith(phone: v);
+  void setWhatsApp(String v) => state = state.copyWith(whatsapp: v);
+  void setWhatsAppSame(bool v) => state = state.copyWith(whatsappSame: v);
   void setCity(City city) => state = state.copyWith(city: city);
   void setServiceName(String v) => state = state.copyWith(serviceName: v);
   void setServiceDescription(String v) =>
@@ -271,6 +302,10 @@ class ProviderOnboardingController
           ? '${provider.experienceYears}'
           : state.experienceText,
       phone: state.phone.isEmpty ? provider.phone : state.phone,
+      whatsapp: state.whatsapp.isEmpty ? provider.whatsapp : state.whatsapp,
+      whatsappSame:
+          provider.whatsapp.isEmpty ||
+          normalizePhone(provider.whatsapp) == normalizePhone(provider.phone),
       city: state.city ?? city,
     );
   }
@@ -332,9 +367,9 @@ class ProviderOnboardingController
           displayName: state.displayName.trim(),
           city: _cityName,
           description: state.description.trim(),
-          phone: state.phone.trim(),
+          phone: state.normalizedPhone,
+          whatsapp: state.normalizedWhatsApp,
           // Keep the other contact details the profile already has.
-          whatsapp: current.whatsapp,
           telegram: current.telegram,
           avatarUrl: current.avatarUrl,
           includeExperience: true,
@@ -350,7 +385,8 @@ class ProviderOnboardingController
           displayName: state.displayName.trim(),
           city: _cityName,
           description: state.description.trim(),
-          phone: state.phone.trim(),
+          phone: state.normalizedPhone,
+          whatsapp: state.normalizedWhatsApp,
           experienceYears: state.experienceYears,
         );
       } on ApiException catch (e) {

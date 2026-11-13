@@ -2,6 +2,7 @@
 
 import { useEffect, useState } from 'react';
 import PromotionPanel from '@/components/profile/PromotionPanel';
+import { normalizePhone } from '@/lib/phone';
 import { T, useLang } from '@/context/AppProviders';
 import { providerApi } from '@/lib/providerApi';
 import { formatPrice } from '@/lib/format';
@@ -10,7 +11,7 @@ import { isRestaurantCategory } from '@/lib/restaurantCategory';
 import ProviderServiceForm, { listingToPayload } from './ProviderServiceForm';
 import ProviderRestaurantManager from './ProviderRestaurantManager';
 
-const EMPTY_PROFILE = { display_name: '', city: '', description: '', experience_years: '', phone: '', whatsapp: '', telegram: '', avatar_url: '' };
+const EMPTY_PROFILE = { display_name: '', city: '', description: '', experience_years: '', phone: '', whatsapp: '', whatsapp_same: true, telegram: '', avatar_url: '' };
 
 // "Профиль → Стать услугодателем / Профиль услугодателя / Мои услуги / +
 // Добавить услугу" — Этап 11, brief section 10. One self-contained panel
@@ -73,6 +74,8 @@ export default function ProviderPanel() {
       experience_years: provider.experience_years ?? '',
       phone: provider.phone || '',
       whatsapp: provider.whatsapp || '',
+      // «WhatsApp на этом же номере»: on when there's none yet or it's the phone.
+      whatsapp_same: !provider.whatsapp || normalizePhone(provider.whatsapp) === normalizePhone(provider.phone),
       telegram: provider.telegram || '',
       avatar_url: provider.avatar_url || '',
     });
@@ -99,10 +102,25 @@ export default function ProviderPanel() {
   async function handleProfileSubmit(e) {
     e.preventDefault();
     setProfileError('');
+    // Phone required; WhatsApp is the same number or its own required one.
+    // Both go to the server in the international format.
+    const phone = normalizePhone(profileForm.phone);
+    if (!phone) {
+      setProfileError(lang === 'kz' ? 'Телефонды +7 700 000 00 00 форматында енгізіңіз' : 'Укажите телефон в формате +7 700 000 00 00');
+      return;
+    }
+    const whatsapp = profileForm.whatsapp_same ? phone : normalizePhone(profileForm.whatsapp);
+    if (!whatsapp) {
+      setProfileError(lang === 'kz' ? 'WhatsApp нөмірін +7 700 000 00 00 форматында енгізіңіз' : 'Укажите номер WhatsApp в формате +7 700 000 00 00');
+      return;
+    }
     setProfileSaving(true);
     try {
+      const { whatsapp_same: _same, ...rest } = profileForm;
       const payload = {
-        ...profileForm,
+        ...rest,
+        phone,
+        whatsapp,
         experience_years: profileForm.experience_years === '' ? null : Number(profileForm.experience_years),
       };
       const data = provider ? await providerApi.update(payload) : await providerApi.create(payload);
@@ -193,19 +211,23 @@ export default function ProviderPanel() {
           </label>
           <label>
             <span><T ru="Контактный телефон бизнеса" kz="Бизнестің байланыс телефоны" en="Business contact phone" /></span>
-            <input type="tel" value={profileForm.phone} onChange={(e) => setProfileForm((v) => ({ ...v, phone: e.target.value }))} placeholder="+7 700 000 00 00" />
-            <small><T ru="Необязательно. Номер будет виден клиентам" kz="Міндетті емес. Нөмірді клиенттер көреді" en="Optional. Clients will see this number" /></small>
+            <input type="tel" required value={profileForm.phone} onChange={(e) => setProfileForm((v) => ({ ...v, phone: e.target.value }))} placeholder="+7 700 000 00 00" />
+            <small><T ru="Номер будет виден клиентам" kz="Нөмірді клиенттер көреді" en="Clients will see this number" /></small>
           </label>
-          <div className="form-row">
+          <label style={{ flexDirection: 'row', alignItems: 'center', gap: 10 }}>
+            <input type="checkbox" style={{ width: 'auto' }} checked={profileForm.whatsapp_same} onChange={(e) => setProfileForm((v) => ({ ...v, whatsapp_same: e.target.checked }))} />
+            <span><T ru="WhatsApp на этом же номере" kz="WhatsApp осы нөмірде" en="WhatsApp on this same number" /></span>
+          </label>
+          {!profileForm.whatsapp_same && (
             <label>
-              <span>WhatsApp</span>
-              <input type="tel" value={profileForm.whatsapp} onChange={(e) => setProfileForm((v) => ({ ...v, whatsapp: e.target.value }))} placeholder="+7 700 000 00 00" />
+              <span><T ru="Номер WhatsApp" kz="WhatsApp нөмірі" en="WhatsApp number" /></span>
+              <input type="tel" required value={profileForm.whatsapp} onChange={(e) => setProfileForm((v) => ({ ...v, whatsapp: e.target.value }))} placeholder="+7 700 000 00 00" />
             </label>
-            <label>
-              <span>Telegram</span>
-              <input value={profileForm.telegram} onChange={(e) => setProfileForm((v) => ({ ...v, telegram: e.target.value }))} placeholder="@username" />
-            </label>
-          </div>
+          )}
+          <label>
+            <span>Telegram</span>
+            <input value={profileForm.telegram} onChange={(e) => setProfileForm((v) => ({ ...v, telegram: e.target.value }))} placeholder="@username" />
+          </label>
           <label>
             <span><T ru="Аватар / логотип" kz="Аватар / логотип" /></span>
             <input type="file" accept="image/png,image/jpeg,image/webp,image/gif" onChange={handleAvatarFile} disabled={avatarUploading} />
@@ -298,6 +320,21 @@ export default function ProviderPanel() {
               }}
               onClose={() => setManagingId(null)}
             />
+          )}
+
+          {(!provider.phone || !provider.whatsapp) && (
+            <div className="ws-empty" style={{ margin: '16px 0', padding: 18, textAlign: 'left' }}>
+              <p style={{ margin: '0 0 10px' }}>
+                <T
+                  ru="Добавьте телефон и WhatsApp, чтобы клиенты могли связаться с вами"
+                  kz="Клиенттер сізбен байланыса алуы үшін телефон мен WhatsApp қосыңыз"
+                  en="Add your phone and WhatsApp so clients can reach you"
+                />
+              </p>
+              <button type="button" className="btn btn--gold btn--sm" onClick={startEditProfile}>
+                <T ru="Добавить контакты" kz="Байланыс қосу" en="Add contacts" />
+              </button>
+            </div>
           )}
 
           {promoting && (

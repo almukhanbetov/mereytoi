@@ -360,9 +360,10 @@ void main() {
       await settle(tester);
 
       expect(api.count('PUT /api/provider/me'), 1);
-      expect(api.provider!['phone'], '+7 705 555 55 55');
+      // Saved in the international format, as typed digits.
+      expect(api.provider!['phone'], '+77055555555');
       await scrollTo(tester, number());
-      expect(tester.widget<Text>(number()).data, '+7 705 555 55 55');
+      expect(tester.widget<Text>(number()).data, '+77055555555');
       await scrollTo(tester, find.byKey(const ValueKey('service-name')));
       expect(find.text('Черновик'), findsOneWidget);
       // The number belongs to the business, not to the service.

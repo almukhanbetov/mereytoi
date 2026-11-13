@@ -6,6 +6,7 @@ import 'package:image_picker/image_picker.dart';
 import '../../../../core/config/api_config.dart';
 import '../../../../core/theme/app_theme.dart';
 import '../../../../core/utils/error_messages.dart';
+import '../../../../core/utils/phone.dart';
 import '../../../../models/city.dart';
 import '../../../../models/provider_profile.dart';
 import '../../../../state/locale_provider.dart';
@@ -57,6 +58,10 @@ class _ProviderProfileFormSheetState
   late final TextEditingController _whatsapp;
   late final TextEditingController _telegram;
   late String _avatarUrl;
+
+  /// «WhatsApp на этом же номере». On for a new profile and for one whose
+  /// WhatsApp equals its phone; off shows the separate WhatsApp field.
+  late bool _whatsappSame;
   bool _avatarUploading = false;
   bool _saving = false;
   String? _error;
@@ -72,6 +77,10 @@ class _ProviderProfileFormSheetState
       text: e?.experienceYears == null ? '' : '${e!.experienceYears}',
     );
     _phone = TextEditingController(text: e?.phone ?? '');
+    final storedWhatsApp = e?.whatsapp ?? '';
+    _whatsappSame =
+        storedWhatsApp.isEmpty ||
+        normalizePhone(storedWhatsApp) == normalizePhone(e?.phone ?? '');
     _whatsapp = TextEditingController(text: e?.whatsapp ?? '');
     _telegram = TextEditingController(text: e?.telegram ?? '');
     _avatarUrl = e?.avatarUrl ?? '';
@@ -126,6 +135,27 @@ class _ProviderProfileFormSheetState
     super.dispose();
   }
 
+  /// Required, and must be a phone number (see [normalizePhone]).
+  String? _phoneError(AppLocale locale, String? v) {
+    final n = normalizePhone(v ?? '');
+    if (n == null || n.isEmpty) {
+      return (v ?? '').trim().isEmpty
+          ? t(
+              locale,
+              ru: 'Укажите номер',
+              kz: 'Нөмірді енгізіңіз',
+              en: 'Enter the number',
+            )
+          : t(
+              locale,
+              ru: 'Номер в формате +7 700 000 00 00',
+              kz: 'Нөмір +7 700 000 00 00 форматында',
+              en: 'Number like +7 700 000 00 00',
+            );
+    }
+    return null;
+  }
+
   Future<void> _save() async {
     if (!_formKey.currentState!.validate()) return;
     if (_avatarUploading) return;
@@ -133,6 +163,9 @@ class _ProviderProfileFormSheetState
       _saving = true;
       _error = null;
     });
+    // Validated above, so both parse; stored in the international format.
+    final phone = normalizePhone(_phone.text)!;
+    final whatsapp = _whatsappSame ? phone : normalizePhone(_whatsapp.text)!;
     try {
       final actions = ref.read(providerActionsProvider);
       if (widget.existing == null) {
@@ -140,8 +173,8 @@ class _ProviderProfileFormSheetState
           displayName: _displayName.text.trim(),
           city: _pickedCity?.nameRu ?? _storedCity,
           description: _description.text.trim(),
-          phone: _phone.text.trim(),
-          whatsapp: _whatsapp.text.trim(),
+          phone: phone,
+          whatsapp: whatsapp,
           telegram: _telegram.text.trim(),
           avatarUrl: _avatarUrl,
           experienceYears: int.tryParse(_experience.text.trim()),
@@ -151,8 +184,8 @@ class _ProviderProfileFormSheetState
           displayName: _displayName.text.trim(),
           city: _pickedCity?.nameRu ?? _storedCity,
           description: _description.text.trim(),
-          phone: _phone.text.trim(),
-          whatsapp: _whatsapp.text.trim(),
+          phone: phone,
+          whatsapp: whatsapp,
           telegram: _telegram.text.trim(),
           avatarUrl: _avatarUrl,
           includeExperience: true,
@@ -358,37 +391,59 @@ class _ProviderProfileFormSheetState
             hintText: '+7 700 000 00 00',
             helperText: t(
               locale,
-              ru: 'Необязательно. Номер будет виден клиентам',
-              kz: 'Міндетті емес. Нөмірді клиенттер көреді',
-              en: 'Optional. Clients will see this number',
+              ru: 'Номер будет виден клиентам',
+              kz: 'Нөмірді клиенттер көреді',
+              en: 'Clients will see this number',
             ),
             helperMaxLines: 2,
           ),
+          // Re-checked as the number is typed, so a stale error from an
+          // earlier «Сохранить» doesn't stay under a now valid number.
+          autovalidateMode: AutovalidateMode.onUserInteraction,
+          validator: (v) => _phoneError(locale, v),
+          onChanged: (_) => setState(() {}),
         ),
-        const SizedBox(height: AppSpacing.sm),
-        Row(
-          children: [
-            Expanded(
-              child: TextFormField(
-                controller: _whatsapp,
-                keyboardType: TextInputType.phone,
-                decoration: const InputDecoration(
-                  labelText: 'WhatsApp',
-                  hintText: '+7 700 000 00 00',
-                ),
-              ),
+        SwitchListTile(
+          key: const ValueKey('provider-profile-whatsapp-same'),
+          contentPadding: EdgeInsets.zero,
+          value: _whatsappSame,
+          onChanged: (v) => setState(() => _whatsappSame = v),
+          title: Text(
+            t(
+              locale,
+              ru: 'WhatsApp на этом же номере',
+              kz: 'WhatsApp осы нөмірде',
+              en: 'WhatsApp on this same number',
             ),
-            const SizedBox(width: AppSpacing.sm),
-            Expanded(
-              child: TextFormField(
-                controller: _telegram,
-                decoration: const InputDecoration(
-                  labelText: 'Telegram',
-                  hintText: '@username',
-                ),
+          ),
+        ),
+        if (!_whatsappSame) ...[
+          TextFormField(
+            key: const ValueKey('provider-profile-whatsapp'),
+            controller: _whatsapp,
+            keyboardType: TextInputType.phone,
+            maxLength: 30,
+            decoration: InputDecoration(
+              counterText: '',
+              labelText: t(
+                locale,
+                ru: 'Номер WhatsApp',
+                kz: 'WhatsApp нөмірі',
+                en: 'WhatsApp number',
               ),
+              hintText: '+7 700 000 00 00',
             ),
-          ],
+            autovalidateMode: AutovalidateMode.onUserInteraction,
+            validator: (v) => _phoneError(locale, v),
+          ),
+          const SizedBox(height: AppSpacing.sm),
+        ],
+        TextFormField(
+          controller: _telegram,
+          decoration: const InputDecoration(
+            labelText: 'Telegram',
+            hintText: '@username',
+          ),
         ),
       ],
     );

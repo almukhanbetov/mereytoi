@@ -95,6 +95,8 @@ final _provider = <String, dynamic>{
   'display_name': 'Очень длинное название компании услугодателя для проверки',
   'city': 'Усть-Каменогорск',
   'experience_years': 7,
+  'phone': '+77011234567',
+  'whatsapp': '+77011234567',
   'status': 'active',
 };
 
@@ -150,6 +152,7 @@ void main() {
     Size size = const Size(390, 844),
     ThemeData Function()? theme,
     AppLocale locale = AppLocale.ru,
+    Map<String, dynamic>? provider,
   }) async {
     SharedPreferences.setMockInitialValues({
       if (locale != AppLocale.ru) 'app_locale_v1': locale.name,
@@ -159,7 +162,7 @@ void main() {
     addTearDown(tester.view.reset);
 
     final (client, api) = fakeProviderApi(
-      existingProvider: isProvider ? Map.of(_provider) : null,
+      existingProvider: isProvider ? Map.of(provider ?? _provider) : null,
     );
     if (isProvider) {
       api.listings
@@ -540,6 +543,107 @@ void main() {
       final body = api.bodies['PUT /api/provider/me']!.last as Map;
       expect(body['city'], 'Усть-Каменогорск');
       expect(api.calls, isNot(contains('POST /api/provider')));
+    });
+
+    testWidgets('no contacts: the prompt opens the form; phone required, '
+        'WhatsApp on the same number, saved in the international format', (
+      tester,
+    ) async {
+      final contactless = Map.of(_provider)
+        ..remove('phone')
+        ..remove('whatsapp');
+      final (_, api) = await pump(
+        tester,
+        const MyBusinessScreen(),
+        isProvider: true,
+        provider: contactless,
+      );
+      final prompt = find.byKey(const ValueKey('business-add-contacts'));
+      expect(prompt, findsOneWidget);
+      expect(
+        find.text(
+          'Добавьте телефон и WhatsApp, чтобы клиенты могли связаться с вами',
+        ),
+        findsOneWidget,
+      );
+      await tester.tap(prompt);
+      await tester.pumpAndSettle();
+      expect(find.byType(ProviderProfileFormSheet), findsOneWidget);
+
+      final save = find.text('Сохранить');
+      await tester.ensureVisible(save);
+      await tester.tap(save);
+      await tester.pumpAndSettle();
+      expect(find.text('Укажите номер'), findsOneWidget);
+      expect(api.count('PUT /api/provider/me'), 0);
+
+      final phone = find.byKey(const ValueKey('provider-profile-phone'));
+      await tester.enterText(phone, '12345');
+      await tester.ensureVisible(save);
+      await tester.tap(save);
+      await tester.pumpAndSettle();
+      expect(find.text('Номер в формате +7 700 000 00 00'), findsOneWidget);
+      expect(api.count('PUT /api/provider/me'), 0);
+
+      await tester.enterText(phone, '8 (701) 123-45-67');
+      await tester.pumpAndSettle();
+      // The error from the last attempt goes as soon as the number is valid.
+      expect(find.text('Номер в формате +7 700 000 00 00'), findsNothing);
+      expect(
+        tester
+            .widget<SwitchListTile>(
+              find.byKey(const ValueKey('provider-profile-whatsapp-same')),
+            )
+            .value,
+        isTrue,
+      );
+      expect(
+        find.byKey(const ValueKey('provider-profile-whatsapp')),
+        findsNothing,
+      );
+      await tester.ensureVisible(save);
+      await tester.tap(save);
+      await tester.pumpAndSettle();
+      final body = api.bodies['PUT /api/provider/me']!.single as Map;
+      expect(body['phone'], '+77011234567');
+      expect(body['whatsapp'], '+77011234567');
+      // Listings were never hidden; now the prompt goes away.
+      expect(find.byKey(const ValueKey('business-add-contacts')), findsNothing);
+    });
+
+    testWidgets('a separate WhatsApp number is required and normalized', (
+      tester,
+    ) async {
+      final (_, api) = await pump(
+        tester,
+        const MyBusinessScreen(),
+        isProvider: true,
+      );
+      expect(find.byKey(const ValueKey('business-add-contacts')), findsNothing);
+      await openTile(tester, 'business-profile');
+      final same = find.byKey(const ValueKey('provider-profile-whatsapp-same'));
+      await tester.ensureVisible(same);
+      await tester.tap(same);
+      await tester.pumpAndSettle();
+      final wa = find.byKey(const ValueKey('provider-profile-whatsapp'));
+      expect(wa, findsOneWidget);
+      expect(find.text('Номер WhatsApp'), findsOneWidget);
+      await tester.enterText(wa, '');
+
+      final save = find.text('Сохранить');
+      await tester.ensureVisible(save);
+      await tester.tap(save);
+      await tester.pumpAndSettle();
+      expect(find.text('Укажите номер'), findsOneWidget);
+      expect(api.count('PUT /api/provider/me'), 0);
+
+      await tester.enterText(wa, '+7 702 765 43 21');
+      await tester.ensureVisible(save);
+      await tester.tap(save);
+      await tester.pumpAndSettle();
+      final body = api.bodies['PUT /api/provider/me']!.single as Map;
+      expect(body['phone'], '+77011234567');
+      expect(body['whatsapp'], '+77027654321');
     });
 
     testWidgets('Профиль → existing provider profile form', (tester) async {

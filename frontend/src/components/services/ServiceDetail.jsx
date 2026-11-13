@@ -7,6 +7,7 @@ import ServiceCard from '@/components/services/ServiceCard';
 import CommentsSection from '@/components/services/CommentsSection';
 import { T, useLang, useCart } from '@/context/AppProviders';
 import { adPromotionFor, recordPromotionEvent } from '@/lib/promotionApi';
+import ListingWhatsAppButton from '@/components/services/ListingWhatsAppButton';
 import { formatPrice } from '@/lib/format';
 import { mediaUrl } from '@/lib/media';
 import { flyToCart } from '@/lib/flyToCart';
@@ -181,6 +182,7 @@ export default function ServiceDetail({ listing, related }) {
                 </a>
               )}
               <AddToEventMenu listingId={listing.id} />
+              <ListingWhatsAppButton listing={listing} lang={lang} />
             </div>
             <p className={`booking-added${added ? ' is-visible' : ''}`}>
               <T ru="Добавлено в корзину!" kz="Себетке қосылды!" />

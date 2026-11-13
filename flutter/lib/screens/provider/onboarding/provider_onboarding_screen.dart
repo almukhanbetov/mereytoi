@@ -7,6 +7,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../../core/theme/app_theme.dart';
 import '../../../core/utils/error_messages.dart';
 import '../../../core/utils/format.dart';
+import '../../../core/utils/phone.dart';
 import '../../../domain/restaurant/restaurant_category.dart';
 import '../../../models/category.dart';
 import '../../../models/listing.dart';
@@ -66,6 +67,7 @@ class _ProviderOnboardingScreenState
   final _description = TextEditingController();
   final _experience = TextEditingController();
   final _phone = TextEditingController();
+  final _whatsapp = TextEditingController();
   final _serviceName = TextEditingController();
   final _serviceDescription = TextEditingController();
   final _price = TextEditingController();
@@ -92,6 +94,7 @@ class _ProviderOnboardingScreenState
       if (_description.text.isEmpty) _description.text = s.description;
       if (_experience.text.isEmpty) _experience.text = s.experienceText;
       if (_phone.text.isEmpty) _phone.text = s.phone;
+      if (_whatsapp.text.isEmpty) _whatsapp.text = s.whatsapp;
     } catch (_) {
       // No profile info — the wizard simply starts empty.
     }
@@ -104,6 +107,7 @@ class _ProviderOnboardingScreenState
       _description,
       _experience,
       _phone,
+      _whatsapp,
       _serviceName,
       _serviceDescription,
       _price,
@@ -182,6 +186,7 @@ class _ProviderOnboardingScreenState
                     description: _description,
                     experience: _experience,
                     phone: _phone,
+                    whatsapp: _whatsapp,
                   ),
                   _CityStep(locale: locale),
                   _PhotosStep(locale: locale),
@@ -479,6 +484,7 @@ class _ProfileStep extends ConsumerWidget {
     required this.description,
     required this.experience,
     required this.phone,
+    required this.whatsapp,
   });
 
   final AppLocale locale;
@@ -486,11 +492,21 @@ class _ProfileStep extends ConsumerWidget {
   final TextEditingController description;
   final TextEditingController experience;
   final TextEditingController phone;
+  final TextEditingController whatsapp;
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
     final valid = ref.watch(
       providerOnboardingProvider.select((s) => s.experienceValid),
+    );
+    final phoneText = ref.watch(
+      providerOnboardingProvider.select((s) => s.phone),
+    );
+    final whatsappText = ref.watch(
+      providerOnboardingProvider.select((s) => s.whatsapp),
+    );
+    final whatsappSame = ref.watch(
+      providerOnboardingProvider.select((s) => s.whatsappSame),
     );
     final notifier = ref.read(providerOnboardingProvider.notifier);
     return _StepScaffold(
@@ -574,18 +590,61 @@ class _ProfileStep extends ConsumerWidget {
           hint: '+7 700 000 00 00',
           helperText: t(
             locale,
-            ru: 'Необязательно. Номер будет виден клиентам',
-            kz: 'Міндетті емес. Нөмірді клиенттер көреді',
-            en: 'Optional. Clients will see this number',
+            ru: 'Номер будет виден клиентам',
+            kz: 'Нөмірді клиенттер көреді',
+            en: 'Clients will see this number',
           ),
+          errorText: _formatError(locale, phoneText),
           controller: phone,
           keyboardType: TextInputType.phone,
           maxLength: 30,
           onChanged: notifier.setPhone,
         ),
+        SwitchListTile(
+          key: const ValueKey('onboarding-whatsapp-same'),
+          contentPadding: EdgeInsets.zero,
+          value: whatsappSame,
+          onChanged: notifier.setWhatsAppSame,
+          title: Text(
+            t(
+              locale,
+              ru: 'WhatsApp на этом же номере',
+              kz: 'WhatsApp осы нөмірде',
+              en: 'WhatsApp on this same number',
+            ),
+          ),
+        ),
+        if (!whatsappSame)
+          ProviderTextField(
+            fieldKey: const ValueKey('onboarding-whatsapp'),
+            label: t(
+              locale,
+              ru: 'Номер WhatsApp',
+              kz: 'WhatsApp нөмірі',
+              en: 'WhatsApp number',
+            ),
+            hint: '+7 700 000 00 00',
+            errorText: _formatError(locale, whatsappText),
+            controller: whatsapp,
+            keyboardType: TextInputType.phone,
+            maxLength: 30,
+            onChanged: notifier.setWhatsApp,
+          ),
       ],
     );
   }
+}
+
+/// A typed number that can't be a phone; nothing while it's still empty
+/// (the step's «Далее» stays disabled until the phone is filled in).
+String? _formatError(AppLocale locale, String text) {
+  if (text.trim().isEmpty || normalizePhone(text) != null) return null;
+  return t(
+    locale,
+    ru: 'Номер в формате +7 700 000 00 00',
+    kz: 'Нөмір +7 700 000 00 00 форматында',
+    en: 'Number like +7 700 000 00 00',
+  );
 }
 
 // ---------------------------------------------------------------- step 3
