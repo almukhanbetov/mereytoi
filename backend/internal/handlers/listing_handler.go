@@ -3,6 +3,7 @@ package handlers
 import (
 	"net/http"
 	"strconv"
+	"time"
 
 	"github.com/gin-gonic/gin"
 	"gorm.io/gorm"
@@ -110,7 +111,10 @@ func catalogQuery(db *gorm.DB, c *gin.Context) (query *gorm.DB, empty bool, stat
 		cityID = id
 	}
 
-	query = db.Model(&models.Listing{}).Where("is_active = ?", true)
+	// Published, not hidden by an administrator, owner not blocked — see
+	// visibility.go. This one query also feeds GET /api/listings/feed and
+	// so its ads.
+	query = db.Model(&models.Listing{}).Scopes(publicListingScope(time.Now()))
 
 	if slug := c.Query("category"); slug != "" {
 		var category models.Category
@@ -131,7 +135,7 @@ func catalogQuery(db *gorm.DB, c *gin.Context) (query *gorm.DB, empty bool, stat
 		// SQLite's LOWER() lacks) over the handful of distinct stored
 		// values, and the query then filters by those exact raw strings.
 		var stored []string
-		if err := db.Model(&models.Listing{}).Where("is_active = ?", true).
+		if err := db.Model(&models.Listing{}).Scopes(publicListingScope(time.Now())).
 			Distinct("city").Pluck("city", &stored).Error; err != nil {
 			return nil, false, http.StatusInternalServerError, "failed to fetch listings"
 		}
@@ -408,6 +412,13 @@ func (h *ListingHandler) Get(c *gin.Context) {
 		c.JSON(http.StatusNotFound, gin.H{"error": "listing not found"})
 		return
 	}
+	// Hidden by an administrator or owner blocked: a visitor gets the same
+	// 404 as for a listing that doesn't exist; the owner/managers and admins
+	// still see it (visibility.go).
+	if listingHiddenFromRequester(c, h.DB, listing.ID) {
+		c.JSON(http.StatusNotFound, gin.H{"error": "listing not found"})
+		return
+	}
 
 	halls, menus := loadListingTree(h.DB, listing.ID)
 	provider := loadListingProvider(h.DB, listing.ID)
@@ -445,7 +456,7 @@ func (h *ListingHandler) Menus(c *gin.Context) {
 		c.JSON(http.StatusBadRequest, gin.H{"error": "invalid id"})
 		return
 	}
-	if err := h.DB.First(&models.Listing{}, id).Error; err != nil {
+	if err := h.DB.First(&models.Listing{}, id).Error; err != nil || listingHiddenFromRequester(c, h.DB, uint(id)) {
 		c.JSON(http.StatusNotFound, gin.H{"error": "listing not found"})
 		return
 	}
@@ -462,7 +473,7 @@ func (h *ListingHandler) Halls(c *gin.Context) {
 		c.JSON(http.StatusBadRequest, gin.H{"error": "invalid id"})
 		return
 	}
-	if err := h.DB.First(&models.Listing{}, id).Error; err != nil {
+	if err := h.DB.First(&models.Listing{}, id).Error; err != nil || listingHiddenFromRequester(c, h.DB, uint(id)) {
 		c.JSON(http.StatusNotFound, gin.H{"error": "listing not found"})
 		return
 	}

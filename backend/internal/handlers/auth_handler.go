@@ -1,6 +1,7 @@
 package handlers
 
 import (
+	"errors"
 	"net/http"
 	"strings"
 	"time"
@@ -121,7 +122,7 @@ func (h *AuthHandler) Register(c *gin.Context) {
 
 	token, err := h.issueToken(user)
 	if err != nil {
-		c.JSON(http.StatusInternalServerError, gin.H{"error": "failed to issue token"})
+		respondTokenError(c, err)
 		return
 	}
 
@@ -205,7 +206,7 @@ func (h *AuthHandler) Login(c *gin.Context) {
 
 	token, err := h.issueToken(user)
 	if err != nil {
-		c.JSON(http.StatusInternalServerError, gin.H{"error": "failed to issue token"})
+		respondTokenError(c, err)
 		return
 	}
 
@@ -303,7 +304,7 @@ func (h *AuthHandler) Claim(c *gin.Context) {
 
 	jwtToken, err := h.issueToken(user)
 	if err != nil {
-		c.JSON(http.StatusInternalServerError, gin.H{"error": "failed to issue token"})
+		respondTokenError(c, err)
 		return
 	}
 
@@ -396,13 +397,53 @@ func (h *AuthHandler) UpdateDeliveryPreference(c *gin.Context) {
 }
 
 func (h *AuthHandler) issueToken(user models.User) (string, error) {
-	return issueJWT(h.JWTSecret, user)
+	return issueJWT(h.DB, h.JWTSecret, user)
+}
+
+// accountBlockedError — issueJWT refuses an account under an
+// administrator's block in force; the caller answers 403 account_blocked
+// (respondTokenError). Only reached after the caller has authenticated the
+// person (a correct password, claim link or recovery code), so it doesn't
+// tell a stranger whether an account exists.
+type accountBlockedError struct {
+	Until  *time.Time
+	Reason string
+}
+
+func (e *accountBlockedError) Error() string { return "account_blocked" }
+
+// respondTokenError answers a failed issueJWT.
+func respondTokenError(c *gin.Context, err error) {
+	var blocked *accountBlockedError
+	if errors.As(err, &blocked) {
+		c.JSON(http.StatusForbidden, gin.H{
+			"error":         "account_blocked",
+			"blocked_until": blocked.Until,
+			"reason":        blocked.Reason,
+		})
+		return
+	}
+	c.JSON(http.StatusInternalServerError, gin.H{"error": "failed to issue token"})
 }
 
 // issueJWT is the one place a session token is minted. "iat" (whole Unix
 // seconds) is what middleware.RequireAuth compares against
-// users.password_changed_at.
-func issueJWT(secret string, user models.User) (string, error) {
+// users.password_changed_at. The block is re-read from the database here
+// rather than trusted from the passed struct, which some callers load with
+// a column subset: no token is ever minted for a blocked account.
+func issueJWT(db *gorm.DB, secret string, user models.User) (string, error) {
+	var row struct {
+		BlockedAt    *time.Time
+		BlockedUntil *time.Time
+		BlockReason  string
+	}
+	if err := db.Model(&models.User{}).Select("blocked_at", "blocked_until", "block_reason").
+		Where("id = ?", user.ID).Take(&row).Error; err != nil {
+		return "", err
+	}
+	if models.BlockActive(row.BlockedAt, row.BlockedUntil, time.Now().UTC()) {
+		return "", &accountBlockedError{Until: row.BlockedUntil, Reason: row.BlockReason}
+	}
 	claims := jwt.MapClaims{
 		"sub":  user.ID,
 		"role": user.Role,

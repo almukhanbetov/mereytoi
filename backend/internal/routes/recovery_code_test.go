@@ -498,3 +498,48 @@ func TestPasswordPolicyForNewPasswordsOnly(t *testing.T) {
 		t.Fatalf("change to a short password: %d %v", st, out)
 	}
 }
+
+// A blocked account recovering with its backup code gets no session: the
+// password reset itself goes through (the person proved the code), but no
+// token is minted while the block holds.
+func TestBlockedAccountRecoveryGetsNoToken(t *testing.T) {
+	e := newRecEnv(t, nil)
+	r := e.register("blocked-rec@test.local", "", "oldpass1")
+	now := time.Now().UTC()
+	until := now.Add(24 * time.Hour)
+	if err := e.db.Model(&models.User{}).Where("id = ?", r.id).Updates(map[string]any{
+		"blocked_at": now, "blocked_until": until, "block_reason": "test",
+	}).Error; err != nil {
+		t.Fatal(err)
+	}
+	st, out := e.recover("blocked-rec@test.local", r.code, "NewPass123")
+	if st != http.StatusForbidden || out["error"] != "account_blocked" || out["token"] != nil ||
+		out["password_reset"] != true || out["reason"] != "test" {
+		t.Fatalf("recovery while blocked: %d %v", st, out)
+	}
+	// The spent code was rotated: the new one is handed over (the owner
+	// proved the account), the old one no longer works.
+	newCode, _ := out["recovery_code"].(string)
+	if newCode == "" || newCode == r.code {
+		t.Fatalf("new backup code not returned: %v", out)
+	}
+	if st, _ := e.recover("blocked-rec@test.local", r.code, "Other12345"); st == http.StatusOK || st == http.StatusForbidden {
+		t.Fatalf("spent code accepted again: %d", st)
+	}
+	if st, _ := e.me(r.token); st != http.StatusUnauthorized {
+		t.Fatalf("old token while blocked: %d", st)
+	}
+	// The password did change and the block stays: the new password is
+	// right (403 blocked, not 401), the old one is wrong.
+	if st := e.login("blocked-rec@test.local", "NewPass123"); st != http.StatusForbidden {
+		t.Fatalf("login with the new password while blocked: %d", st)
+	}
+	if st := e.login("blocked-rec@test.local", "oldpass1"); st != http.StatusUnauthorized {
+		t.Fatalf("login with the old password: %d", st)
+	}
+	var u models.User
+	e.db.First(&u, r.id)
+	if u.BlockedAt == nil || u.BlockedUntil == nil || !u.BlockedUntil.Equal(until) && u.BlockedUntil.Sub(until).Abs() > time.Second {
+		t.Fatalf("recovery lifted or changed the block: %v %v", u.BlockedAt, u.BlockedUntil)
+	}
+}

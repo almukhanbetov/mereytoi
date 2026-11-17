@@ -24,6 +24,16 @@ type Listing struct {
 	ImageURLs     []string  `gorm:"serializer:json" json:"image_urls"`
 	VideoURLs     []string  `gorm:"serializer:json" json:"video_urls"`
 	IsActive      bool      `gorm:"not null;default:true" json:"is_active"`
+	// ModerationHiddenAt/ModerationReason/ModeratedBy — an administrator's
+	// hiding (handlers/admin_users.go), kept apart from IsActive so the
+	// owner's own publish switch is never overwritten and can't undo it:
+	// listingInput has no such fields. While set, the listing is out of the
+	// catalog, feed and ads, and its page 404s for visitors (see
+	// handlers/visibility.go). The reason is admin-only — it's not in the
+	// public JSON, which also reaches clients through their bookings.
+	ModerationHiddenAt *time.Time `json:"moderation_hidden_at,omitempty"`
+	ModerationReason   string     `gorm:"size:1000" json:"-"`
+	ModeratedBy        *uint      `json:"-"`
 	// ViewCount — how many times the listing's page was opened, see
 	// handlers.RecordView, the only writer. Not part of listingInput.
 	ViewCount uint      `gorm:"not null;default:0" json:"view_count"`

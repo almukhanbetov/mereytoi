@@ -81,7 +81,11 @@ export const adminApi = {
   updateCategory: (id, payload) => request(`/api/categories/${id}`, { method: 'PUT', body: payload, auth: true }),
   deleteCategory: (id) => request(`/api/categories/${id}`, { method: 'DELETE', auth: true }),
   listings: () => request('/api/listings'),
-  listing: (id) => request(`/api/listings/${id}`),
+  // Signed in: a listing that's unpublished, hidden by an administrator or
+  // whose owner is blocked 404s for visitors, but its owner/managers and
+  // admins (web admin edit, restaurant tabs, provider restaurant manager)
+  // still read it — the server decides by the session.
+  listing: (id) => request(`/api/listings/${id}`, { auth: true }),
   createListing: (payload) => request('/api/listings', { method: 'POST', body: payload, auth: true }),
   updateListing: (id, payload) => request(`/api/listings/${id}`, { method: 'PUT', body: payload, auth: true }),
   deleteListing: (id) => request(`/api/listings/${id}`, { method: 'DELETE', auth: true }),

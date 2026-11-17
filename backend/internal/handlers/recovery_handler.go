@@ -61,10 +61,13 @@ func (h *RecoveryHandler) Recover(c *gin.Context) {
 		recoveryError(c, err)
 		return
 	}
-	token, err := issueJWT(h.JWTSecret, res.User)
+	token, err := issueJWT(h.DB, h.JWTSecret, res.User)
 	if err != nil {
 		// The password did change; the client can still sign in with it.
-		c.JSON(http.StatusInternalServerError, gin.H{"error": "failed to issue token"})
+		// A blocked account (it proved ownership with the code) keeps the
+		// new password and its new backup code, gets no session, and stays
+		// blocked.
+		respondRecoveredButNoToken(c, err, recoverycode.Format(res.Code))
 		return
 	}
 	c.JSON(http.StatusOK, gin.H{
@@ -170,10 +173,13 @@ func (h *RecoveryHandler) SupportReset(c *gin.Context) {
 		recoveryError(c, err)
 		return
 	}
-	token, err := issueJWT(h.JWTSecret, res.User)
+	token, err := issueJWT(h.DB, h.JWTSecret, res.User)
 	if err != nil {
 		// The password did change; the client can still sign in with it.
-		c.JSON(http.StatusInternalServerError, gin.H{"error": "failed to issue token"})
+		// A blocked account (it proved ownership with the code) keeps the
+		// new password and its new backup code, gets no session, and stays
+		// blocked.
+		respondRecoveredButNoToken(c, err, recoverycode.Format(res.Code))
 		return
 	}
 	c.JSON(http.StatusOK, gin.H{
@@ -386,4 +392,24 @@ func (h *RecoveryHandler) EmailOTPReset(c *gin.Context) {
 		return
 	}
 	c.JSON(http.StatusOK, gin.H{"status": "ok"})
+}
+
+// respondRecoveredButNoToken answers a recovery whose password change went
+// through but whose session couldn't be issued. For a blocked account that
+// is 403 account_blocked plus password_reset and the freshly rotated backup
+// code — the old one is spent, so withholding it would leave the owner
+// without any; anything else is the usual 500.
+func respondRecoveredButNoToken(c *gin.Context, err error, recoveryCode string) {
+	var blocked *accountBlockedError
+	if errors.As(err, &blocked) {
+		c.JSON(http.StatusForbidden, gin.H{
+			"error":          "account_blocked",
+			"blocked_until":  blocked.Until,
+			"reason":         blocked.Reason,
+			"password_reset": true,
+			"recovery_code":  recoveryCode,
+		})
+		return
+	}
+	respondTokenError(c, err)
 }

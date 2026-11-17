@@ -63,6 +63,13 @@ const (
 	NotifTaskCompleted      = "task_completed"
 	NotifMemberJoined       = "member_joined"
 	NotifMemberRoleChanged  = "member_role_changed"
+
+	// Account sanctions by an administrator (handlers/admin_users.go). The
+	// payload carries the reason (and blocked_until for a block); ActorID is
+	// left NULL so the user isn't shown which administrator acted.
+	NotifAdminWarning     = "admin_warning"
+	NotifAccountBlocked   = "account_blocked"
+	NotifAccountUnblocked = "account_unblocked"
 )
 
 // 10B types — request lifecycle + manager decisions.

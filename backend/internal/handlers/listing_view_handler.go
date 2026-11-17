@@ -44,7 +44,7 @@ func (h *ListingHandler) RecordView(c *gin.Context) {
 	}
 
 	var listing models.Listing
-	if err := h.DB.Where("is_active = ?", true).First(&listing, id).Error; err != nil {
+	if err := h.DB.Where("is_active = ?", true).First(&listing, id).Error; err != nil || listingRestricted(h.DB, listing.ID, time.Now()) {
 		c.JSON(http.StatusNotFound, gin.H{"error": "listing not found"})
 		return
 	}

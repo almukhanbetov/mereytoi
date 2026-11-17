@@ -141,15 +141,21 @@ func RegisterWithOptions(r *gin.Engine, database *gorm.DB, cfg config.Config, op
 	if opts.Now != nil {
 		promotionHandler.Now = opts.Now
 	}
+	adminHandler := handlers.NewAdminHandler(database)
+	if opts.Now != nil {
+		adminHandler.Now = opts.Now
+	}
 
 	r.GET("/api/health", func(c *gin.Context) {
 		c.JSON(http.StatusOK, gin.H{"status": "ok"})
 	})
 
 	api := r.Group("/api")
-	// Every RequireAuth/OptionalAuth below also rejects a token issued
-	// before the user's last password change (see PasswordSessionValidator).
-	api.Use(middleware.WithSessionValidator(handlers.PasswordSessionValidator(database)))
+	// Every RequireAuth/OptionalAuth below re-reads the account: a token of
+	// a deleted or blocked account, or one minted before the last password
+	// change, is refused, and the role comes from the database (see
+	// AccountSessionValidator).
+	api.Use(middleware.WithSessionValidator(handlers.AccountSessionValidator(database, opts.Now)))
 	{
 		auth := api.Group("/auth")
 		{
@@ -230,15 +236,18 @@ func RegisterWithOptions(r *gin.Engine, database *gorm.DB, cfg config.Config, op
 			// Paged catalog with paid ads ("Реклама") placed by
 			// internal/promotion; same filters as the plain list above.
 			listings.GET("/feed", promotionHandler.Feed)
-			listings.GET("/:id", listingHandler.Get)
+			// OptionalAuth on the public reads below: a listing hidden by an
+			// administrator or whose owner is blocked 404s for visitors but
+			// stays visible to its own owner/managers and admins.
+			listings.GET("/:id", middleware.OptionalAuth(cfg.JWTSecret), listingHandler.Get)
 			listings.POST("/:id/view", middleware.OptionalAuth(cfg.JWTSecret), listingHandler.RecordView)
-			listings.GET("/:id/comments", commentHandler.ListApproved)
+			listings.GET("/:id/comments", middleware.OptionalAuth(cfg.JWTSecret), commentHandler.ListApproved)
 			listings.POST("/:id/comments", middleware.RequireAuth(cfg.JWTSecret), commentHandler.Create)
 			// Restaurant/venue halls & menus — public read (brief section
 			// 9's "отдельным endpoint menus"/halls; List above never loads
 			// this tree, only aggregates — see listing_handler.go).
-			listings.GET("/:id/halls", listingHandler.Halls)
-			listings.GET("/:id/menus", listingHandler.Menus)
+			listings.GET("/:id/halls", middleware.OptionalAuth(cfg.JWTSecret), listingHandler.Halls)
+			listings.GET("/:id/menus", middleware.OptionalAuth(cfg.JWTSecret), listingHandler.Menus)
 
 			// Global-admin-only: creating/deleting the listing record itself,
 			// and assigning who owns/manages it (Этап 5 — there's no
@@ -561,6 +570,21 @@ func RegisterWithOptions(r *gin.Engine, database *gorm.DB, cfg config.Config, op
 			promotions.POST("/webhooks/google", promotionHandler.GoogleNotification)
 			promotions.POST("/webhooks/apple", promotionHandler.AppleNotification)
 		}
+		// Administration of people and listings — see handlers/admin_users.go.
+		// Every change is written with its admin_audit_events row.
+		adminPeople := api.Group("/admin")
+		adminPeople.Use(middleware.RequireAuth(cfg.JWTSecret), middleware.RequireAdmin())
+		{
+			adminPeople.GET("/users", adminHandler.SearchUsers)
+			adminPeople.GET("/users/:id", adminHandler.GetUser)
+			adminPeople.POST("/users/:id/warn", adminHandler.WarnUser)
+			adminPeople.POST("/users/:id/block", adminHandler.BlockUser)
+			adminPeople.POST("/users/:id/unblock", adminHandler.UnblockUser)
+			adminPeople.POST("/listings/:id/hide", adminHandler.HideListing)
+			adminPeople.POST("/listings/:id/restore", adminHandler.RestoreListing)
+			adminPeople.GET("/audit-events", adminHandler.AuditEvents)
+		}
+
 		adminPromotions := api.Group("/admin/promotions")
 		adminPromotions.Use(middleware.RequireAuth(cfg.JWTSecret), middleware.RequireAdmin())
 		{
