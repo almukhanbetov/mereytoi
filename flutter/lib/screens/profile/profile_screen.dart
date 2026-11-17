@@ -8,6 +8,8 @@ import '../../domain/event/event_status.dart';
 import '../../models/user.dart';
 import '../../state/app_mode_provider.dart';
 import '../../state/auth_provider.dart';
+import '../../state/admin_providers.dart';
+import '../admin/admin_home_screen.dart';
 import '../../state/categories_provider.dart';
 import '../../state/event_providers.dart';
 import '../../state/listings_provider.dart';
@@ -613,6 +615,11 @@ class _ProfileBodyState extends ConsumerState<_ProfileBody>
         // sees this section at all once GET /api/users/me/listings
         // actually returns at least one assigned listing — never a dead
         // end for a user who manages nothing. ----
+        // ---- Администрирование — the mobile admin panel, administrators
+        // only (the server re-checks the role on every admin request; the
+        // panel closes itself if the rights go). Russian-only by agreement.
+        if (ref.watch(isAdminProvider)) const _AdminEntrySection(),
+
         if (user.isAdmin)
           _RestaurantsEntrySection(
             sectionTitle: t(
@@ -780,6 +787,81 @@ class _ProfileBodyState extends ConsumerState<_ProfileBody>
 /// owner/manager one, which differ only in copy, never in behavior (both
 /// open the same [RestaurantAdminListScreen], scoped server-side by
 /// `GET /api/users/me/listings`).
+/// «Администрирование» entry with the count of new reports.
+class _AdminEntrySection extends ConsumerWidget {
+  const _AdminEntrySection();
+
+  @override
+  Widget build(BuildContext context, WidgetRef ref) {
+    final newReports = ref.watch(adminSummaryProvider).valueOrNull?.reportsNew;
+    final colors = context.mereytoiColors;
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        const _SectionTitle('Администрирование'),
+        AppCard(
+          padding: EdgeInsets.zero,
+          child: InkWell(
+            key: const ValueKey('profile-admin-entry'),
+            borderRadius: BorderRadius.circular(AppRadius.lg),
+            onTap: () => Navigator.of(context)
+                .push(
+                  MaterialPageRoute(builder: (_) => const AdminHomeScreen()),
+                )
+                .then((_) => ref.invalidate(adminSummaryProvider)),
+            child: ConstrainedBox(
+              constraints: const BoxConstraints(minHeight: 56),
+              child: Padding(
+                padding: const EdgeInsets.all(AppSpacing.md),
+                child: Row(
+                  children: [
+                    Icon(
+                      Icons.admin_panel_settings_outlined,
+                      size: 18,
+                      color: colors.textSecondary,
+                    ),
+                    const SizedBox(width: AppSpacing.xs),
+                    Expanded(
+                      child: Text(
+                        'Жалобы, пользователи, журнал',
+                        style: Theme.of(context).textTheme.bodyLarge,
+                      ),
+                    ),
+                    if ((newReports ?? 0) > 0)
+                      Container(
+                        key: const ValueKey('profile-admin-badge'),
+                        padding: const EdgeInsets.symmetric(
+                          horizontal: 8,
+                          vertical: 2,
+                        ),
+                        decoration: BoxDecoration(
+                          color: colors.error,
+                          borderRadius: BorderRadius.circular(AppRadius.chip),
+                        ),
+                        child: Text(
+                          '$newReports',
+                          style: Theme.of(
+                            context,
+                          ).textTheme.labelSmall?.copyWith(color: Colors.white),
+                        ),
+                      ),
+                    Icon(
+                      Icons.chevron_right_rounded,
+                      size: 18,
+                      color: colors.textMuted,
+                    ),
+                  ],
+                ),
+              ),
+            ),
+          ),
+        ),
+        const SizedBox(height: AppSpacing.lg),
+      ],
+    );
+  }
+}
+
 class _RestaurantsEntrySection extends StatelessWidget {
   const _RestaurantsEntrySection({
     required this.sectionTitle,
