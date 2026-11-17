@@ -3,6 +3,7 @@ package middleware
 import (
 	"net/http"
 	"strings"
+	"time"
 
 	"github.com/gin-gonic/gin"
 	"github.com/golang-jwt/jwt/v5"
@@ -13,17 +14,30 @@ const ContextUserRoleKey = "userRole"
 
 const contextSessionValidatorKey = "sessionValidator"
 
-// SessionValidator reports whether a signature-valid token for userID,
-// issued at issuedAt (Unix seconds, the JWT "iat"), may still be used —
-// false once the user's password has changed since (see
-// handlers.PasswordSessionValidator).
-type SessionValidator func(userID uint, issuedAt int64) bool
+// Session is a SessionValidator's verdict on one signature-valid token.
+// Valid=false rejects it with Error ("session_expired" — retired by a
+// password change, or the account is gone; "account_blocked" — an
+// administrator's block is in force, BlockedUntil nil meaning indefinite).
+// Role is the account's role read from the database at this request, which
+// replaces the JWT's "role" claim: granting or revoking admin takes effect
+// on the very next request, not when the token expires.
+type Session struct {
+	Valid        bool
+	Role         string
+	Error        string
+	BlockedUntil *time.Time
+}
+
+// SessionValidator decides whether a signature-valid token for userID,
+// issued at issuedAt (Unix seconds, the JWT "iat"), may still be used (see
+// handlers.AccountSessionValidator).
+type SessionValidator func(userID uint, issuedAt int64) Session
 
 // WithSessionValidator makes v available to RequireAuth/OptionalAuth for
 // every route below it. Installed once on the /api group, so none of the
 // individual RequireAuth call sites need to know about it; without it
-// (e.g. a test building a bare route), tokens are only signature-checked,
-// exactly as before.
+// (e.g. a test building a bare route), tokens are only signature-checked
+// and the role comes from the token, exactly as before.
 func WithSessionValidator(v SessionValidator) gin.HandlerFunc {
 	return func(c *gin.Context) {
 		c.Set(contextSessionValidatorKey, v)
@@ -31,18 +45,33 @@ func WithSessionValidator(v SessionValidator) gin.HandlerFunc {
 	}
 }
 
-// sessionStillValid applies the installed SessionValidator, if any.
-func sessionStillValid(c *gin.Context, userID uint, claims jwt.MapClaims) bool {
+// checkSession applies the installed SessionValidator, if any. Without one
+// the token's own role claim stands.
+func checkSession(c *gin.Context, userID uint, claims jwt.MapClaims) Session {
+	role, _ := claims["role"].(string)
 	v, ok := c.Get(contextSessionValidatorKey)
 	if !ok {
-		return true
+		return Session{Valid: true, Role: role}
 	}
 	validate, ok := v.(SessionValidator)
 	if !ok || validate == nil {
-		return true
+		return Session{Valid: true, Role: role}
 	}
 	iat, _ := claims["iat"].(float64)
 	return validate(userID, int64(iat))
+}
+
+// rejection is the 401 body for an invalid session.
+func rejection(s Session) gin.H {
+	code := s.Error
+	if code == "" {
+		code = "session_expired"
+	}
+	body := gin.H{"error": code}
+	if code == "account_blocked" {
+		body["blocked_until"] = s.BlockedUntil
+	}
+	return body
 }
 
 // RequireAuth validates the Bearer JWT and stores the user id/role in the
@@ -66,13 +95,13 @@ func RequireAuth(secret string) gin.HandlerFunc {
 		}
 
 		userID, _ := claims["sub"].(float64)
-		role, _ := claims["role"].(string)
-		if !sessionStillValid(c, uint(userID), claims) {
-			c.AbortWithStatusJSON(http.StatusUnauthorized, gin.H{"error": "session_expired"})
+		session := checkSession(c, uint(userID), claims)
+		if !session.Valid {
+			c.AbortWithStatusJSON(http.StatusUnauthorized, rejection(session))
 			return
 		}
 		c.Set(ContextUserIDKey, uint(userID))
-		c.Set(ContextUserRoleKey, role)
+		c.Set(ContextUserRoleKey, session.Role)
 		c.Next()
 	}
 }
@@ -93,14 +122,14 @@ func OptionalAuth(secret string) gin.HandlerFunc {
 		token, err := jwt.ParseWithClaims(tokenString, claims, func(t *jwt.Token) (interface{}, error) {
 			return []byte(secret), nil
 		})
-		// A token retired by a password change is treated like no token
-		// at all: the request carries on as a guest.
+		// A token retired by a password change, of a deleted or blocked
+		// account, is treated like no token at all: the request carries on
+		// as a guest.
 		if err == nil && token.Valid {
 			userID, _ := claims["sub"].(float64)
-			role, _ := claims["role"].(string)
-			if sessionStillValid(c, uint(userID), claims) {
+			if session := checkSession(c, uint(userID), claims); session.Valid {
 				c.Set(ContextUserIDKey, uint(userID))
-				c.Set(ContextUserRoleKey, role)
+				c.Set(ContextUserRoleKey, session.Role)
 			}
 		}
 		c.Next()

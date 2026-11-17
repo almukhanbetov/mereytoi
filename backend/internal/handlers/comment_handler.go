@@ -28,6 +28,13 @@ func (h *CommentHandler) ListApproved(c *gin.Context) {
 		return
 	}
 
+	// Reviews of a listing visitors can't see (hidden by an administrator,
+	// owner blocked) aren't served either; they stay stored.
+	if listingHiddenFromRequester(c, h.DB, uint(listingID)) {
+		c.JSON(http.StatusNotFound, gin.H{"error": "listing not found"})
+		return
+	}
+
 	var comments []models.Comment
 	if err := h.DB.
 		Where("listing_id = ? AND approved = ?", listingID, true).
@@ -69,7 +76,7 @@ func (h *CommentHandler) Create(c *gin.Context) {
 	}
 
 	var listing models.Listing
-	if err := h.DB.First(&listing, listingID).Error; err != nil {
+	if err := h.DB.First(&listing, listingID).Error; err != nil || listingHiddenFromRequester(c, h.DB, listing.ID) {
 		c.JSON(http.StatusNotFound, gin.H{"error": "listing not found"})
 		return
 	}

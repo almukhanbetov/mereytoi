@@ -2,6 +2,7 @@ package handlers
 
 import (
 	"net/http"
+	"time"
 
 	"github.com/gin-gonic/gin"
 	"gorm.io/gorm"
@@ -68,7 +69,8 @@ func (h *PublicProviderHandler) Get(c *gin.Context) {
 	}
 
 	var provider models.Provider
-	if err := h.DB.Where("status = ?", models.ProviderStatusActive).First(&provider, id).Error; err != nil {
+	// A blocked owner's profile 404s like a suspended one (visibility.go).
+	if err := h.DB.Where("status = ?", models.ProviderStatusActive).First(&provider, id).Error; err != nil || userBlockedNow(h.DB, provider.UserID) {
 		c.JSON(http.StatusNotFound, gin.H{"error": "provider not found"})
 		return
 	}
@@ -82,7 +84,7 @@ func (h *PublicProviderHandler) Get(c *gin.Context) {
 
 	var listings []models.Listing
 	if len(listingIDs) > 0 {
-		h.DB.Where("id IN ? AND is_active = ?", listingIDs, true).Order("rating desc").Find(&listings)
+		h.DB.Where("id IN ?", listingIDs).Scopes(publicListingScope(time.Now())).Order("rating desc").Find(&listings)
 	}
 	out := attachListingCounts(h.DB, listings)
 

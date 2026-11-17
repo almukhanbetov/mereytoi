@@ -9,7 +9,6 @@ import (
 	"github.com/gin-gonic/gin"
 	"gorm.io/gorm"
 
-	"github.com/almukhanbetov/mereytoi/backend/internal/middleware"
 	"github.com/almukhanbetov/mereytoi/backend/internal/models"
 	"github.com/almukhanbetov/mereytoi/backend/internal/passwordreset"
 	"github.com/almukhanbetov/mereytoi/backend/internal/ratelimit"
@@ -194,9 +193,9 @@ func (h *PasswordHandler) ChangePassword(c *gin.Context) {
 		c.JSON(http.StatusInternalServerError, gin.H{"error": "failed to load user"})
 		return
 	}
-	token, err := issueJWT(h.JWTSecret, user)
+	token, err := issueJWT(h.DB, h.JWTSecret, user)
 	if err != nil {
-		c.JSON(http.StatusInternalServerError, gin.H{"error": "failed to issue token"})
+		respondTokenError(c, err)
 		return
 	}
 	c.JSON(http.StatusOK, gin.H{"message": "password_changed", "token": token})
@@ -216,25 +215,5 @@ func passwordError(c *gin.Context, err error) {
 		c.JSON(http.StatusForbidden, gin.H{"error": "not_allowed"})
 	default:
 		c.JSON(http.StatusInternalServerError, gin.H{"error": "failed to change password"})
-	}
-}
-
-// PasswordSessionValidator retires every token issued before the user's
-// last password change: valid iff iat >= password_changed_at in whole
-// seconds, so a token minted in the same second as the change (the one
-// ChangePassword returns) still works. Users who never changed their
-// password, and ids with no row (unchanged behaviour), pass; a database
-// error fails closed.
-func PasswordSessionValidator(db *gorm.DB) middleware.SessionValidator {
-	return func(userID uint, issuedAt int64) bool {
-		var row struct{ PasswordChangedAt *time.Time }
-		err := db.Model(&models.User{}).Select("password_changed_at").Where("id = ?", userID).Take(&row).Error
-		if errors.Is(err, gorm.ErrRecordNotFound) {
-			return true
-		}
-		if err != nil {
-			return false
-		}
-		return row.PasswordChangedAt == nil || issuedAt >= row.PasswordChangedAt.Unix()
 	}
 }

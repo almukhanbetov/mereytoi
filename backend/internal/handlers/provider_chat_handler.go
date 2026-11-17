@@ -97,7 +97,7 @@ func (h *ProviderChatHandler) Start(c *gin.Context) {
 	// provider profile, not a client-supplied number that happens to
 	// collide with someone's Provider.ID.
 	var provider models.Provider
-	if err := h.DB.Where("status = ?", models.ProviderStatusActive).First(&provider, in.ProviderID).Error; err != nil {
+	if err := h.DB.Where("status = ?", models.ProviderStatusActive).First(&provider, in.ProviderID).Error; err != nil || userBlockedNow(h.DB, provider.UserID) {
 		c.JSON(http.StatusBadRequest, gin.H{"error": "provider not found"})
 		return
 	}

@@ -117,6 +117,7 @@ func setupPromotions(t *testing.T, mutate func(*config.Config), withStores bool)
 		&models.ListingHall{}, &models.ListingMenu{}, &models.ListingMenuSection{}, &models.ListingMenuItem{}, &models.ListingMenuExtra{},
 		&models.PromotionSettings{}, &models.PromotionOrder{}, &models.Promotion{},
 		&models.PromotionStat{}, &models.PromotionEventSeen{}, &models.PromotionStoreNotification{},
+		&models.AdminAuditEvent{}, &models.Notification{},
 	); err != nil {
 		t.Fatal(err)
 	}

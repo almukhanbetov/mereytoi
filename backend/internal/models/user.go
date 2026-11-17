@@ -60,6 +60,33 @@ type User struct {
 	// is what makes the previous code stop working.
 	RecoveryCodeHash      string     `gorm:"size:80;index" json:"-"`
 	RecoveryCodeCreatedAt *time.Time `json:"-"`
+
+	// BlockedAt/BlockedUntil/BlockReason/BlockedBy — an administrator's
+	// block (handlers/admin_users.go). The account is blocked while
+	// BlockedAt is set and BlockedUntil is NULL (indefinite) or still in the
+	// future; an expired term needs no clean-up job — IsBlocked simply turns
+	// false. Every request re-checks it (handlers.AccountSessionValidator)
+	// and no token is minted while it holds (issueJWT). Nullable additive
+	// columns: existing rows stay unblocked. Never in the public JSON —
+	// admins read them through the admin DTO.
+	BlockedAt    *time.Time `json:"-"`
+	BlockedUntil *time.Time `json:"-"`
+	BlockReason  string     `gorm:"size:1000" json:"-"`
+	BlockedBy    *uint      `json:"-"`
+}
+
+// IsBlocked reports whether an administrator's block is in force at now.
+func (u User) IsBlocked(now time.Time) bool {
+	return blockActive(u.BlockedAt, u.BlockedUntil, now)
+}
+
+func blockActive(at, until *time.Time, now time.Time) bool {
+	return at != nil && (until == nil || until.After(now))
+}
+
+// BlockActive is IsBlocked for the bare columns (a partial row select).
+func BlockActive(at, until *time.Time, now time.Time) bool {
+	return blockActive(at, until, now)
 }
 
 const (

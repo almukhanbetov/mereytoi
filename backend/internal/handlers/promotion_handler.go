@@ -121,15 +121,21 @@ func listingOwner(db *gorm.DB, listingID uint) (uint, bool) {
 }
 
 // ineligibleReason — why a listing can't be advertised now ("" if it can):
-// it must be published (is_active) and belong to an active provider. A
-// hidden listing or a suspended/rejected provider drops out of ads at once.
+// it must be published (is_active), not hidden by an administrator, and
+// belong to an active provider whose account isn't blocked. A hidden listing,
+// a suspended/rejected provider or a blocked owner drops out of ads at once.
 func ineligibleReason(db *gorm.DB, listing models.Listing) string {
-	if !listing.IsActive {
+	if !listing.IsActive || listing.ModerationHiddenAt != nil {
 		return "listing_hidden"
 	}
 	owner, ok := listingOwner(db, listing.ID)
 	if !ok {
 		return "no_owner"
+	}
+	// A blocked owner's promotion isn't shown (its paid term keeps running
+	// — no compensation in this stage).
+	if userBlockedNow(db, owner) {
+		return "provider_not_active"
 	}
 	var p models.Provider
 	if err := db.Where("user_id = ?", owner).First(&p).Error; err != nil || p.Status != models.ProviderStatusActive {

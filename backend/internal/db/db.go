@@ -49,6 +49,12 @@ func Connect(cfg config.Config) *gorm.DB {
 		// Support-assisted recovery and its audit log — see
 		// models/password_recovery_request.go.
 		&models.PasswordRecoveryRequest{}, &models.RecoveryAuditEvent{},
+		// Administrators' action log — see models/admin_audit.go. New table
+		// only; the block and moderation fields are nullable columns added
+		// to users/listings, existing rows unaffected.
+		&models.AdminAuditEvent{},
+		// User complaints — see models/report.go. New table only.
+		&models.Report{},
 		// "Мой той" collaborative workspace — see models/event.go.
 		&models.Event{}, &models.EventMember{}, &models.EventInvitation{},
 		&models.EventCandidate{}, &models.EventVote{}, &models.EventComment{},
