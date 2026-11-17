@@ -30,10 +30,14 @@ const (
 	AdminActionUserUnblock    = "user.unblock"
 	AdminActionListingHide    = "listing.hide"
 	AdminActionListingRestore = "listing.restore"
+	AdminActionReportTake     = "report.take"
+	AdminActionReportResolve  = "report.resolve"
+	AdminActionReportReject   = "report.reject"
 )
 
 // Admin audit target types.
 const (
 	AdminTargetUser    = "user"
 	AdminTargetListing = "listing"
+	AdminTargetReport  = "report"
 )

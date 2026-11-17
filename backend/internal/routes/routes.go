@@ -142,8 +142,10 @@ func RegisterWithOptions(r *gin.Engine, database *gorm.DB, cfg config.Config, op
 		promotionHandler.Now = opts.Now
 	}
 	adminHandler := handlers.NewAdminHandler(database)
+	reportHandler := handlers.NewReportHandler(database)
 	if opts.Now != nil {
 		adminHandler.Now = opts.Now
+		reportHandler.Now = opts.Now
 	}
 
 	r.GET("/api/health", func(c *gin.Context) {
@@ -583,6 +585,22 @@ func RegisterWithOptions(r *gin.Engine, database *gorm.DB, cfg config.Config, op
 			adminPeople.POST("/listings/:id/hide", adminHandler.HideListing)
 			adminPeople.POST("/listings/:id/restore", adminHandler.RestoreListing)
 			adminPeople.GET("/audit-events", adminHandler.AuditEvents)
+			// Report queue and the mobile admin home counters — see
+			// handlers/admin_reports.go.
+			adminPeople.GET("/summary", adminHandler.Summary)
+			adminPeople.GET("/reports", adminHandler.ListReports)
+			adminPeople.GET("/reports/:id", adminHandler.GetReport)
+			adminPeople.POST("/reports/:id/take", adminHandler.TakeReport)
+			adminPeople.POST("/reports/:id/decide", adminHandler.DecideReport)
+		}
+
+		// Users' complaints — see handlers/reports.go. Signed-in only; a
+		// report never sanctions anyone by itself.
+		reports := api.Group("/reports")
+		reports.Use(middleware.RequireAuth(cfg.JWTSecret))
+		{
+			reports.POST("", reportHandler.Create)
+			reports.GET("/mine", reportHandler.Mine)
 		}
 
 		adminPromotions := api.Group("/admin/promotions")

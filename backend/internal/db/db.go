@@ -53,6 +53,8 @@ func Connect(cfg config.Config) *gorm.DB {
 		// only; the block and moderation fields are nullable columns added
 		// to users/listings, existing rows unaffected.
 		&models.AdminAuditEvent{},
+		// User complaints — see models/report.go. New table only.
+		&models.Report{},
 		// "Мой той" collaborative workspace — see models/event.go.
 		&models.Event{}, &models.EventMember{}, &models.EventInvitation{},
 		&models.EventCandidate{}, &models.EventVote{}, &models.EventComment{},
