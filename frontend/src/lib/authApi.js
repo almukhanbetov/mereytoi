@@ -26,7 +26,12 @@ async function request(path, { method = 'GET', body, auth = false } = {}) {
 
   const data = await res.json().catch(() => ({}));
   if (!res.ok) {
-    throw new Error(data.error || `Request failed (${res.status})`);
+    const err = new Error(data.error || `Request failed (${res.status})`);
+    // The server's body (e.g. a block's reason/term, a blocked recovery's
+    // new backup code) and status, for callers that need more than a code.
+    err.status = res.status;
+    err.data = data;
+    throw err;
   }
   return data;
 }

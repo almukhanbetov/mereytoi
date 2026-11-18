@@ -1,11 +1,14 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
+import '../models/account_block.dart';
+import '../state/auth_provider.dart';
 import '../state/cart_provider.dart';
 import '../state/locale_provider.dart';
 import '../widgets/app_bottom_nav.dart';
 import '../widgets/chat/chat_fab.dart';
 import '../widgets/exit_app_sheet.dart';
+import 'auth/account_blocked_screen.dart';
 import 'cart/cart_screen.dart';
 import 'events/events_screen.dart';
 import 'home/home_screen.dart';
@@ -48,6 +51,25 @@ class _RootShellState extends ConsumerState<RootShell> {
   );
 
   @override
+  void initState() {
+    super.initState();
+    // A block found while the app was starting (a stale session refused)
+    // is explained once this shell is up — not over the splash, which
+    // replaces its own route.
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      final auth = ref.read(authProvider);
+      if (mounted && auth is AuthBlocked) _explainBlock(auth.block);
+    });
+  }
+
+  /// Closes whatever was open (it belonged to the session that just ended)
+  /// and says why the account is blocked, instead of a silent sign-out.
+  void _explainBlock(AccountBlock block) {
+    final navigator = Navigator.of(context)..popUntil((r) => r.isFirst);
+    AccountBlockedScreen.open(navigator, block);
+  }
+
+  @override
   void dispose() {
     _chatFabVisibility.dispose();
     super.dispose();
@@ -70,6 +92,11 @@ class _RootShellState extends ConsumerState<RootShell> {
 
   @override
   Widget build(BuildContext context) {
+    ref.listen<AuthState>(authProvider, (previous, next) {
+      if (next is AuthBlocked && previous is! AuthBlocked) {
+        _explainBlock(next.block);
+      }
+    });
     ref.listen(
       selectedTabProvider,
       (_, tab) => _chatFabVisibility.selectTab(tab),

@@ -4,6 +4,7 @@ import { GoogleTagManager } from "@next/third-parties/google";
 import "./globals.css";
 import AppProviders from "@/context/AppProviders";
 import { AuthProvider } from "@/context/AuthContext";
+import AccountBlockedNotice from "@/components/AccountBlockedNotice";
 import Header from "@/components/Header";
 import Footer from "@/components/Footer";
 import CartDrawer from "@/components/CartDrawer";
@@ -62,6 +63,7 @@ export default function RootLayout({ children }) {
             <CartDrawer />
             <FloatingManagerWidget />
             <AiAssistantWidget />
+            <AccountBlockedNotice />
           </AppProviders>
         </AuthProvider>
       </body>

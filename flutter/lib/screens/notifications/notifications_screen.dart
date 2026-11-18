@@ -305,7 +305,47 @@ String _messagePreview(AppNotification n) {
 String _notificationText(AppLocale locale, AppNotification n) {
   final name = n.payload['name'] as String?;
   final title = n.payload['title'] as String?;
+  final reason = (n.payload['reason'] as String? ?? '').trim();
   switch (n.type) {
+    // Account sanctions by an administrator (stage 4) — the reason is the
+    // administrator's own text; who acted is never named.
+    case 'admin_warning':
+      return t(
+            locale,
+            ru: 'Предупреждение от администрации MEREYTOI',
+            kz: 'MEREYTOI әкімшілігінен ескерту',
+            en: 'A warning from the MEREYTOI team',
+          ) +
+          (reason.isEmpty
+              ? ''
+              : t(
+                  locale,
+                  ru: '. Причина: $reason',
+                  kz: '. Себебі: $reason',
+                  en: '. Reason: $reason',
+                ));
+    case 'account_blocked':
+      return t(
+            locale,
+            ru: 'Ваш аккаунт был заблокирован',
+            kz: 'Аккаунтыңыз бұғатталған болатын',
+            en: 'Your account was blocked',
+          ) +
+          (reason.isEmpty
+              ? ''
+              : t(
+                  locale,
+                  ru: '. Причина: $reason',
+                  kz: '. Себебі: $reason',
+                  en: '. Reason: $reason',
+                ));
+    case 'account_unblocked':
+      return t(
+        locale,
+        ru: 'Аккаунт разблокирован — доступ восстановлен',
+        kz: 'Аккаунт бұғаттан шығарылды — қолжетімділік қалпына келді',
+        en: 'Your account was unblocked — access restored',
+      );
     case notifCandidateAdded:
       return t(
         locale,

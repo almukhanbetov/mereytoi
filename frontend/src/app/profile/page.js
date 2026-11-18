@@ -13,6 +13,7 @@ import { eventTypeEmoji, eventTypeLabel, formatEventDate, roleLabel } from '@/li
 import TelegramConnectCard from '@/components/profile/TelegramConnectCard';
 import RecoveryCodeCard from '@/components/profile/RecoveryCodeCard';
 import ProviderPanel from '@/components/profile/ProviderPanel';
+import MyReportsSection from '@/components/report/MyReportsSection';
 
 function paidLabel(paid, lang) {
   if (paid) return lang === 'kz' ? 'Белсенді' : 'Активна';
@@ -217,7 +218,7 @@ function ProfileContent() {
           )}
 
           {tab === 'account' && (
-            <div style={{ display: 'grid', gridTemplateColumns: '1fr 1.4fr', gap: 50, alignItems: 'start' }}>
+            <div className="profile-account-grid">
               <form className="contacts__form" onSubmit={handleSave}>
                 <label>
                   <span><T ru="Ваше имя" kz="Атыңыз" /></span>
@@ -296,6 +297,8 @@ function ProfileContent() {
                     </div>
                   ))}
                 </div>
+
+                <MyReportsSection />
               </div>
             </div>
           )}

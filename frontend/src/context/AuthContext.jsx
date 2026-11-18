@@ -3,6 +3,8 @@
 import { createContext, useCallback, useContext, useEffect, useState } from 'react';
 import { authApi, getUserToken, setUserToken, clearUserToken } from '@/lib/authApi';
 
+const API_URL = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:8090';
+
 const AuthContext = createContext(null);
 
 export function AuthProvider({ children }) {
@@ -15,6 +17,13 @@ export function AuthProvider({ children }) {
   // profile/page.js) so refreshMe below can update them together.
   const [telegramLinked, setTelegramLinked] = useState(false);
   const [preferredDeliveryChannel, setPreferredDeliveryChannel] = useState('');
+  // An administrator's block on this account ({reason, blocked_until,
+  // password_reset, recovery_code}), shown by AccountBlockedNotice instead
+  // of a technical code or a silent sign-out.
+  const [blockInfo, setBlockInfo] = useState(null);
+  const noteBlock = useCallback((err) => {
+    if (err?.data?.error === 'account_blocked') setBlockInfo(err.data);
+  }, []);
 
   const loadUser = useCallback(async () => {
     const token = getUserToken();
@@ -30,7 +39,8 @@ export function AuthProvider({ children }) {
       setUser(data.user);
       setTelegramLinked(!!data.telegram_linked);
       setPreferredDeliveryChannel(data.preferred_delivery_channel || '');
-    } catch {
+    } catch (err) {
+      noteBlock(err);
       clearUserToken();
       setUser(null);
       setTelegramLinked(false);
@@ -38,11 +48,44 @@ export function AuthProvider({ children }) {
     } finally {
       setLoading(false);
     }
-  }, []);
+  }, [noteBlock]);
 
   useEffect(() => {
     loadUser();
   }, [loadUser]);
+
+  // A block that arrives mid-session: any API response — from whichever
+  // module made the request — that is a 401 with error "account_blocked"
+  // signs the user out here and shows AccountBlockedNotice with the reason
+  // and term, without a reload. Only that exact case: an ordinary 401 (an
+  // expired session) or any 403 is left to the caller as before. The body
+  // is read from a clone, so the caller still gets its response untouched.
+  useEffect(() => {
+    if (typeof window === 'undefined' || !window.fetch) return undefined;
+    const original = window.fetch;
+    const apiOrigin = new URL(API_URL, window.location.href).origin;
+    const watched = async (...args) => {
+      const res = await original(...args);
+      try {
+        const url = new URL(typeof args[0] === 'string' ? args[0] : args[0]?.url || '', window.location.href);
+        if (res.status === 401 && url.origin === apiOrigin && getUserToken()) {
+          const body = await res.clone().json().catch(() => null);
+          if (body?.error === 'account_blocked') {
+            setBlockInfo(body);
+            clearUserToken();
+            setUser(null);
+          }
+        }
+      } catch {
+        // Never let the observer break the request itself.
+      }
+      return res;
+    };
+    window.fetch = watched;
+    return () => {
+      if (window.fetch === watched) window.fetch = original;
+    };
+  }, []);
 
   // Also returns the account's backup code — shown once by the register
   // page, never stored anywhere on the client.
@@ -57,18 +100,32 @@ export function AuthProvider({ children }) {
   // (every older one is revoked by the backend) and returns the new code
   // that replaced the used one.
   const recover = useCallback(async (loginValue, code, newPassword) => {
-    const { user, token, recovery_code: recoveryCode } = await authApi.recover(loginValue.trim(), code, newPassword);
+    let result;
+    try {
+      result = await authApi.recover(loginValue.trim(), code, newPassword);
+    } catch (err) {
+      noteBlock(err);
+      throw err;
+    }
+    const { user, token, recovery_code: recoveryCode } = result;
     setUserToken(token);
     setUser(user);
     return { user, recoveryCode };
-  }, []);
+  }, [noteBlock]);
 
   const login = useCallback(async (identifier, password) => {
-    const { user, token } = await authApi.login(identifier, password);
+    let result;
+    try {
+      result = await authApi.login(identifier, password);
+    } catch (err) {
+      noteBlock(err);
+      throw err;
+    }
+    const { user, token } = result;
     setUserToken(token);
     setUser(user);
     return user;
-  }, []);
+  }, [noteBlock]);
 
   // Booking->account onboarding (see backend/internal/handlers/onboarding.go)
   // — same shape as login/register above, just fed by a claim link instead
@@ -119,6 +176,9 @@ export function AuthProvider({ children }) {
         // comes back from linking in the Telegram app (see profile/page.js),
         // without re-running the whole mount-time loadUser effect.
         refreshMe: loadUser,
+        blockInfo,
+        clearBlockInfo: () => setBlockInfo(null),
+        noteBlock,
       }}
     >
       {children}

@@ -1,5 +1,8 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import '../../widgets/report/report_sheet.dart';
+import '../../state/provider_provider.dart';
+import '../../state/auth_provider.dart';
 import 'package:url_launcher/url_launcher.dart';
 
 import '../../core/config/api_config.dart';
@@ -71,7 +74,9 @@ class _ProfileBody extends ConsumerWidget {
     final waDigits = toWhatsAppDigits(profile.whatsapp);
     if (waDigits.isNotEmpty) return Uri.parse('https://wa.me/$waDigits');
     if (profile.telegram.isNotEmpty) {
-      return Uri.parse('https://t.me/${profile.telegram.replaceFirst('@', '')}');
+      return Uri.parse(
+        'https://t.me/${profile.telegram.replaceFirst('@', '')}',
+      );
     }
     if (profile.phone.isNotEmpty) {
       return Uri.parse('tel:${profile.phone.replaceAll(' ', '')}');
@@ -119,7 +124,11 @@ class _ProfileBody extends ConsumerWidget {
                 Row(
                   mainAxisSize: MainAxisSize.min,
                   children: [
-                    Icon(Icons.place_outlined, size: 15, color: colors.textMuted),
+                    Icon(
+                      Icons.place_outlined,
+                      size: 15,
+                      color: colors.textMuted,
+                    ),
                     const SizedBox(width: 2),
                     Text(
                       profile.city,
@@ -177,8 +186,10 @@ class _ProfileBody extends ConsumerWidget {
                 borderRadius: BorderRadius.circular(AppRadius.md),
                 child: InkWell(
                   borderRadius: BorderRadius.circular(AppRadius.md),
-                  onTap: () =>
-                      launchUrl(contactUri, mode: LaunchMode.externalApplication),
+                  onTap: () => launchUrl(
+                    contactUri,
+                    mode: LaunchMode.externalApplication,
+                  ),
                   child: SizedBox(
                     width: 48,
                     height: 48,
@@ -193,6 +204,7 @@ class _ProfileBody extends ConsumerWidget {
             ],
           ],
         ),
+        ProviderReportRow(providerId: profile.id, name: profile.displayName),
         if (profile.description.isNotEmpty) ...[
           const SizedBox(height: AppSpacing.lg),
           Text(
@@ -247,6 +259,37 @@ class _ProfileBody extends ConsumerWidget {
             const SizedBox(height: AppSpacing.sm),
           ],
       ],
+    );
+  }
+}
+
+/// «Пожаловаться» on a provider profile — not on the user's own.
+class ProviderReportRow extends ConsumerWidget {
+  const ProviderReportRow({
+    super.key,
+    required this.providerId,
+    required this.name,
+  });
+
+  final int providerId;
+  final String name;
+
+  @override
+  Widget build(BuildContext context, WidgetRef ref) {
+    // The user's own provider profile is only checked if already loaded —
+    // no extra request; the server refuses a self-report anyway.
+    if (ref.watch(authProvider) is AuthAuthenticated &&
+        ref.exists(providerProfileProvider) &&
+        ref.watch(providerProfileProvider).valueOrNull?.id == providerId) {
+      return const SizedBox.shrink();
+    }
+    return Align(
+      alignment: Alignment.centerRight,
+      child: ReportButton(
+        targetType: 'provider',
+        targetId: providerId,
+        targetName: name,
+      ),
     );
   }
 }

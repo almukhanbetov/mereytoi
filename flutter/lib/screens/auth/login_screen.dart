@@ -1,6 +1,9 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
+import '../../models/account_block.dart';
+import 'account_blocked_screen.dart';
+
 import '../../core/theme/app_theme.dart';
 import '../../core/utils/error_messages.dart';
 import '../../state/auth_provider.dart';
@@ -119,13 +122,26 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
     ref.listen<AuthState>(authProvider, (previous, next) {
       if (next is AuthAuthenticated) Navigator.of(context).maybePop();
     });
+    // A blocked account: explain the block and its term instead of an
+    // error line (the server only says so after a correct password).
+    ref.listen<AsyncValue<void>>(authSubmitProvider, (previous, next) {
+      final error = next.maybeWhen(error: (e, _) => e, orElse: () => null);
+      final block = error == null ? null : accountBlockFrom(error);
+      if (block != null) {
+        AccountBlockedScreen.open(Navigator.of(context), block);
+      }
+    });
 
     final submitState = ref.watch(authSubmitProvider);
     final submitting = submitState.isLoading;
-    final submitError = submitState.maybeWhen(
+    final rawError = submitState.maybeWhen(
       error: (e, _) => e,
       orElse: () => null,
     );
+    // Shown on its own screen instead (see the listener above).
+    final submitError = rawError != null && accountBlockFrom(rawError) != null
+        ? null
+        : rawError;
 
     return Scaffold(
       appBar: AppBar(

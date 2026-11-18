@@ -26,11 +26,16 @@ class ApiException implements Exception {
     this.statusCode,
     this.debugMessage,
     this.causeType,
+    this.data,
   });
 
   final ApiErrorType type;
   final int? statusCode;
   final String? debugMessage;
+
+  /// The server's JSON error body, when there was one — e.g. a block's
+  /// `blocked_until`/`reason`, or a blocked recovery's new backup code.
+  final Map<String, dynamic>? data;
 
   /// runtimeType of the underlying error (e.g. "PlatformException",
   /// "HandshakeException") — a type name only, never its message, so it is

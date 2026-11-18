@@ -10,6 +10,7 @@ import '../../state/app_mode_provider.dart';
 import '../../state/auth_provider.dart';
 import '../../state/admin_providers.dart';
 import '../admin/admin_home_screen.dart';
+import 'my_reports_screen.dart';
 import '../../state/categories_provider.dart';
 import '../../state/event_providers.dart';
 import '../../state/listings_provider.dart';
@@ -565,9 +566,6 @@ class _ProfileBodyState extends ConsumerState<_ProfileBody>
               // returns every conversation the caller is a participant of
               // on either side.
               InkWell(
-                borderRadius: const BorderRadius.vertical(
-                  bottom: Radius.circular(AppRadius.lg),
-                ),
                 onTap: () => Navigator.of(context).push(
                   MaterialPageRoute(
                     builder: (_) => const ProviderChatListScreen(),
@@ -590,6 +588,46 @@ class _ProfileBodyState extends ConsumerState<_ProfileBody>
                             ru: 'Переписка с услугодателями',
                             kz: 'Қызмет көрсетушілермен хат алысу',
                             en: 'Messages with providers',
+                          ),
+                          style: Theme.of(context).textTheme.bodyLarge,
+                        ),
+                      ),
+                      Icon(
+                        Icons.chevron_right_rounded,
+                        size: 18,
+                        color: context.mereytoiColors.textMuted,
+                      ),
+                    ],
+                  ),
+                ),
+              ),
+              Divider(height: 1, color: context.mereytoiColors.divider),
+              // Stage 4 — the user's own reports and their status.
+              InkWell(
+                key: const ValueKey('profile-my-reports'),
+                borderRadius: const BorderRadius.vertical(
+                  bottom: Radius.circular(AppRadius.lg),
+                ),
+                onTap: () => Navigator.of(context).push(
+                  MaterialPageRoute(builder: (_) => const MyReportsScreen()),
+                ),
+                child: Padding(
+                  padding: const EdgeInsets.all(AppSpacing.md),
+                  child: Row(
+                    children: [
+                      Icon(
+                        Icons.outlined_flag_rounded,
+                        size: 18,
+                        color: context.mereytoiColors.textSecondary,
+                      ),
+                      const SizedBox(width: AppSpacing.xs),
+                      Expanded(
+                        child: Text(
+                          t(
+                            locale,
+                            ru: 'Мои жалобы',
+                            kz: 'Менің шағымдарым',
+                            en: 'My reports',
                           ),
                           style: Theme.of(context).textTheme.bodyLarge,
                         ),

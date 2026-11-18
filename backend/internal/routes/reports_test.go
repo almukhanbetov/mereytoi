@@ -293,3 +293,45 @@ func TestReportQueueDecisionAndAudit(t *testing.T) {
 		t.Fatalf("deleted target: %v", det["report"])
 	}
 }
+
+// Stage 4 additions: the reporter's list names the target; an owner sees
+// why their listing was hidden; a live blocked session learns the reason.
+func TestUserSideModerationFields(t *testing.T) {
+	e := reportEnv(t)
+	if s, _ := e.report(e.user, "listing", e.visible, "spam", ""); s != http.StatusCreated {
+		t.Fatalf("report: %d", s)
+	}
+	_, mine := e.user.do("GET", "/api/reports/mine", nil)
+	r := mine["reports"].([]any)[0].(map[string]any)
+	if !strings.HasPrefix(r["target_title"].(string), "Visible ") {
+		t.Fatalf("target_title: %v", r)
+	}
+
+	e.admin.do("POST", fmt.Sprintf("/api/admin/listings/%d/hide", e.visible), map[string]any{"reason": "Фото чужого агентства"})
+	_, own := e.owner.do("GET", "/api/users/me/listings", nil)
+	found := false
+	for _, it := range own["listings"].([]any) {
+		m := it.(map[string]any)
+		if int(m["id"].(float64)) == e.visible {
+			found = true
+			if m["moderation_reason"] != "Фото чужого агентства" || m["moderation_hidden_at"] == nil {
+				t.Fatalf("owner view: %v", m)
+			}
+		}
+	}
+	if !found {
+		t.Fatal("hidden listing missing from the owner's list")
+	}
+	// The reason never reaches the public payload, even for the owner's own
+	// listing page.
+	_, pub := e.owner.do("GET", fmt.Sprintf("/api/listings/%d", e.visible), nil)
+	if _, has := pub["listing"].(map[string]any)["moderation_reason"]; has {
+		t.Fatalf("public payload has the reason: %v", pub)
+	}
+
+	e.admin.do("POST", fmt.Sprintf("/api/admin/users/%d/block", e.userID), map[string]any{"reason": "Оскорбления", "duration": "7d"})
+	s, out := e.user.do("GET", "/api/auth/me", nil)
+	if s != http.StatusUnauthorized || out["error"] != "account_blocked" || out["reason"] != "Оскорбления" || out["blocked_until"] == nil {
+		t.Fatalf("live blocked session: %d %v", s, out)
+	}
+}

@@ -26,6 +26,9 @@ type Session struct {
 	Role         string
 	Error        string
 	BlockedUntil *time.Time
+	// BlockReason — the administrator's stated reason, shown to the blocked
+	// user themselves (the same one the login refusal carries).
+	BlockReason string
 }
 
 // SessionValidator decides whether a signature-valid token for userID,
@@ -70,6 +73,7 @@ func rejection(s Session) gin.H {
 	body := gin.H{"error": code}
 	if code == "account_blocked" {
 		body["blocked_until"] = s.BlockedUntil
+		body["reason"] = s.BlockReason
 	}
 	return body
 }

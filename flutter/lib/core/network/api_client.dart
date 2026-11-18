@@ -45,7 +45,15 @@ class ApiClient {
         },
         onError: (error, handler) {
           if (error.response?.statusCode == 401) {
-            _onUnauthorized?.call();
+            final body = _bodyOf(error);
+            // A blocked account gets its own handler (with the reason and
+            // term), so the app can say why instead of signing out silently.
+            if (body?['error'] == 'account_blocked' &&
+                _onAccountBlocked != null) {
+              _onAccountBlocked!(body!);
+            } else {
+              _onUnauthorized?.call();
+            }
           }
           // Always forwarded, never swallowed here — the caller (a Service)
           // still gets its usual ApiException via `_run`'s own catch below.
@@ -84,6 +92,19 @@ class ApiClient {
   /// 401", never decides what that should mean for app state.
   void setUnauthorizedHandler(VoidCallback handler) =>
       _onUnauthorized = handler;
+
+  void Function(Map<String, dynamic> body)? _onAccountBlocked;
+
+  /// A 401 `account_blocked` (an administrator's block in force) goes here
+  /// instead of the plain unauthorized handler, with the server's body.
+  void setAccountBlockedHandler(
+    void Function(Map<String, dynamic> body) handler,
+  ) => _onAccountBlocked = handler;
+
+  static Map<String, dynamic>? _bodyOf(DioException e) {
+    final data = e.response?.data;
+    return data is Map ? Map<String, dynamic>.from(data) : null;
+  }
 
   Future<Map<String, dynamic>> getJson(
     String path, {
@@ -203,6 +224,7 @@ class ApiClient {
             ApiErrorType.forbidden,
             statusCode: status,
             debugMessage: _extractServerError(e),
+            data: _bodyOf(e),
           );
         }
         if (status == 410) {
@@ -224,6 +246,7 @@ class ApiClient {
             ApiErrorType.unauthorized,
             statusCode: status,
             debugMessage: _extractServerError(e),
+            data: _bodyOf(e),
           );
         }
         if (status == 409) {
@@ -233,6 +256,7 @@ class ApiClient {
             ApiErrorType.conflict,
             statusCode: status,
             debugMessage: _extractServerError(e),
+            data: _bodyOf(e),
           );
         }
         if (status != null && status >= 500) {
@@ -247,6 +271,7 @@ class ApiClient {
           statusCode: status,
           debugMessage: _extractServerError(e),
           causeType: cause,
+          data: _bodyOf(e),
         );
       default:
         // dart:io's HandshakeException/TlsException and a SocketException

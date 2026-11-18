@@ -98,6 +98,9 @@ class _Harness {
       300,
       scrollable: find.byType(Scrollable).first,
     );
+    // Fully into view, not just its top edge at the bottom of the screen.
+    await tester.ensureVisible(find.byKey(_exit));
+    await tester.pumpAndSettle();
     // Lazily built can still mean just past the screen edge.
     await tester.ensureVisible(find.byKey(_exit));
     await tester.pumpAndSettle();
