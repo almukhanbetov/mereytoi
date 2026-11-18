@@ -4,6 +4,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../../core/config/api_config.dart';
 import '../../../core/theme/app_theme.dart';
 import '../../../core/utils/error_messages.dart';
+import '../../../state/admin_providers.dart';
 import '../../../state/categories_provider.dart';
 import '../../../state/listings_provider.dart';
 import '../../../state/locale_provider.dart';
@@ -12,6 +13,7 @@ import '../../../widgets/app_error_view.dart';
 import '../../../widgets/app_icon_badge.dart';
 import '../../../widgets/app_skeleton.dart';
 import '../../../widgets/network_image_box.dart';
+import '../../admin/admin_listing_form_screen.dart';
 import 'restaurant_manage_screen.dart';
 
 /// "Мои рестораны" / "Управление ресторанами" — every listing the caller
@@ -34,8 +36,30 @@ class RestaurantAdminListScreen extends ConsumerWidget {
   Widget build(BuildContext context, WidgetRef ref) {
     final locale = ref.watch(localeProvider);
     final listingsAsync = ref.watch(myListingsProvider);
+    // Only an administrator creates restaurants (the server's POST
+    // /api/listings is admin-only); owners manage the ones they have.
+    final isAdmin = ref.watch(isAdminProvider);
+    final venuesId = (ref.watch(categoriesProvider).valueOrNull ?? const [])
+        .where((c) => c.slug == 'venues')
+        .map((c) => c.id)
+        .firstOrNull;
 
     return Scaffold(
+      floatingActionButton: isAdmin
+          ? FloatingActionButton.extended(
+              key: const ValueKey('restaurants-add'),
+              backgroundColor: context.mereytoiColors.goldPrimary,
+              foregroundColor: context.mereytoiColors.onGold,
+              onPressed: () => Navigator.of(context).push(
+                MaterialPageRoute(
+                  builder: (_) =>
+                      AdminListingCreateScreen(presetCategoryId: venuesId),
+                ),
+              ),
+              icon: const Icon(Icons.add_rounded),
+              label: const Text('Добавить ресторан'),
+            )
+          : null,
       appBar: AppBar(
         title: Text(
           title ??
@@ -101,7 +125,12 @@ class RestaurantAdminListScreen extends ConsumerWidget {
             backgroundColor: context.mereytoiColors.surfaceElevated,
             onRefresh: () => ref.refresh(myListingsProvider.future),
             child: ListView.separated(
-              padding: const EdgeInsets.all(AppSpacing.lg),
+              padding: const EdgeInsets.fromLTRB(
+                AppSpacing.lg,
+                AppSpacing.lg,
+                AppSpacing.lg,
+                96,
+              ),
               itemCount: listings.length,
               separatorBuilder: (_, _) => const SizedBox(height: AppSpacing.sm),
               itemBuilder: (context, i) {

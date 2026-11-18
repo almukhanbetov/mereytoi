@@ -31,4 +31,20 @@ class UploadService {
     final raw = json['urls'] as List? ?? const [];
     return raw.map((e) => e.toString()).toList();
   }
+
+  /// `POST /api/uploads/video` (admin-only on the server, field `video`) —
+  /// the same endpoint and field the web admin's `uploadVideo` uses. One
+  /// file per request: the server transcodes each upload before answering
+  /// (mp4/webm/mov, up to 200MB — checked server-side), so the answer can
+  /// take minutes. Returns the public URL of the transcoded file.
+  Future<String> uploadVideo(String filePath) async {
+    final formData = FormData()
+      ..files.add(MapEntry('video', await MultipartFile.fromFile(filePath)));
+    final json = await _client.postMultipart(
+      '/api/uploads/video',
+      formData,
+      receiveTimeout: const Duration(minutes: 10),
+    );
+    return json['url'].toString();
+  }
 }

@@ -23,6 +23,9 @@ const _typePresets = [
   ('other', 'Другое условие'),
 ];
 
+String _presetLabel(String type) =>
+    _typePresets.where((p) => p.$1 == type).map((p) => p.$2).firstOrNull ?? '';
+
 const _unitOptions = [
   ('', 'Фиксированная сумма'),
   ('per_guest', 'На каждого гостя'),
@@ -86,8 +89,11 @@ class _ExtraFormSheetState extends ConsumerState<ExtraFormSheet> {
   void initState() {
     super.initState();
     final e = widget.existing;
-    _titleRu = TextEditingController(text: e?.titleRu ?? '');
-    _titleKz = TextEditingController(text: e?.titleKz ?? '');
+    // A new option starts named after its type, as the web's «+ Детский
+    // стол»-style preset buttons do.
+    final presetLabel = _presetLabel(_typePresets.first.$1);
+    _titleRu = TextEditingController(text: e?.titleRu ?? presetLabel);
+    _titleKz = TextEditingController(text: e?.titleKz ?? presetLabel);
     _price = TextEditingController(text: e != null ? '${e.price}' : '');
     _descriptionRu = TextEditingController(text: e?.descriptionRu ?? '');
     _descriptionKz = TextEditingController(text: e?.descriptionKz ?? '');
@@ -183,7 +189,20 @@ class _ExtraFormSheetState extends ConsumerState<ExtraFormSheet> {
             if (!_typePresets.any((p) => p.$1 == _type))
               DropdownMenuItem(value: _type, child: Text(_type)),
           ],
-          onChanged: (v) => setState(() => _type = v ?? _type),
+          onChanged: (v) => setState(() {
+            final previous = _presetLabel(_type);
+            _type = v ?? _type;
+            // A new option's name follows the chosen type until it's edited.
+            if (widget.existing == null) {
+              final label = _presetLabel(_type);
+              if (_titleRu.text.isEmpty || _titleRu.text == previous) {
+                _titleRu.text = label;
+              }
+              if (_titleKz.text.isEmpty || _titleKz.text == previous) {
+                _titleKz.text = label;
+              }
+            }
+          }),
         ),
         const SizedBox(height: AppSpacing.sm),
         TextFormField(

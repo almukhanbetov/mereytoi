@@ -6,20 +6,29 @@ import '../../../../core/utils/error_messages.dart';
 import '../../../../models/listing.dart';
 import '../../../../state/listing_management_actions.dart';
 import '../../../../state/locale_provider.dart';
+import '../../provider/widgets/location_picker_screen.dart';
 
 /// "Адрес" tab — `Listing.address/latitude/longitude/place_id`, the same
 /// four location fields `RestaurantLocationCard` (public screen) already
 /// reads, typed by hand; the map point is chosen in the full form.
+///
+/// With [admin] it is the web admin's «Адрес и расположение» form
+/// (RestaurantAddressForm.jsx): the city next to the address, the point
+/// set on the map, and the Google Place ID shown read-only (the web fills
+/// it only from Google's address suggestions); the owner's capacity field
+/// isn't part of that form.
 class AddressTab extends ConsumerStatefulWidget {
-  const AddressTab({super.key, required this.listing});
+  const AddressTab({super.key, required this.listing, this.admin = false});
 
   final Listing listing;
+  final bool admin;
 
   @override
   ConsumerState<AddressTab> createState() => _AddressTabState();
 }
 
 class _AddressTabState extends ConsumerState<AddressTab> {
+  late final TextEditingController _city;
   late final TextEditingController _address;
   late final TextEditingController _latitude;
   late final TextEditingController _longitude;
@@ -33,6 +42,7 @@ class _AddressTabState extends ConsumerState<AddressTab> {
   void initState() {
     super.initState();
     final l = widget.listing;
+    _city = TextEditingController(text: l.city);
     _address = TextEditingController(text: l.address ?? '');
     _latitude = TextEditingController(text: l.latitude?.toString() ?? '');
     _longitude = TextEditingController(text: l.longitude?.toString() ?? '');
@@ -42,6 +52,7 @@ class _AddressTabState extends ConsumerState<AddressTab> {
 
   @override
   void dispose() {
+    _city.dispose();
     _address.dispose();
     _latitude.dispose();
     _longitude.dispose();
@@ -78,11 +89,13 @@ class _AddressTabState extends ConsumerState<AddressTab> {
           .read(listingManagementActionsProvider)
           .updateListing(
             widget.listing,
+            city: widget.admin ? _city.text : null,
             address: _address.text.trim(),
             latitude: lat,
             longitude: lng,
             clearCoordinates: clear,
-            placeId: _placeId.text.trim(),
+            // Read-only for an admin: the stored value goes back as is.
+            placeId: widget.admin ? null : _placeId.text.trim(),
             capacity:
                 int.tryParse(_capacity.text.trim()) ?? widget.listing.capacity,
           );
@@ -94,6 +107,21 @@ class _AddressTabState extends ConsumerState<AddressTab> {
     } finally {
       if (mounted) setState(() => _saving = false);
     }
+  }
+
+  Future<void> _pickOnMap() async {
+    final point = await showLocationPicker(
+      context,
+      locale: ref.read(localeProvider),
+      latitude: double.tryParse(_latitude.text.trim().replaceAll(',', '.')),
+      longitude: double.tryParse(_longitude.text.trim().replaceAll(',', '.')),
+    );
+    if (point == null || !mounted) return;
+    setState(() {
+      _latitude.text = '${point.latitude}';
+      _longitude.text = '${point.longitude}';
+      _saved = false;
+    });
   }
 
   @override
@@ -109,7 +137,16 @@ class _AddressTabState extends ConsumerState<AddressTab> {
             96,
           ),
           children: [
+            if (widget.admin) ...[
+              TextFormField(
+                key: const ValueKey('address-city'),
+                controller: _city,
+                decoration: const InputDecoration(labelText: 'Город'),
+              ),
+              const SizedBox(height: AppSpacing.sm),
+            ],
             TextFormField(
+              key: const ValueKey('address-address'),
               controller: _address,
               maxLines: 2,
               decoration: InputDecoration(
@@ -142,23 +179,48 @@ class _AddressTabState extends ConsumerState<AddressTab> {
                 ),
               ],
             ),
-            const SizedBox(height: AppSpacing.sm),
-            TextFormField(
-              controller: _placeId,
-              decoration: const InputDecoration(labelText: 'Google Place ID'),
-            ),
-            const SizedBox(height: AppSpacing.sm),
-            TextFormField(
-              controller: _capacity,
-              keyboardType: TextInputType.number,
-              decoration: InputDecoration(
-                labelText: t(
-                  locale,
-                  ru: 'Общая вместимость',
-                  kz: 'Жалпы сыйымдылық',
+            if (widget.admin) ...[
+              const SizedBox(height: AppSpacing.xs),
+              OutlinedButton.icon(
+                key: const ValueKey('address-pick-map'),
+                style: OutlinedButton.styleFrom(
+                  minimumSize: const Size.fromHeight(48),
                 ),
+                onPressed: _saving ? null : _pickOnMap,
+                icon: const Icon(Icons.place_outlined),
+                label: const Text('Указать точку на карте'),
+              ),
+            ],
+            const SizedBox(height: AppSpacing.sm),
+            TextFormField(
+              key: const ValueKey('address-place-id'),
+              controller: _placeId,
+              readOnly: widget.admin,
+              enableInteractiveSelection: true,
+              decoration: InputDecoration(
+                labelText: 'Google Place ID',
+                hintText: widget.admin ? 'Заполнится автоматически' : null,
+                helperText: widget.admin
+                    ? 'Заполняется автоматически после выбора адреса из '
+                          'подсказок Google (на сайте)'
+                    : null,
+                helperMaxLines: 2,
               ),
             ),
+            if (!widget.admin) ...[
+              const SizedBox(height: AppSpacing.sm),
+              TextFormField(
+                controller: _capacity,
+                keyboardType: TextInputType.number,
+                decoration: InputDecoration(
+                  labelText: t(
+                    locale,
+                    ru: 'Общая вместимость',
+                    kz: 'Жалпы сыйымдылық',
+                  ),
+                ),
+              ),
+            ],
             if (_error != null) ...[
               const SizedBox(height: AppSpacing.xs),
               Text(
@@ -206,6 +268,8 @@ class _AddressTabState extends ConsumerState<AddressTab> {
                     label: Text(
                       _saved
                           ? t(locale, ru: 'Сохранено', kz: 'Сақталды')
+                          : widget.admin
+                          ? 'Сохранить адрес'
                           : t(locale, ru: 'Сохранить', kz: 'Сақтау'),
                     ),
                   ),

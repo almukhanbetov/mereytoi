@@ -142,8 +142,23 @@ class ApiClient {
   /// `Content-Type: multipart/form-data; boundary=...` for a [FormData]
   /// body regardless of this client's default JSON header, so no extra
   /// `Options` override is needed here.
-  Future<Map<String, dynamic>> postMultipart(String path, FormData data) async {
-    final res = await _run(() => _dio.post(path, data: data));
+  ///
+  /// [receiveTimeout] overrides the default 12 s wait for the answer — a
+  /// video upload is transcoded on the server before it replies.
+  Future<Map<String, dynamic>> postMultipart(
+    String path,
+    FormData data, {
+    Duration? receiveTimeout,
+  }) async {
+    final res = await _run(
+      () => _dio.post(
+        path,
+        data: data,
+        options: receiveTimeout == null
+            ? null
+            : Options(receiveTimeout: receiveTimeout),
+      ),
+    );
     return _asMap(res);
   }
 

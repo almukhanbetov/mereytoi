@@ -103,6 +103,21 @@ class ListingManagementService {
     return Listing.fromJson(Map<String, dynamic>.from(json['listing'] as Map));
   }
 
+  /// POST /api/listings — admin-only on the server (`RequireAdmin`). The
+  /// web admin's `createListing`: the body is ServiceForm's payload as is.
+  /// The server publishes a new listing at once and assigns no owner.
+  Future<Listing> createListing(Map<String, dynamic> payload) async {
+    final json = await _client.postJson('/api/listings', payload);
+    return Listing.fromJson(Map<String, dynamic>.from(json['listing'] as Map));
+  }
+
+  /// PUT /api/listings/:id with a complete body built by the caller — the
+  /// web admin's `updateListing(id, payload)` from ServiceForm.
+  Future<Listing> putListing(int id, Map<String, dynamic> payload) async {
+    final json = await _client.putJson('/api/listings/$id', payload);
+    return Listing.fromJson(Map<String, dynamic>.from(json['listing'] as Map));
+  }
+
   /// DELETE /api/listings/:id — Этап 11 "Мои услуги" delete. Same handler
   /// the admin catalog already used (listingHandler.Delete), now also
   /// reachable by an owner/manager via `RequireListingAccess` (see

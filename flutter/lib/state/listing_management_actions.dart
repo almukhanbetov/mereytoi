@@ -90,6 +90,25 @@ class ListingManagementActions {
     return result;
   }
 
+  /// Admin «Новая услуга»: POST /api/listings, then every list that shows
+  /// listings refreshes.
+  Future<Listing> createListing(Map<String, dynamic> payload) async {
+    final result = await _ref
+        .read(listingManagementServiceProvider)
+        .createListing(payload);
+    _invalidateListing(result.id);
+    return result;
+  }
+
+  /// Admin «Сохранить изменения» with ServiceForm's complete body.
+  Future<Listing> saveListing(int id, Map<String, dynamic> payload) async {
+    final result = await _ref
+        .read(listingManagementServiceProvider)
+        .putListing(id, payload);
+    _invalidateListing(id);
+    return result;
+  }
+
   Future<ListingHall> createHall(
     int listingId, {
     required String nameRu,
