@@ -36,6 +36,8 @@ class Listing {
     required this.imageUrls,
     this.videoUrls = const [],
     required this.isActive,
+    this.moderationHiddenAt,
+    this.moderationReason = '',
     this.address,
     this.latitude,
     this.longitude,
@@ -84,6 +86,13 @@ class Listing {
       ? _videos
       : [for (final url in videoUrls) ListingVideo(url: url)];
   final bool isActive;
+
+  /// Set when an administrator hid the listing (the owner can't undo it);
+  /// the reason only comes on the owner's own list (/api/users/me/listings).
+  final DateTime? moderationHiddenAt;
+  final String moderationReason;
+
+  bool get hiddenByAdmin => moderationHiddenAt != null;
 
   // ---- Restaurant/venue location fields (Listing.Address/Latitude/
   // Longitude/PlaceID/Capacity — all additive + omitempty on the backend,
@@ -164,6 +173,10 @@ class Listing {
           .where((v) => v.url.isNotEmpty)
           .toList(),
       isActive: json['is_active'] as bool? ?? true,
+      moderationHiddenAt: DateTime.tryParse(
+        json['moderation_hidden_at'] as String? ?? '',
+      )?.toLocal(),
+      moderationReason: json['moderation_reason'] as String? ?? '',
       address: json['address'] as String?,
       latitude: (json['latitude'] as num?)?.toDouble(),
       longitude: (json['longitude'] as num?)?.toDouble(),

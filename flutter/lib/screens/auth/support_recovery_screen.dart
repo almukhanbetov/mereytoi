@@ -1,6 +1,9 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
+import '../../models/account_block.dart';
+import 'account_blocked_screen.dart';
+
 import '../../core/network/api_exception.dart';
 import '../../core/theme/app_theme.dart';
 import '../../core/utils/error_messages.dart';
@@ -339,6 +342,17 @@ class _TempCodeRecoveryScreenState
       if (!mounted) return;
       Navigator.of(context).pop(BackupRecoveryDone(result.user));
     } catch (e) {
+      // A blocked account: the password did change and a new backup code
+      // was issued, but there's no session — show the code with the block.
+      final block = accountBlockFrom(e);
+      if (block != null && mounted) {
+        _codeController.clear();
+        _passwordController.clear();
+        _confirmController.clear();
+        await AccountBlockedScreen.open(Navigator.of(context), block);
+        if (mounted) Navigator.of(context).pop();
+        return;
+      }
       if (mounted) setState(() => _error = e);
     } finally {
       if (mounted) setState(() => _busy = false);

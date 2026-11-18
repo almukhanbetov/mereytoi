@@ -39,7 +39,8 @@ function LoginForm() {
       await login(identifier, password);
       router.push(next);
     } catch (err) {
-      setError(err.message || 'Не удалось войти');
+      // A blocked account is explained by AccountBlockedNotice instead.
+      setError(err.message === 'account_blocked' ? '' : (err.message || 'Не удалось войти'));
     } finally {
       setSubmitting(false);
     }

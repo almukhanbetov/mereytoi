@@ -8,6 +8,9 @@ import { formatPrice } from '@/lib/format';
 // lib/eventHelpers.js's activityLine() for the event activity feed.
 
 const TITLES = {
+  admin_warning: { ru: 'Предупреждение', kz: 'Ескерту', en: 'Warning' },
+  account_blocked: { ru: 'Аккаунт был заблокирован', kz: 'Аккаунт бұғатталған болатын', en: 'Account was blocked' },
+  account_unblocked: { ru: 'Аккаунт разблокирован', kz: 'Аккаунт бұғаттан шығарылды', en: 'Account unblocked' },
   invitation_accepted: { ru: 'Приглашение принято', kz: 'Шақыру қабылданды', en: 'Invitation accepted' },
   candidate_added: { ru: 'Новая услуга', kz: 'Жаңа қызмет', en: 'New service' },
   vote_added: { ru: 'Новый голос', kz: 'Жаңа дауыс', en: 'New vote' },
@@ -66,7 +69,24 @@ export function notificationMessage(notification, lang) {
   const body = String(p.body || '').replace(/\s+/g, ' ').trim();
   const preview = body.length > 120 ? `«${body.slice(0, 120)}…»` : `«${body}»`;
 
+  const reasonText = String(p.reason || '').trim();
   const templates = {
+    // Account sanctions by an administrator — who acted is never named.
+    admin_warning: {
+      ru: `Предупреждение от администрации MEREYTOI${reasonText ? `. Причина: ${reasonText}` : ''}`,
+      kz: `MEREYTOI әкімшілігінен ескерту${reasonText ? `. Себебі: ${reasonText}` : ''}`,
+      en: `A warning from the MEREYTOI team${reasonText ? `. Reason: ${reasonText}` : ''}`,
+    },
+    account_blocked: {
+      ru: `Ваш аккаунт был заблокирован${reasonText ? `. Причина: ${reasonText}` : ''}`,
+      kz: `Аккаунтыңыз бұғатталған болатын${reasonText ? `. Себебі: ${reasonText}` : ''}`,
+      en: `Your account was blocked${reasonText ? `. Reason: ${reasonText}` : ''}`,
+    },
+    account_unblocked: {
+      ru: 'Доступ к аккаунту восстановлен',
+      kz: 'Аккаунтқа қолжетімділік қалпына келді',
+      en: 'Access to your account was restored',
+    },
     invitation_accepted: {
       ru: `${actor} присоединился(лась) к вашей команде`,
       kz: `${actor} сіздің командаңызға қосылды`,
@@ -206,6 +226,9 @@ const TYPE_ICONS = {
   manager_message_received: '💬',
   manager_chat_user_message: '💬',
   provider_message_received: '💬',
+  admin_warning: '⚠️',
+  account_blocked: '⛔',
+  account_unblocked: '✅',
 };
 
 export function notificationTypeIcon(type) {

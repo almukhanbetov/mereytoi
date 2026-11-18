@@ -253,6 +253,10 @@ func attachProviderBriefs(db *gorm.DB, listingIDs []uint) map[uint]*providerBrie
 type myListingOut struct {
 	listingOut
 	Role string `json:"role,omitempty"`
+	// ModerationReason — why an administrator hid this listing, for its own
+	// owner/managers only (this endpoint is scoped to them). Kept out of the
+	// public listing JSON, which also reaches clients through bookings.
+	ModerationReason string `json:"moderation_reason,omitempty"`
 }
 
 // MyListings — GET /api/users/me/listings (brief section: "Мои
@@ -300,7 +304,7 @@ func (h *ListingHandler) MyListings(c *gin.Context) {
 	counted := attachListingCounts(h.DB, listings)
 	out := make([]myListingOut, 0, len(counted))
 	for _, row := range counted {
-		out = append(out, myListingOut{listingOut: row, Role: roleByListing[row.Listing.ID]})
+		out = append(out, myListingOut{listingOut: row, Role: roleByListing[row.Listing.ID], ModerationReason: row.Listing.ModerationReason})
 	}
 	c.JSON(http.StatusOK, gin.H{"listings": out})
 }

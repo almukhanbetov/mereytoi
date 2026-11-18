@@ -30,9 +30,10 @@ func AccountSessionValidator(db *gorm.DB, now func() time.Time) middleware.Sessi
 			PasswordChangedAt *time.Time
 			BlockedAt         *time.Time
 			BlockedUntil      *time.Time
+			BlockReason       string
 		}
 		err := db.Model(&models.User{}).
-			Select("role", "password_changed_at", "blocked_at", "blocked_until").
+			Select("role", "password_changed_at", "blocked_at", "blocked_until", "block_reason").
 			Where("id = ?", userID).Take(&row).Error
 		if err != nil {
 			return middleware.Session{Error: "session_expired"}
@@ -41,7 +42,7 @@ func AccountSessionValidator(db *gorm.DB, now func() time.Time) middleware.Sessi
 			return middleware.Session{Error: "session_expired"}
 		}
 		if models.BlockActive(row.BlockedAt, row.BlockedUntil, now().UTC()) {
-			return middleware.Session{Error: "account_blocked", BlockedUntil: row.BlockedUntil}
+			return middleware.Session{Error: "account_blocked", BlockedUntil: row.BlockedUntil, BlockReason: row.BlockReason}
 		}
 		return middleware.Session{Valid: true, Role: row.Role}
 	}

@@ -1,6 +1,9 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:url_launcher/url_launcher.dart';
+import 'report/report_sheet.dart';
+import '../state/listings_provider.dart';
+import '../state/auth_provider.dart';
 
 import '../core/config/api_config.dart';
 import '../core/theme/app_theme.dart';
@@ -243,6 +246,7 @@ List<Widget> listingHeroSlivers({
                   locale: locale,
                 ),
               ],
+              ListingReportRow(listing: listing),
               if (includeDescription &&
                   listing.description(locale).isNotEmpty) ...[
                 const SizedBox(height: AppSpacing.lg),
@@ -725,6 +729,34 @@ class _ContactButtonState extends ConsumerState<_ContactButton> {
         onPressed: _open,
         icon: widget.icon,
         label: FittedBox(fit: BoxFit.scaleDown, child: text),
+      ),
+    );
+  }
+}
+
+/// «Пожаловаться» on a listing — not on one the user manages themselves.
+class ListingReportRow extends ConsumerWidget {
+  const ListingReportRow({super.key, required this.listing});
+
+  final Listing listing;
+
+  @override
+  Widget build(BuildContext context, WidgetRef ref) {
+    // Only consults the user's own listings if they're already loaded (an
+    // owner usually arrives from «Мои услуги»), so a listing page never
+    // fires an extra request for it; otherwise the server itself refuses a
+    // report on one's own listing, and the sheet says so.
+    if (ref.watch(authProvider) is AuthAuthenticated &&
+        ref.exists(myListingsProvider)) {
+      final mine = ref.watch(myListingsProvider).valueOrNull ?? const [];
+      if (mine.any((l) => l.id == listing.id)) return const SizedBox.shrink();
+    }
+    return Align(
+      alignment: Alignment.centerRight,
+      child: ReportButton(
+        targetType: 'listing',
+        targetId: listing.id,
+        targetName: listing.name(ref.watch(localeProvider)),
       ),
     );
   }

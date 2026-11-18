@@ -88,7 +88,9 @@ function RecoverForm() {
         router.push(next);
       }
     } catch (err) {
-      setError(errorText(err.message, lang));
+      // A blocked account (password changed, new backup code issued, no
+      // session) is explained by AccountBlockedNotice instead.
+      setError(err.message === 'account_blocked' ? '' : errorText(err.message, lang));
     } finally {
       setSubmitting(false);
     }

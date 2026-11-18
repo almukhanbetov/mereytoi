@@ -65,6 +65,11 @@ type reportOut struct {
 	Status     string     `json:"status"`
 	CreatedAt  time.Time  `json:"created_at"`
 	ResolvedAt *time.Time `json:"resolved_at"`
+	// TargetTitle — the name of what was reported (listing name, provider
+	// name, the user's name, a short review excerpt), so the reporter can
+	// recognise their report; empty once it's deleted. Nothing about the
+	// moderation itself.
+	TargetTitle string `json:"target_title"`
 }
 
 func reportOutFrom(r models.Report) reportOut {
@@ -193,9 +198,11 @@ func (h *ReportHandler) Mine(c *gin.Context) {
 		c.JSON(http.StatusInternalServerError, gin.H{"error": "failed to fetch reports"})
 		return
 	}
+	titles := reportTargetTitles(h.DB, rs)
 	out := make([]reportOut, len(rs))
 	for i, r := range rs {
 		out[i] = reportOutFrom(r)
+		out[i].TargetTitle = titles[r.TargetType+":"+fmt.Sprint(r.TargetID)]
 	}
 	c.JSON(http.StatusOK, gin.H{"reports": out})
 }
@@ -206,4 +213,47 @@ func isUniqueViolation(err error) bool {
 	}
 	msg := strings.ToLower(err.Error())
 	return strings.Contains(msg, "unique") || strings.Contains(msg, "duplicate key")
+}
+
+// reportTargetTitles — a display name per "type:id", one query per type.
+func reportTargetTitles(db *gorm.DB, rs []models.Report) map[string]string {
+	ids := map[string][]uint{}
+	for _, r := range rs {
+		ids[r.TargetType] = append(ids[r.TargetType], r.TargetID)
+	}
+	out := map[string]string{}
+	put := func(t string, id uint, title string) { out[t+":"+fmt.Sprint(id)] = title }
+	if v := ids[models.ReportTargetListing]; len(v) > 0 {
+		var ls []models.Listing
+		db.Select("id", "name_ru").Where("id IN ?", v).Find(&ls)
+		for _, l := range ls {
+			put(models.ReportTargetListing, l.ID, l.NameRu)
+		}
+	}
+	if v := ids[models.ReportTargetProvider]; len(v) > 0 {
+		var ps []models.Provider
+		db.Select("id", "display_name").Where("id IN ?", v).Find(&ps)
+		for _, p := range ps {
+			put(models.ReportTargetProvider, p.ID, p.DisplayName)
+		}
+	}
+	if v := ids[models.ReportTargetComment]; len(v) > 0 {
+		var cs []models.Comment
+		db.Select("id", "text").Where("id IN ?", v).Find(&cs)
+		for _, cm := range cs {
+			text := cm.Text
+			if utf8.RuneCountInString(text) > 80 {
+				text = string([]rune(text)[:80]) + "…"
+			}
+			put(models.ReportTargetComment, cm.ID, text)
+		}
+	}
+	if v := ids[models.ReportTargetUser]; len(v) > 0 {
+		var us []models.User
+		db.Select("id", "name").Where("id IN ?", v).Find(&us)
+		for _, u := range us {
+			put(models.ReportTargetUser, u.ID, u.Name)
+		}
+	}
+	return out
 }

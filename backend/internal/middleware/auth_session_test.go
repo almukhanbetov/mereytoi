@@ -115,9 +115,11 @@ func TestRoleComesFromValidatorNotToken(t *testing.T) {
 
 func TestBlockedSessionIsRejectedWithItsTerm(t *testing.T) {
 	until := time.Date(2026, 12, 1, 0, 0, 0, 0, time.UTC)
-	r := engine(func(uint, int64) Session { return Session{Error: "account_blocked", BlockedUntil: &until} })
+	r := engine(func(uint, int64) Session {
+		return Session{Error: "account_blocked", BlockedUntil: &until, BlockReason: "Спам"}
+	})
 	rec := get(r, "/req", token(t, time.Now()))
-	if rec.Code != http.StatusUnauthorized || rec.Body.String() != `{"blocked_until":"2026-12-01T00:00:00Z","error":"account_blocked"}` {
+	if rec.Code != http.StatusUnauthorized || rec.Body.String() != `{"blocked_until":"2026-12-01T00:00:00Z","error":"account_blocked","reason":"Спам"}` {
 		t.Fatalf("got %d %s", rec.Code, rec.Body)
 	}
 	if rec := get(r, "/opt", token(t, time.Now())); rec.Body.String() != "guest" {

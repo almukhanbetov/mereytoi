@@ -1,5 +1,7 @@
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
+import '../models/account_block.dart';
+
 import '../core/network/api_client.dart';
 import '../core/storage/token_storage.dart';
 import '../models/user.dart';
@@ -41,6 +43,14 @@ class AuthUnauthenticated extends AuthState {
   const AuthUnauthenticated();
 }
 
+/// Signed out because an administrator blocked the account while it was in
+/// use. Still an [AuthUnauthenticated] for every existing check; carries the
+/// reason and term so the app can explain it (see AccountBlockedScreen).
+class AuthBlocked extends AuthUnauthenticated {
+  const AuthBlocked(this.block);
+  final AccountBlock block;
+}
+
 /// Owns the session lifecycle end to end: restore-on-start, login, register,
 /// logout, and reacting to a 401 from anywhere else in the app.
 class AuthNotifier extends StateNotifier<AuthState> {
@@ -50,6 +60,7 @@ class AuthNotifier extends StateNotifier<AuthState> {
     // Riverpod dependency) — this is the one place that turns that into an
     // actual session change.
     ApiClient.instance.setUnauthorizedHandler(_handleUnauthorized);
+    ApiClient.instance.setAccountBlockedHandler(_handleBlocked);
     _restoreSession();
   }
 
@@ -74,9 +85,12 @@ class AuthNotifier extends StateNotifier<AuthState> {
     try {
       final user = await _authService.fetchMe();
       state = AuthAuthenticated(user);
-    } catch (_) {
+    } catch (e) {
       await TokenStorage.instance.clearToken();
-      state = const AuthUnauthenticated();
+      // A block found at start keeps its explanation (the 401 handler may
+      // already have set it; set it here too in case it ran first).
+      final block = accountBlockFrom(e);
+      state = block != null ? AuthBlocked(block) : const AuthUnauthenticated();
     }
   }
 
@@ -244,6 +258,14 @@ class AuthNotifier extends StateNotifier<AuthState> {
   /// Only actually changes anything if a session was believed to be active
   /// — a 401 from, say, a login attempt with the wrong password fires this
   /// too, but there was never a session to tear down in that case.
+  /// A live session refused because the account is blocked: sign out, but
+  /// say why. A block noticed while no session is believed active (e.g. a
+  /// stale token at start) also lands here.
+  void _handleBlocked(Map<String, dynamic> body) {
+    TokenStorage.instance.clearToken();
+    state = AuthBlocked(AccountBlock.fromJson(body));
+  }
+
   void _handleUnauthorized() {
     if (state is AuthAuthenticated) {
       TokenStorage.instance.clearToken();

@@ -6,6 +6,7 @@ import Reveal from '@/components/Reveal';
 import { T, useLang } from '@/context/AppProviders';
 import { useAuth } from '@/context/AuthContext';
 import { commentsApi } from '@/lib/commentsApi';
+import ReportButton from '@/components/report/ReportButton';
 
 function formatDate(iso) {
   return new Date(iso).toLocaleDateString('ru-RU', { day: '2-digit', month: '2-digit', year: 'numeric' });
@@ -29,7 +30,7 @@ function Stars({ value, onChange }) {
 
 export default function CommentsSection({ listingId }) {
   const { lang } = useLang();
-  const { isAuthenticated } = useAuth();
+  const { isAuthenticated, user } = useAuth();
 
   const [comments, setComments] = useState([]);
   const [loading, setLoading] = useState(true);
@@ -112,6 +113,14 @@ export default function CommentsSection({ listingId }) {
                 </div>
                 <Stars value={c.rating} />
                 <p className="comment__text">{c.text}</p>
+                {user?.id !== c.user_id && (
+                  <ReportButton
+                    targetType="comment"
+                    targetId={c.id}
+                    targetName={c.text.length > 60 ? `${c.text.slice(0, 60)}…` : c.text}
+                    className="report-link--small"
+                  />
+                )}
               </div>
             </div>
           ))}

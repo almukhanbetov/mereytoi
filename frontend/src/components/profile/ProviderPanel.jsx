@@ -358,6 +358,7 @@ export default function ProviderPanel() {
                           <button type="button" className="admin-table__link" onClick={() => handleToggleActive(l)}>
                             {l.is_active ? <T ru="Опубликовано" kz="Жарияланды" /> : <T ru="Скрыто" kz="Жасырылған" />}
                           </button>
+                        <AdminHiddenNote listing={l} />
                         </td>
                         <td className="admin-table__actions">
                           <button type="button" className="admin-table__link" onClick={() => { setServiceForm(null); setManagingId(l.id); }}>
@@ -410,6 +411,7 @@ export default function ProviderPanel() {
                         <button type="button" className="admin-table__link" onClick={() => handleToggleActive(l)}>
                           {l.is_active ? <T ru="Опубликовано" kz="Жарияланды" /> : <T ru="Скрыто" kz="Жасырын" />}
                         </button>
+                        <AdminHiddenNote listing={l} />
                       </td>
                       <td className="admin-table__actions">
                         <button type="button" className="admin-table__link" onClick={() => { setManagingId(null); setServiceForm(l); }}>
@@ -432,6 +434,23 @@ export default function ProviderPanel() {
           )}
         </div>
       )}
+    </div>
+  );
+}
+
+// The owner's explanation of an administrator's hiding: the reason, and that
+// their own publish switch can't lift it.
+function AdminHiddenNote({ listing }) {
+  if (!listing.moderation_hidden_at) return null;
+  return (
+    <div className="admin-hidden-note" data-testid={`admin-hidden-${listing.id}`}>
+      <b><T ru="Скрыта администратором" kz="Әкімші жасырған" en="Hidden by an administrator" /></b>
+      {listing.moderation_reason && (
+        <div><T ru="Причина" kz="Себебі" en="Reason" />: {listing.moderation_reason}</div>
+      )}
+      <div>
+        <T ru="Клиенты её не видят. Вернуть публикацию может только администратор — исправьте карточку и напишите в поддержку." kz="Клиенттер оны көрмейді. Жариялауды тек әкімші қайтара алады — карточканы түзетіп, қолдау қызметіне жазыңыз." en="Clients can't see it. Only an administrator can bring it back — fix the listing and write to support." />
+      </div>
     </div>
   );
 }

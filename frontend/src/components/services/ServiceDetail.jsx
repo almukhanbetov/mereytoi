@@ -18,6 +18,7 @@ import RestaurantLocation from '@/components/services/RestaurantLocation';
 import { isRestaurantCategory } from '@/lib/restaurantCategory';
 import ViewCount from '@/components/services/ViewCount';
 import { providerApi } from '@/lib/providerApi';
+import ReportButton from '@/components/report/ReportButton';
 
 export default function ServiceDetail({ listing, related }) {
   const { lang } = useLang();
@@ -189,6 +190,13 @@ export default function ServiceDetail({ listing, related }) {
             </p>
 
             {listing.provider && <ProviderBlock provider={listing.provider} listingId={listing.id} />}
+            <div className="report-row">
+              <ReportButton
+                targetType="listing"
+                targetId={listing.id}
+                targetName={lang === 'kz' ? (listing.name_kz || listing.name_ru) : listing.name_ru}
+              />
+            </div>
           </div>
         </div>
       </section>
@@ -274,6 +282,11 @@ function ProviderBlock({ provider, listingId }) {
           <T ru="Связаться →" kz="Байланысу →" en="Contact →" />
         </a>
       )}
+      {provider.id ? (
+        <div className="report-row">
+          <ReportButton targetType="provider" targetId={provider.id} targetName={provider.display_name} />
+        </div>
+      ) : null}
     </div>
   );
 }

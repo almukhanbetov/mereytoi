@@ -283,6 +283,10 @@ class _ServiceRow extends ConsumerWidget {
                           style: Theme.of(context).textTheme.bodySmall,
                         ),
                         const SizedBox(height: AppSpacing.xxs),
+                        if (listing.hiddenByAdmin) ...[
+                          AdminHiddenNote(listing: listing, locale: locale),
+                          const SizedBox(height: AppSpacing.xxs),
+                        ],
                         Wrap(
                           spacing: AppSpacing.xs,
                           runSpacing: AppSpacing.xxs,
@@ -369,6 +373,73 @@ class _ServiceRow extends ConsumerWidget {
                 child: Text(t(locale, ru: 'Удалить', kz: 'Жою', en: 'Delete')),
               ),
             ],
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+/// The owner's explanation of an administrator's hiding: what it means, the
+/// reason, and that their own publish switch can't lift it.
+class AdminHiddenNote extends StatelessWidget {
+  const AdminHiddenNote({
+    super.key,
+    required this.listing,
+    required this.locale,
+  });
+
+  final Listing listing;
+  final AppLocale locale;
+
+  @override
+  Widget build(BuildContext context) {
+    final c = context.mereytoiColors;
+    final textTheme = Theme.of(context).textTheme;
+    return Container(
+      key: ValueKey('admin-hidden-${listing.id}'),
+      width: double.infinity,
+      padding: const EdgeInsets.all(AppSpacing.xs),
+      decoration: BoxDecoration(
+        color: c.error.withValues(alpha: 0.10),
+        borderRadius: BorderRadius.circular(AppRadius.sm),
+        border: Border.all(color: c.error.withValues(alpha: 0.5)),
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Text(
+            t(
+              locale,
+              ru: 'Скрыта администратором',
+              kz: 'Әкімші жасырған',
+              en: 'Hidden by an administrator',
+            ),
+            style: textTheme.bodySmall?.copyWith(
+              color: c.error,
+              fontWeight: FontWeight.w700,
+            ),
+          ),
+          if (listing.moderationReason.isNotEmpty)
+            Text(
+              '${t(locale, ru: 'Причина', kz: 'Себебі', en: 'Reason')}: '
+              '${listing.moderationReason}',
+              style: textTheme.bodySmall,
+            ),
+          Text(
+            t(
+              locale,
+              ru:
+                  'Клиенты её не видят. Вернуть публикацию может только '
+                  'администратор — исправьте карточку и напишите в поддержку.',
+              kz:
+                  'Клиенттер оны көрмейді. Жариялауды тек әкімші қайтара '
+                  'алады — карточканы түзетіп, қолдау қызметіне жазыңыз.',
+              en:
+                  "Clients can't see it. Only an administrator can bring it "
+                  'back — fix the listing and write to support.',
+            ),
+            style: textTheme.bodySmall,
           ),
         ],
       ),

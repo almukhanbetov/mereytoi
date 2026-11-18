@@ -2721,3 +2721,65 @@ a.ws-chip:hover, button.ws-chip:hover{ border-color: var(--gold); }
 .view-count{ display:inline-flex; align-items:center; gap:4px; color: var(--text-muted); font-size:12.5px; line-height:1.3; font-variant-numeric: tabular-nums; }
 .view-count svg{ flex:none; }
 .view-count--detail{ margin:0 0 14px; font-size:13.5px; }
+
+/* ============ Reports (stage 4) ============ */
+.report-row{ display:flex; justify-content:flex-end; margin-top:8px; }
+.report-link{
+  display:inline-flex; align-items:center; gap:6px; min-height:44px; padding:8px 10px;
+  background:none; border:0; cursor:pointer; color: var(--text-muted); font-size:13px; font-weight:500;
+}
+.report-link:hover{ color: var(--text); }
+.report-link--small{ min-height:36px; padding:4px 0; font-size:12px; }
+.report-overlay{
+  position:fixed; inset:0; z-index:100000; display:flex; align-items:center; justify-content:center;
+  padding:16px; background: rgba(0,0,0,0.55);
+}
+.report-dialog{
+  width:100%; max-width:440px; max-height:calc(100vh - 32px); overflow:auto; outline:none;
+  background: var(--bg-elevated, var(--bg)); color: var(--text); border:1px solid var(--border);
+  border-radius:20px; padding:22px; box-shadow: 0 24px 60px -20px rgba(0,0,0,0.6);
+}
+.report-dialog__title{ font-size:19px; margin:0 0 6px; }
+.report-dialog__target{ color: var(--text-muted); margin:0 0 14px; font-size:14px; }
+.report-reasons{ border:0; padding:0; margin:0 0 8px; display:grid; gap:6px; }
+.report-reasons legend{ font-weight:600; margin-bottom:8px; }
+.report-reason{
+  display:flex; align-items:center; gap:10px; min-height:44px; padding:8px 12px; cursor:pointer;
+  border:1px solid var(--border); border-radius:12px;
+}
+.report-reason.is-selected{ border-color: var(--gold); background: var(--surface-tint); }
+.report-dialog__label{ display:block; font-size:13px; color: var(--text-muted); margin:10px 0 6px; }
+.report-dialog__textarea{
+  width:100%; box-sizing:border-box; padding:10px 12px; border-radius:12px; resize:vertical;
+  border:1px solid var(--border); background: var(--surface-tint); color: var(--text); font:inherit;
+}
+.report-dialog__error{ color: #d9534f; font-size:13px; margin:6px 0 0; }
+.report-dialog__note{ color: var(--text-muted); font-size:13.5px; line-height:1.45; margin:12px 0 0; }
+.report-dialog__actions{ display:flex; flex-wrap:wrap; gap:10px; margin-top:18px; }
+.report-dialog__actions .btn{ flex:1 1 150px; padding:12px 18px; }
+.report-summary{
+  display:grid; gap:6px; padding:12px 14px; border-radius:14px;
+  background: var(--surface-tint); border:1px solid var(--border); font-size:14px; margin-top:6px;
+}
+.report-summary__details{ color: var(--text-muted); white-space:pre-wrap; }
+.blocked-indefinite{ color:#d9534f; }
+.blocked-code{ font-size:20px; font-weight:700; letter-spacing:2px; }
+.my-reports{ display:grid; gap:10px; margin-bottom:10px; }
+.my-report{ padding:14px 16px; border:1px solid var(--border); border-radius:16px; background: var(--surface-tint); }
+.my-report__head{ display:flex; justify-content:space-between; gap:10px; align-items:flex-start; }
+.my-report__title{ font-weight:600; }
+.my-report__status{ font-size:12px; font-weight:700; padding:3px 10px; border-radius:999px; white-space:nowrap; background: var(--surface-tint); }
+.my-report__status--new{ color: var(--gold-light); }
+.my-report__status--in_review{ color:#db9245; }
+.my-report__status--resolved{ color:#3f9a6b; }
+.my-report__status--rejected{ color: var(--text-muted); }
+.my-report__meta{ font-size:13px; color: var(--text-muted); margin-top:4px; }
+.admin-hidden-note{
+  margin-top:8px; padding:8px 10px; border-radius:10px; font-size:12.5px; line-height:1.4;
+  border:1px solid rgba(217,83,79,0.5); background: rgba(217,83,79,0.08); color: var(--text);
+}
+.admin-hidden-note b{ color:#d9534f; }
+/* Profile «Аккаунт» tab: form + history side by side, stacked on phones. */
+.profile-account-grid{ display:grid; grid-template-columns: 1fr 1.4fr; gap:50px; align-items:start; }
+.profile-account-grid > *{ min-width:0; }
+@media (max-width: 900px){ .profile-account-grid{ grid-template-columns: 1fr; gap:32px; } }
