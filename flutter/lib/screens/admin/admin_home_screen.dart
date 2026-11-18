@@ -5,6 +5,7 @@ import '../../core/theme/app_theme.dart';
 import '../../models/admin.dart';
 import '../../state/admin_providers.dart';
 import '../../widgets/app_card.dart';
+import '../profile/restaurant_admin/restaurant_admin_list_screen.dart';
 import 'admin_audit_screen.dart';
 import 'admin_reports_screen.dart';
 import 'admin_users_screen.dart';
@@ -91,6 +92,17 @@ class _AdminHomeBody extends ConsumerWidget {
               title: 'Пользователи и услугодатели',
               subtitle: 'Поиск, профиль, карточки, санкции',
               onTap: () => _open(context, ref, const AdminUsersScreen()),
+            ),
+            AdminRowCard(
+              key: const ValueKey('admin-nav-restaurants'),
+              leading: const Icon(Icons.storefront_outlined),
+              title: 'Рестораны и локации',
+              subtitle: 'Добавление, залы, меню и адрес',
+              onTap: () => _open(
+                context,
+                ref,
+                const RestaurantAdminListScreen(title: 'Рестораны и локации'),
+              ),
             ),
             AdminRowCard(
               key: const ValueKey('admin-nav-audit'),

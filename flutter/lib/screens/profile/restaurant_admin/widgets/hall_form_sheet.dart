@@ -64,6 +64,7 @@ class _HallFormSheetState extends ConsumerState<HallFormSheet> {
   late final TextEditingController _capacity;
   late final TextEditingController _price;
   late bool _isActive;
+  late final TextEditingController _sortOrder;
   late List<String> _images;
   bool _uploading = false;
   bool _saving = false;
@@ -80,11 +81,15 @@ class _HallFormSheetState extends ConsumerState<HallFormSheet> {
     _capacity = TextEditingController(text: e != null ? '${e.capacity}' : '');
     _price = TextEditingController(text: e != null ? '${e.price}' : '');
     _isActive = e?.isActive ?? true;
+    _sortOrder = TextEditingController(
+      text: '${e?.sortOrder ?? widget.nextSortOrder}',
+    );
     _images = [...?e?.imageUrls];
   }
 
   @override
   void dispose() {
+    _sortOrder.dispose();
     _nameRu.dispose();
     _nameKz.dispose();
     _descriptionRu.dispose();
@@ -143,7 +148,7 @@ class _HallFormSheetState extends ConsumerState<HallFormSheet> {
           price: int.tryParse(_price.text.trim()) ?? 0,
           imageUrls: _images,
           isActive: _isActive,
-          sortOrder: widget.nextSortOrder,
+          sortOrder: int.tryParse(_sortOrder.text.trim()) ?? 0,
         );
       } else {
         await actions.updateHall(
@@ -157,7 +162,7 @@ class _HallFormSheetState extends ConsumerState<HallFormSheet> {
           price: int.tryParse(_price.text.trim()) ?? 0,
           imageUrls: _images,
           isActive: _isActive,
-          sortOrder: widget.existing!.sortOrder,
+          sortOrder: int.tryParse(_sortOrder.text.trim()) ?? 0,
         );
       }
       if (mounted) Navigator.of(context).pop();
@@ -279,6 +284,28 @@ class _HallFormSheetState extends ConsumerState<HallFormSheet> {
               for (final u in _images)
                 if (u != url) u,
             ],
+          ),
+        ),
+        const SizedBox(height: AppSpacing.xs),
+        TextFormField(
+          key: const ValueKey('sort-order'),
+          controller: _sortOrder,
+          keyboardType: TextInputType.number,
+          inputFormatters: [FilteringTextInputFormatter.digitsOnly],
+          decoration: InputDecoration(
+            labelText: t(
+              locale,
+              ru: 'Порядок отображения',
+              kz: 'Көрсету реті',
+              en: 'Display order',
+            ),
+            helperText: t(
+              locale,
+              ru: 'Меньшее значение показывается выше',
+              kz: 'Кішірек мән жоғарырақ көрсетіледі',
+              en: 'A smaller number is shown higher',
+            ),
+            helperMaxLines: 2,
           ),
         ),
         const SizedBox(height: AppSpacing.xs),

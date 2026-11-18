@@ -64,6 +64,7 @@ class _MenuFormSheetState extends ConsumerState<MenuFormSheet> {
   DateTime? _validFrom;
   DateTime? _validUntil;
   late bool _isActive;
+  late final TextEditingController _sortOrder;
   bool _saving = false;
   String? _error;
 
@@ -84,10 +85,14 @@ class _MenuFormSheetState extends ConsumerState<MenuFormSheet> {
     _validFrom = e?.validFrom;
     _validUntil = e?.validUntil;
     _isActive = e?.isActive ?? true;
+    _sortOrder = TextEditingController(
+      text: '${e?.sortOrder ?? widget.nextSortOrder}',
+    );
   }
 
   @override
   void dispose() {
+    _sortOrder.dispose();
     _nameRu.dispose();
     _nameKz.dispose();
     _descriptionRu.dispose();
@@ -150,7 +155,7 @@ class _MenuFormSheetState extends ConsumerState<MenuFormSheet> {
           minGuests: minGuests,
           maxGuests: maxGuests,
           isActive: _isActive,
-          sortOrder: widget.nextSortOrder,
+          sortOrder: int.tryParse(_sortOrder.text.trim()) ?? 0,
           validFrom: _validFrom,
           validUntil: _validUntil,
         );
@@ -167,7 +172,7 @@ class _MenuFormSheetState extends ConsumerState<MenuFormSheet> {
           minGuests: minGuests,
           maxGuests: maxGuests,
           isActive: _isActive,
-          sortOrder: widget.existing!.sortOrder,
+          sortOrder: int.tryParse(_sortOrder.text.trim()) ?? 0,
           validFrom: _validFrom,
           validUntil: _validUntil,
         );
@@ -352,6 +357,28 @@ class _MenuFormSheetState extends ConsumerState<MenuFormSheet> {
               ),
             ),
           ),
+        const SizedBox(height: AppSpacing.xs),
+        TextFormField(
+          key: const ValueKey('sort-order'),
+          controller: _sortOrder,
+          keyboardType: TextInputType.number,
+          inputFormatters: [FilteringTextInputFormatter.digitsOnly],
+          decoration: InputDecoration(
+            labelText: t(
+              locale,
+              ru: 'Порядок отображения',
+              kz: 'Көрсету реті',
+              en: 'Display order',
+            ),
+            helperText: t(
+              locale,
+              ru: 'Меньшее значение показывается выше',
+              kz: 'Кішірек мән жоғарырақ көрсетіледі',
+              en: 'A smaller number is shown higher',
+            ),
+            helperMaxLines: 2,
+          ),
+        ),
         const SizedBox(height: AppSpacing.xs),
         SwitchListTile.adaptive(
           contentPadding: EdgeInsets.zero,
