@@ -1,3 +1,24 @@
+/* ============ Font fallbacks ============ */
+/* Metric-matched local fallbacks for the self-hosted fonts (layout.js): shown
+   until the web font loads and for characters it lacks (₸, some Kazakh
+   letters in Playfair). Values are the ones next/font/google generated. */
+@font-face{
+  font-family: "Montserrat Fallback";
+  src: local("Arial");
+  ascent-override: 85.79%;
+  descent-override: 22.25%;
+  line-gap-override: 0%;
+  size-adjust: 112.83%;
+}
+@font-face{
+  font-family: "Playfair Display Fallback";
+  src: local("Times New Roman");
+  ascent-override: 97.25%;
+  descent-override: 22.56%;
+  line-gap-override: 0%;
+  size-adjust: 111.26%;
+}
+
 /* ============ Tokens ============ */
 :root{
   color-scheme: dark;

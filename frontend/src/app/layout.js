@@ -1,4 +1,4 @@
-import { Playfair_Display, Montserrat } from "next/font/google";
+import localFont from "next/font/local";
 import Script from "next/script";
 import { GoogleTagManager } from "@next/third-parties/google";
 import "./globals.css";
@@ -13,16 +13,29 @@ import BackToTop from "@/components/BackToTop";
 import FloatingManagerWidget from "@/components/FloatingManagerWidget";
 import AiAssistantWidget from "@/components/AiAssistantWidget";
 
-const playfair = Playfair_Display({
+// Self-hosted so the build never fetches Google Fonts (see fonts/README.md).
+// The weight ranges match the weights the site used to load from Google:
+// other weights are clamped to the nearest one, as before. The metric-matched
+// fallbacks keep the exact values next/font/google generated; they live in
+// globals.css («… Fallback» @font-face).
+const playfair = localFont({
+  src: "./fonts/PlayfairMEREYTOIWeb-wght.woff2",
   variable: "--font-playfair",
-  subsets: ["latin", "cyrillic"],
-  weight: ["500", "600", "700", "800"],
+  weight: "500 800",
+  style: "normal",
+  display: "swap",
+  adjustFontFallback: false,
+  fallback: ["Playfair Display Fallback"],
 });
 
-const montserrat = Montserrat({
+const montserrat = localFont({
+  src: "./fonts/Montserrat-wght.woff2",
   variable: "--font-montserrat",
-  subsets: ["latin", "cyrillic"],
-  weight: ["300", "400", "500", "600", "700"],
+  weight: "300 700",
+  style: "normal",
+  display: "swap",
+  adjustFontFallback: false,
+  fallback: ["Montserrat Fallback"],
 });
 
 export const metadata = {
