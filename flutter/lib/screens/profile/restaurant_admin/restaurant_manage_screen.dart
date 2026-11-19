@@ -9,6 +9,7 @@ import '../../../state/locale_provider.dart';
 import '../../../widgets/app_error_view.dart';
 import '../../../widgets/app_loader.dart';
 import '../../admin/admin_listing_form_screen.dart';
+import '../../admin/admin_services_screen.dart';
 import 'tabs/address_tab.dart';
 import 'tabs/basic_info_tab.dart';
 import 'tabs/halls_tab.dart';
@@ -43,6 +44,16 @@ class RestaurantManageScreen extends ConsumerWidget {
                   kz: 'Мейрамхананы басқару',
                 ),
           ),
+          actions: [
+            if (isAdmin)
+              if (listingAsync.valueOrNull case final l?)
+                TextButton(
+                  key: const ValueKey('restaurant-toggle-hidden'),
+                  style: TextButton.styleFrom(minimumSize: const Size(48, 48)),
+                  onPressed: () => toggleAdminListingHidden(context, ref, l),
+                  child: Text(l.hiddenByAdmin ? 'Восстановить' : 'Скрыть'),
+                ),
+          ],
           bottom: TabBar(
             isScrollable: true,
             tabAlignment: TabAlignment.start,
@@ -75,16 +86,24 @@ class RestaurantManageScreen extends ConsumerWidget {
           data: (listing) => TabBarView(
             children: [
               if (isAdmin)
-                AdminListingForm(
-                  key: ValueKey('admin-basic-$listingId'),
-                  existing: listing,
-                  onSaved: (saved, category) {
-                    // Now an ordinary service: nothing left to manage here.
-                    if (category != null &&
-                        !isRestaurantCategory(category.slug)) {
-                      Navigator.of(context).pop();
-                    }
-                  },
+                Column(
+                  crossAxisAlignment: CrossAxisAlignment.stretch,
+                  children: [
+                    AdminListingStatusBanner(listing: listing),
+                    Expanded(
+                      child: AdminListingForm(
+                        key: ValueKey('admin-basic-$listingId'),
+                        existing: listing,
+                        onSaved: (saved, category) {
+                          // Now an ordinary service: nothing left to manage here.
+                          if (category != null &&
+                              !isRestaurantCategory(category.slug)) {
+                            Navigator.of(context).pop();
+                          }
+                        },
+                      ),
+                    ),
+                  ],
                 )
               else
                 BasicInfoTab(listing: listing),

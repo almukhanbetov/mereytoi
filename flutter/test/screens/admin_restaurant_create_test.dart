@@ -268,6 +268,14 @@ void main() {
       expect(adminListingPayload(ok)['rating'], 4.7);
       expect(adminListingPayload(ok)['price'], 0);
       expect(validateAdminListing(ok..rating = '4.75').rating, isNotNull);
+      // An owner-made listing has no colours; that never blocks a save.
+      final noColours = AdminListingValues(categoryId: 3)
+        ..nameRu = 'А'
+        ..nameKz = 'Б'
+        ..colorFrom = ''
+        ..colorTo = '';
+      expect(validateAdminListing(noColours).isEmpty, isTrue);
+      expect(adminListingPayload(noColours)['color_from'], '');
     });
 
     test('editing resends what the form doesn\'t show', () {
@@ -499,6 +507,10 @@ void main() {
       expect(body['place_id'], 'ChIJ123');
       expect(body['video_urls'], ['/uploads/v.mp4']);
       expect(find.text('Сохранено'), findsOneWidget);
+      // Editing again brings the save button back.
+      await fill(tester, 'alf-city', 'Астана');
+      await tester.pump();
+      expect(find.text('Сохранить изменения'), findsOneWidget);
     });
 
     testWidgets('admin address: city, read-only Place ID, no capacity', (

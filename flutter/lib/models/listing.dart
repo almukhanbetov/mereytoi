@@ -38,6 +38,9 @@ class Listing {
     required this.isActive,
     this.moderationHiddenAt,
     this.moderationReason = '',
+    this.publiclyVisible,
+    this.visibilityReasons = const [],
+    this.ownerBlockedUntil,
     this.address,
     this.latitude,
     this.longitude,
@@ -93,6 +96,18 @@ class Listing {
   final String moderationReason;
 
   bool get hiddenByAdmin => moderationHiddenAt != null;
+
+  /// Administrator's list only (GET /api/users/me/listings as admin):
+  /// whether visitors see the listing right now, computed by the server's
+  /// own visibility rule; null from any other endpoint.
+  final bool? publiclyVisible;
+
+  /// Why visitors don't see it: owner_unpublished, admin_hidden,
+  /// owner_blocked (several may apply). Administrator's list only.
+  final List<String> visibilityReasons;
+
+  /// End of the owner's block; null with owner_blocked = permanent.
+  final DateTime? ownerBlockedUntil;
 
   // ---- Restaurant/venue location fields (Listing.Address/Latitude/
   // Longitude/PlaceID/Capacity — all additive + omitempty on the backend,
@@ -177,6 +192,15 @@ class Listing {
         json['moderation_hidden_at'] as String? ?? '',
       )?.toLocal(),
       moderationReason: json['moderation_reason'] as String? ?? '',
+      publiclyVisible: json['publicly_visible'] as bool?,
+      visibilityReasons:
+          (json['visibility_reasons'] as List?)
+              ?.map((e) => e.toString())
+              .toList() ??
+          const [],
+      ownerBlockedUntil: DateTime.tryParse(
+        json['owner_blocked_until'] as String? ?? '',
+      )?.toLocal(),
       address: json['address'] as String?,
       latitude: (json['latitude'] as num?)?.toDouble(),
       longitude: (json['longitude'] as num?)?.toDouble(),

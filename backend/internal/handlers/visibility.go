@@ -84,3 +84,73 @@ func userBlockedNow(db *gorm.DB, userID uint) bool {
 	}
 	return models.BlockActive(row.BlockedAt, row.BlockedUntil, time.Now().UTC())
 }
+
+// Why visitors don't see a listing — reported to administrators only.
+const (
+	VisibilityOwnerUnpublished = "owner_unpublished"
+	VisibilityAdminHidden      = "admin_hidden"
+	VisibilityOwnerBlocked     = "owner_blocked"
+)
+
+// listingVisibility — whether visitors see a listing right now and, if not,
+// every reason that applies. It reports the rule above; it never changes it:
+// PubliclyVisible comes from publicListingScope itself, the reasons from the
+// same three conditions.
+type listingVisibility struct {
+	PubliclyVisible   bool     `json:"publicly_visible"`
+	VisibilityReasons []string `json:"visibility_reasons"`
+	// OwnerBlockedUntil — when the owner's block ends; null with the
+	// owner_blocked reason means a permanent block.
+	OwnerBlockedUntil *time.Time `json:"owner_blocked_until"`
+}
+
+// listingVisibilities computes listingVisibility for each of listings at
+// now, in three queries whatever their number.
+func listingVisibilities(db *gorm.DB, listings []models.Listing, now time.Time) map[uint]*listingVisibility {
+	out := make(map[uint]*listingVisibility, len(listings))
+	if len(listings) == 0 {
+		return out
+	}
+	ids := make([]uint, len(listings))
+	for i, l := range listings {
+		ids[i] = l.ID
+	}
+	var visible []uint
+	db.Model(&models.Listing{}).Where("id IN ?", ids).Scopes(publicListingScope(now)).Pluck("id", &visible)
+	isVisible := make(map[uint]bool, len(visible))
+	for _, id := range visible {
+		isVisible[id] = true
+	}
+	var owners []struct {
+		ListingID    uint
+		BlockedAt    *time.Time
+		BlockedUntil *time.Time
+	}
+	db.Table("listing_managers lm").
+		Select("lm.listing_id, u.blocked_at, u.blocked_until").
+		Joins("JOIN users u ON u.id = lm.user_id").
+		Where("lm.listing_id IN ? AND lm.role = ?", ids, models.ListingManagerRoleOwner).
+		Scan(&owners)
+	type block struct{ until *time.Time }
+	blockedOwner := map[uint]block{}
+	for _, o := range owners {
+		if models.BlockActive(o.BlockedAt, o.BlockedUntil, now.UTC()) {
+			blockedOwner[o.ListingID] = block{until: o.BlockedUntil}
+		}
+	}
+	for _, l := range listings {
+		v := &listingVisibility{PubliclyVisible: isVisible[l.ID], VisibilityReasons: []string{}}
+		if !l.IsActive {
+			v.VisibilityReasons = append(v.VisibilityReasons, VisibilityOwnerUnpublished)
+		}
+		if l.ModerationHiddenAt != nil {
+			v.VisibilityReasons = append(v.VisibilityReasons, VisibilityAdminHidden)
+		}
+		if b, ok := blockedOwner[l.ID]; ok {
+			v.VisibilityReasons = append(v.VisibilityReasons, VisibilityOwnerBlocked)
+			v.OwnerBlockedUntil = b.until
+		}
+		out[l.ID] = v
+	}
+	return out
+}

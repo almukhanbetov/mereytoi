@@ -138,6 +138,9 @@ String? _ratingError(String raw) {
 
 final _hexColor = RegExp(r'^#[0-9a-fA-F]{6}$');
 
+String? _colorError(String v) =>
+    v.isEmpty || _hexColor.hasMatch(v) ? null : 'Цвет в формате #RRGGBB';
+
 AdminListingErrors validateAdminListing(AdminListingValues v) {
   return AdminListingErrors(
     nameRu: v.nameRu.trim().isEmpty ? _required : null,
@@ -149,8 +152,10 @@ AdminListingErrors validateAdminListing(AdminListingValues v) {
     maxGuests: _wholeNonNegative(v.maxGuests),
     // maxLength={4} counts UTF-16 code units, as Dart's String.length does.
     emoji: v.emoji.length > 4 ? 'Не больше 4 символов' : null,
-    colorFrom: _hexColor.hasMatch(v.colorFrom) ? null : 'Цвет в формате #RRGGBB',
-    colorTo: _hexColor.hasMatch(v.colorTo) ? null : 'Цвет в формате #RRGGBB',
+    // A listing made by an owner's form has no colours: the web's colour
+    // input never blocks a save, so an empty value goes back as it is.
+    colorFrom: _colorError(v.colorFrom),
+    colorTo: _colorError(v.colorTo),
   );
 }
 

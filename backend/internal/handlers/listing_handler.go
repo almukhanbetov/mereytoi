@@ -257,6 +257,9 @@ type myListingOut struct {
 	// owner/managers only (this endpoint is scoped to them). Kept out of the
 	// public listing JSON, which also reaches clients through bookings.
 	ModerationReason string `json:"moderation_reason,omitempty"`
+	// For an administrator only (omitted for owners/managers): whether
+	// visitors see the listing now and why not — see listingVisibility.
+	*listingVisibility
 }
 
 // MyListings — GET /api/users/me/listings (brief section: "Мои
@@ -301,10 +304,17 @@ func (h *ListingHandler) MyListings(c *gin.Context) {
 		}
 	}
 
+	var visibility map[uint]*listingVisibility
+	if role == "admin" {
+		visibility = listingVisibilities(h.DB, listings, time.Now())
+	}
 	counted := attachListingCounts(h.DB, listings)
 	out := make([]myListingOut, 0, len(counted))
 	for _, row := range counted {
-		out = append(out, myListingOut{listingOut: row, Role: roleByListing[row.Listing.ID], ModerationReason: row.Listing.ModerationReason})
+		out = append(out, myListingOut{
+			listingOut: row, Role: roleByListing[row.Listing.ID], ModerationReason: row.Listing.ModerationReason,
+			listingVisibility: visibility[row.Listing.ID],
+		})
 	}
 	c.JSON(http.StatusOK, gin.H{"listings": out})
 }
