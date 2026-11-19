@@ -24,8 +24,18 @@
 	<string>????</string>
 	<key>CFBundleVersion</key>
 	<string>$(FLUTTER_BUILD_NUMBER)</string>
+	<key>GOOGLE_MAPS_API_KEY</key>
+	<string>$(IOS_MAPS_API_KEY)</string>
 	<key>LSRequiresIPhoneOS</key>
 	<true/>
+	<key>NSCameraUsageDescription</key>
+	<string>Камера используется, чтобы сделать фото или видео для профиля и карточек услуг.</string>
+	<key>NSLocationWhenInUseUsageDescription</key>
+	<string>Геопозиция используется, чтобы показать ваше местоположение на карте при выборе адреса мероприятия.</string>
+	<key>NSMicrophoneUsageDescription</key>
+	<string>Микрофон используется при записи видео для карточек услуг.</string>
+	<key>NSPhotoLibraryUsageDescription</key>
+	<string>Доступ к фото и видео нужен, чтобы добавить их в профиль и карточки услуг.</string>
 	<key>UIApplicationSceneManifest</key>
 	<dict>
 		<key>UIApplicationSupportsMultipleScenes</key>
@@ -49,8 +59,6 @@
 	</dict>
 	<key>UIApplicationSupportsIndirectInputEvents</key>
 	<true/>
-	<key>GOOGLE_MAPS_API_KEY</key>
-	<string>$(IOS_MAPS_API_KEY)</string>
 	<key>UILaunchStoryboardName</key>
 	<string>LaunchScreen</string>
 	<key>UIMainStoryboardFile</key>
