@@ -141,6 +141,26 @@ class _AdminListingFormState extends ConsumerState<AdminListingForm> {
     _minGuests = c(_v.minGuests);
     _maxGuests = c(_v.maxGuests);
     _emoji = c(_v.emoji);
+    // Any edit after a save means there's something to save again.
+    for (final ctrl in [
+      _nameRu,
+      _nameKz,
+      _descriptionRu,
+      _descriptionKz,
+      _city,
+      _phone,
+      _price,
+      _rating,
+      _minGuests,
+      _maxGuests,
+      _emoji,
+    ]) {
+      ctrl.addListener(_markDirty);
+    }
+  }
+
+  void _markDirty() {
+    if (_saved && mounted) setState(() => _saved = false);
   }
 
   @override
@@ -768,7 +788,7 @@ class _ColorButton extends StatelessWidget {
                           style: Theme.of(context).textTheme.bodySmall,
                         ),
                         Text(
-                          hex,
+                          hex.isEmpty ? 'не задан' : hex,
                           style: Theme.of(context).textTheme.bodyMedium,
                           overflow: TextOverflow.ellipsis,
                         ),

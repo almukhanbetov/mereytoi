@@ -8,6 +8,7 @@ import '../../widgets/app_card.dart';
 import '../profile/restaurant_admin/restaurant_admin_list_screen.dart';
 import 'admin_audit_screen.dart';
 import 'admin_reports_screen.dart';
+import 'admin_services_screen.dart';
 import 'admin_users_screen.dart';
 import 'admin_widgets.dart';
 
@@ -92,6 +93,13 @@ class _AdminHomeBody extends ConsumerWidget {
               title: 'Пользователи и услугодатели',
               subtitle: 'Поиск, профиль, карточки, санкции',
               onTap: () => _open(context, ref, const AdminUsersScreen()),
+            ),
+            AdminRowCard(
+              key: const ValueKey('admin-nav-services'),
+              leading: const Icon(Icons.design_services_outlined),
+              title: 'Услуги',
+              subtitle: 'Все категории: поиск, добавление, правка',
+              onTap: () => _open(context, ref, const AdminServicesScreen()),
             ),
             AdminRowCard(
               key: const ValueKey('admin-nav-restaurants'),

@@ -109,6 +109,13 @@ class ListingManagementActions {
     return result;
   }
 
+  /// Admin «Удалить» from the services list: DELETE /api/listings/:id (the
+  /// web admin's `deleteListing`), then the lists refresh.
+  Future<void> deleteListing(int id) async {
+    await _ref.read(listingManagementServiceProvider).deleteListing(id);
+    _invalidateListing(id);
+  }
+
   Future<ListingHall> createHall(
     int listingId, {
     required String nameRu,
